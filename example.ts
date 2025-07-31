@@ -9,7 +9,7 @@ async function main() {
   const cm = CanonicalManager({
     packages: ['hl7.fhir.r4.core'],
     workingDir: './tmp/example-fhir',
-    registry: 'https://packages.simplifier.net'
+    registry: 'https://fs.get-ig.org/pkgs'
   });
   
   await cm.init();

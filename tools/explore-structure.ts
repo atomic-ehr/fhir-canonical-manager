@@ -81,7 +81,8 @@ async function main() {
 
   const manager = CanonicalManager({
     packages: ['hl7.fhir.r4.core'],
-    workingDir: './tmp/explore-tool'
+    workingDir: './tmp/explore-tool',
+    registry: 'https://fs.get-ig.org/pkgs'
   });
 
   try {

@@ -203,7 +203,8 @@ async function main() {
   // Initialize the manager
   const manager = CanonicalManager({
     packages: ['hl7.fhir.r4.core'],
-    workingDir: './tmp/search-tool'
+    workingDir: './tmp/search-tool',
+    registry: 'https://fs.get-ig.org/pkgs'
   });
   
   try {

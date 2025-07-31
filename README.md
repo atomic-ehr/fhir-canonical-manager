@@ -31,7 +31,7 @@ import { CanonicalManager } from '@atomic-ehr/fhir-canonical-manager';
 const manager = CanonicalManager({ 
     packages: ["hl7.fhir.r4.core"], 
     workingDir: "tmp/fhir",
-    registry: "https://packages.simplifier.net" // optional
+    registry: "https://fs.get-ig.org/pkgs" // optional, default registry
 });
 
 await manager.init();
@@ -83,7 +83,7 @@ const manager = CanonicalManager({
         "hl7.fhir.us.core@5.0.1"
     ], 
     workingDir: "./fhir-packages",
-    registry: "https://packages.simplifier.net"
+    registry: "https://fs.get-ig.org/pkgs"
 });
 ```
 
@@ -305,18 +305,18 @@ const usCoreProfiles = await manager.search({
 ### Custom Registry Configuration
 
 ```typescript
+// Use the default FHIR package registry
+const manager = CanonicalManager({ 
+    packages: ["hl7.fhir.r4.core"],
+    workingDir: "./fhir-packages",
+    registry: "https://fs.get-ig.org/pkgs"
+});
+
 // Use a custom NPM registry
 const manager = CanonicalManager({ 
     packages: ["hl7.fhir.r4.core"],
     workingDir: "./fhir-packages",
     registry: "https://my-private-registry.com"
-});
-
-// Use default NPM registry
-const manager = CanonicalManager({ 
-    packages: ["hl7.fhir.r4.core"],
-    workingDir: "./fhir-packages"
-    // registry not specified - uses npm default
 });
 ```
 
