@@ -1,5 +1,7 @@
 # @atomic-ehr/fhir-canonical-manager
 
+[![npm version](https://badge.fury.io/js/@atomic-ehr%2Ffhir-canonical-manager.svg)](https://www.npmjs.com/package/@atomic-ehr/fhir-canonical-manager)
+
 A TypeScript package manager for FHIR resources that provides canonical URL resolution. This library helps you discover, resolve, and manage FHIR packages and their resources through a simple, functional API.
 
 ## Features
