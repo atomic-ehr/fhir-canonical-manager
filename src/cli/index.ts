@@ -2,6 +2,7 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
+import { fileURLToPath } from 'url';
 import { CanonicalManager } from '../index';
 import type { Config, IndexEntry, PackageInfo } from '../index';
 
@@ -11,7 +12,19 @@ import { listCommand } from './list';
 import { searchCommand } from './search';
 import { resolveCommand } from './resolve';
 
-const VERSION = '0.0.3';
+// Get version from package.json
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const packageJsonPath = path.join(__dirname, '..', '..', 'package.json');
+
+let VERSION = 'unknown';
+try {
+  const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf-8'));
+  VERSION = packageJson.version;
+} catch (error) {
+  // Fallback version if package.json can't be read
+  VERSION = '0.0.3';
+}
 
 function showHelp() {
   console.log(`
