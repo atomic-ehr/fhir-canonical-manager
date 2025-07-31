@@ -32,5 +32,13 @@
   "peerDependencies": {
     "typescript": "^5"
   },
-  "dependencies": {}
+  "dependencies": {},
+  "fcm": {
+    "packages": [
+      "hl7.fhir.r4.core",
+      "search",
+      "pat"
+    ],
+    "registry": "https://fs.get-ig.org/pkgs"
+  }
 }

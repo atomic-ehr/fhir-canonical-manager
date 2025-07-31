@@ -11,12 +11,23 @@
  * Options:
  *   --url <url>         Search by canonical URL (partial match supported)
  *   --type <type>       Search by resource type
+ *   --resourceType <type> Alias for --type
  *   --kind <kind>       Search by resource kind
  *   --package <name>    Filter by package name
  *   --version <version> Filter by resource version
  *   --format <format>   Output format: json, table, csv (default: table)
  *   --limit <n>         Limit number of results (default: unlimited)
  *   --help              Show this help message
+ * 
+ * Short Aliases:
+ *   -sd                 Short for --resourceType StructureDefinition
+ *   -cs                 Short for --resourceType CodeSystem
+ *   -vs                 Short for --resourceType ValueSet
+ * 
+ * Prefix Search:
+ *   You can search using space-separated terms as positional arguments
+ *   Example: bun tools/search-canonical.ts str def pat
+ *   Matches: http://hl7.org/fhir/StructureDefinition/Patient
  * 
  * Examples:
  *   # Search for all Patient resources
@@ -38,6 +49,7 @@ import type { IndexEntry } from '../src';
 interface SearchOptions {
   url?: string;
   type?: string;
+  resourceType?: string;
   kind?: string;
   package?: string;
   version?: string;
@@ -52,7 +64,25 @@ function parseArgs(): SearchOptions {
     format: 'table'
   };
 
-  for (let i = 0; i < args.length; i++) {
+  // Check if there are positional arguments for prefix search
+  const positionalArgs: string[] = [];
+  let i = 0;
+  
+  // Collect positional arguments (non-option arguments)
+  while (i < args.length) {
+    if (args[i].startsWith('--') || args[i].startsWith('-')) {
+      break;
+    }
+    positionalArgs.push(args[i]);
+    i++;
+  }
+  
+  // If we have positional args, treat them as prefix search terms
+  if (positionalArgs.length > 0) {
+    options.url = positionalArgs.join(' ');
+  }
+
+  for (; i < args.length; i++) {
     const arg = args[i];
     
     switch (arg) {
@@ -60,11 +90,23 @@ function parseArgs(): SearchOptions {
       case '-h':
         options.help = true;
         break;
+      case '-sd':
+        options.resourceType = 'StructureDefinition';
+        break;
+      case '-cs':
+        options.resourceType = 'CodeSystem';
+        break;
+      case '-vs':
+        options.resourceType = 'ValueSet';
+        break;
       case '--url':
         options.url = args[++i];
         break;
       case '--type':
         options.type = args[++i];
+        break;
+      case '--resourceType':
+        options.resourceType = args[++i];
         break;
       case '--kind':
         options.kind = args[++i];
@@ -116,12 +158,27 @@ Usage:
 Options:
   --url <url>         Search by canonical URL (partial match supported)
   --type <type>       Search by resource type
+  --resourceType <type> Alias for --type
   --kind <kind>       Search by resource kind
   --package <name>    Filter by package name
   --version <version> Filter by resource version
   --format <format>   Output format: json, table, csv (default: table)
   --limit <n>         Limit number of results (default: unlimited)
   --help              Show this help message
+
+Short Aliases:
+  -sd                 Short for --resourceType StructureDefinition
+  -cs                 Short for --resourceType CodeSystem
+  -vs                 Short for --resourceType ValueSet
+
+Prefix Search:
+  You can also search by providing space-separated search terms as positional arguments.
+  Each term will be matched as a prefix against URL components.
+  
+  Example: bun tools/search-canonical.ts str def pat
+  This will match URLs like:
+    - http://hl7.org/fhir/StructureDefinition/Patient
+    - http://hl7.org/fhir/StructureDefinition/PatientContact
 
 Examples:
   # Search for all Patient resources
@@ -144,31 +201,9 @@ function formatTable(entries: IndexEntry[]): void {
     return;
   }
   
-  // Calculate column widths
-  const cols = {
-    url: Math.max(30, ...entries.map(e => e.url?.length || 0)),
-    type: Math.max(15, ...entries.map(e => e.type?.length || 0)),
-    kind: Math.max(10, ...entries.map(e => e.kind?.length || 0)),
-    package: Math.max(20, ...entries.map(e => e.package?.name.length || 0))
-  };
-  
-  // Header
-  console.log(
-    'URL'.padEnd(cols.url) + ' | ' +
-    'Type'.padEnd(cols.type) + ' | ' +
-    'Kind'.padEnd(cols.kind) + ' | ' +
-    'Package'.padEnd(cols.package)
-  );
-  console.log('-'.repeat(cols.url + cols.type + cols.kind + cols.package + 9));
-  
-  // Rows
+  // Single line format
   entries.forEach(entry => {
-    console.log(
-      (entry.url || '').padEnd(cols.url) + ' | ' +
-      (entry.type || '').padEnd(cols.type) + ' | ' +
-      (entry.kind || '').padEnd(cols.kind) + ' | ' +
-      (entry.package?.name || '').padEnd(cols.package)
-    );
+    console.log(entry.url || '');
   });
   
   console.log(`\nTotal: ${entries.length} results`);
@@ -213,7 +248,7 @@ async function main() {
     // Build search parameters
     const searchParams: any = {};
     
-    if (options.type) searchParams.type = options.type;
+    if (options.type || options.resourceType) searchParams.type = options.type || options.resourceType;
     if (options.kind) searchParams.kind = options.kind;
     if (options.version) searchParams.version = options.version;
     
@@ -236,10 +271,21 @@ async function main() {
     
     // Filter by URL if provided (partial match)
     if (options.url) {
-      const urlLower = options.url.toLowerCase();
-      results = results.filter(entry => 
-        entry.url?.toLowerCase().includes(urlLower)
-      );
+      // Split the search term into parts for prefix matching
+      const searchTerms = options.url.toLowerCase().split(/\s+/).filter(t => t.length > 0);
+      
+      results = results.filter(entry => {
+        if (!entry.url) return false;
+        const urlLower = entry.url.toLowerCase();
+        
+        // Check if all search terms match as prefixes in the URL
+        return searchTerms.every(term => {
+          // Split the URL into parts (by /, -, _, .)
+          const urlParts = urlLower.split(/[\/\-_\.]+/);
+          // Check if any part starts with the search term
+          return urlParts.some(part => part.startsWith(term));
+        });
+      });
     }
     
     // Apply limit if specified

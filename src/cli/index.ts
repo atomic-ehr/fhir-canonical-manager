@@ -11,7 +11,7 @@ import { listCommand } from './list';
 import { searchCommand } from './search';
 import { resolveCommand } from './resolve';
 
-const VERSION = '0.0.1';
+const VERSION = '0.0.2';
 
 function showHelp() {
   console.log(`
@@ -87,6 +87,29 @@ export function parseArgs(args: string[]): { positional: string[], options: Reco
         i++;
       } else {
         options[key] = true;
+      }
+    } else if (arg && arg.startsWith('-')) {
+      // Handle short aliases
+      switch (arg) {
+        case '-sd':
+          options.resourceType = 'StructureDefinition';
+          break;
+        case '-cs':
+          options.resourceType = 'CodeSystem';
+          break;
+        case '-vs':
+          options.resourceType = 'ValueSet';
+          break;
+        default:
+          // Handle other single-letter flags
+          const key = arg.slice(1);
+          const nextArg = args[i + 1];
+          if (nextArg && !nextArg.startsWith('-')) {
+            options[key] = nextArg;
+            i++;
+          } else {
+            options[key] = true;
+          }
       }
     } else if (arg) {
       positional.push(arg);

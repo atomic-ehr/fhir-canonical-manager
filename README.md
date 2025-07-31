@@ -100,20 +100,57 @@ fcm list --json
 ```
 
 #### `fcm search`
-Search for resources by canonical URL pattern.
+Search for resources with advanced filtering and prefix matching capabilities.
 
+**Basic Usage:**
 ```bash
-# Search across all packages
+# Search by URL pattern
 fcm search Patient
 
-# Search with type filter
-fcm search observation --type ValueSet
+# Prefix search - space-separated terms match URL components
+fcm search str def pat  # Matches: StructureDefinition/Patient
+```
 
-# Search in specific package
+**Resource Type Shortcuts:**
+```bash
+fcm search -sd          # All StructureDefinitions
+fcm search -cs          # All CodeSystems
+fcm search -vs          # All ValueSets
+fcm search -sd patient  # Patient-related StructureDefinitions
+```
+
+**Advanced Filtering:**
+```bash
+# Filter by type (-t)
+fcm search -t Extension              # All Extensions
+fcm search -t Patient                # Resources with type="Patient"
+fcm search -sd -t Patient            # Patient StructureDefinition specifically
+
+# Filter by kind (-k)
+fcm search -k resource               # All resources (Patient, Observation, etc.)
+fcm search -k complex-type           # All complex types (HumanName, Address, etc.)
+fcm search -k primitive-type         # All primitive types (string, boolean, etc.)
+
+# Combine filters
+fcm search -t Extension -k complex-type  # All Extension complex types
+fcm search -sd pat -t Extension          # Patient-related Extensions
+
+# Filter by package
 fcm search allergy --package hl7.fhir.us.core
 
 # Output as JSON
 fcm search Patient --json
+```
+
+**Output Format:**
+By default, results are displayed one per line in the format:
+```
+url, {"resourceType":"...", "kind":"...", "type":"..."}
+```
+
+Example output:
+```
+http://hl7.org/fhir/StructureDefinition/Patient, {"resourceType":"StructureDefinition","kind":"resource","type":"Patient"}
 ```
 
 #### `fcm resolve`
@@ -323,6 +360,79 @@ Cleans up resources and clears cache from memory (disk cache persists).
 ```typescript
 await manager.destroy();
 ```
+
+## CLI Reference
+
+The `fcm` command-line interface provides comprehensive FHIR resource management capabilities.
+
+### Command Overview
+
+| Command | Description |
+|---------|-------------|
+| `fcm init [packages...]` | Initialize FHIR packages in current directory |
+| `fcm list [package]` | List packages or resources |
+| `fcm search [terms...]` | Search resources with advanced filtering |
+| `fcm resolve <url>` | Get a resource by canonical URL |
+
+### Global Options
+
+- `--help`, `-h` - Show help information
+- `--version`, `-v` - Show version number
+- `--json` - Output results as JSON (available for list, search, resolve)
+
+### Search Options
+
+| Option | Description | Example |
+|--------|-------------|---------|
+| `-sd` | Filter to StructureDefinitions | `fcm search -sd` |
+| `-cs` | Filter to CodeSystems | `fcm search -cs` |
+| `-vs` | Filter to ValueSets | `fcm search -vs` |
+| `-t <type>` | Filter by type field | `fcm search -t Extension` |
+| `-k <kind>` | Filter by kind field | `fcm search -k resource` |
+| `--type <resourceType>` | Filter by resourceType | `fcm search --type ValueSet` |
+| `--package <name>` | Filter by package | `fcm search --package hl7.fhir.us.core` |
+
+### Prefix Search
+
+The search command supports intelligent prefix matching. When you provide multiple space-separated terms, each term is matched as a prefix against URL components:
+
+```bash
+# Search for "str" AND "def" AND "pat" as prefixes
+fcm search str def pat
+
+# This matches URLs like:
+# - http://hl7.org/fhir/StructureDefinition/Patient
+# - http://hl7.org/fhir/StructureDefinition/PatientContact
+```
+
+### Filter Combinations
+
+Filters can be combined for precise searching:
+
+```bash
+# Find all Extension complex types
+fcm search -t Extension -k complex-type
+
+# Find Patient-related Extensions
+fcm search -sd pat -t Extension
+
+# Find all primitive types in US Core
+fcm search -k primitive-type --package hl7.fhir.us.core
+```
+
+### Output Formats
+
+**Default (Single-line):**
+```
+http://hl7.org/fhir/StructureDefinition/Patient, {"resourceType":"StructureDefinition","kind":"resource","type":"Patient"}
+```
+
+**JSON Format:**
+```bash
+fcm search Patient --json
+```
+
+Returns full IndexEntry objects as JSON array.
 
 ## Directory Structure
 

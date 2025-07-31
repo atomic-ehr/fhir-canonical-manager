@@ -44,8 +44,15 @@ export function $(strings: TemplateStringsArray, ...values: any[]) {
   const execute = async (options: { quiet?: boolean } = {}) => {
     // If Bun.$ is available, use it
     if (typeof Bun !== 'undefined' && (Bun as any).$) {
-      const result = await (Bun as any).$(strings, ...values);
-      return options.quiet ? result.quiet() : result;
+      const bunShell = (Bun as any).$;
+      // Apply quiet option before executing if requested
+      if (options.quiet) {
+        const result = await bunShell(strings, ...values).quiet();
+        return result;
+      } else {
+        const result = await bunShell(strings, ...values);
+        return result;
+      }
     }
 
     // Node.js fallback

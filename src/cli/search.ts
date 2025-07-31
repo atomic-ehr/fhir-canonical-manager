@@ -3,9 +3,11 @@ import { CanonicalManager } from '../index';
 
 export async function searchCommand(args: string[]): Promise<void> {
   const { positional, options } = parseArgs(args);
-  const searchPattern = positional[0] || '';
+  const searchTerms = positional; // Now support multiple search terms
   const isJson = options.json === true;
-  const typeFilter = options.type as string | undefined;
+  const resourceTypeFilter = (options.type || options.resourceType) as string | undefined;
+  const typeFilter = options.t as string | undefined;
+  const kindFilter = options.k as string | undefined;
   const packageFilter = options.package as string | undefined;
 
   // Load config from package.json
@@ -24,8 +26,9 @@ export async function searchCommand(args: string[]): Promise<void> {
     // Build search criteria
     const searchCriteria: any = {};
     
-    if (typeFilter) {
-      searchCriteria.resourceType = typeFilter;
+    // Handle kind filter through search criteria
+    if (kindFilter) {
+      searchCriteria.kind = kindFilter;
     }
 
     if (packageFilter) {
@@ -41,12 +44,33 @@ export async function searchCommand(args: string[]): Promise<void> {
     // Search for resources
     let results = await manager.searchEntries(searchCriteria);
 
+    // Filter by resourceType if specified
+    if (resourceTypeFilter) {
+      results = results.filter(entry => entry.resourceType === resourceTypeFilter);
+    }
+
+    // Filter by type if specified (e.g., Extension, Patient, Observation)
+    if (typeFilter) {
+      results = results.filter(entry => entry.type === typeFilter);
+    }
+
     // Filter by URL pattern if provided
-    if (searchPattern) {
-      const pattern = searchPattern.toLowerCase();
-      results = results.filter(entry => 
-        entry.url?.toLowerCase().includes(pattern)
-      );
+    if (searchTerms.length > 0) {
+      // Convert search terms to lowercase for case-insensitive matching
+      const terms = searchTerms.map(t => t.toLowerCase());
+      
+      results = results.filter(entry => {
+        if (!entry.url) return false;
+        const urlLower = entry.url.toLowerCase();
+        
+        // Check if all search terms match as prefixes in the URL
+        return terms.every(term => {
+          // Split the URL into parts (by /, -, _, .)
+          const urlParts = urlLower.split(/[\/\-_\.]+/);
+          // Check if any part starts with the search term
+          return urlParts.some(part => part.startsWith(term));
+        });
+      });
     }
 
     if (isJson) {
@@ -55,11 +79,16 @@ export async function searchCommand(args: string[]): Promise<void> {
       if (results.length === 0) {
         console.log("No resources found");
       } else {
-        console.log(`Found ${results.length} resource${results.length === 1 ? '' : 's'}${searchPattern ? ` matching "${searchPattern}"` : ''}:`);
+        const searchInfo = searchTerms.length > 0 ? ` matching "${searchTerms.join(' ')}"` : '';
+        console.log(`Found ${results.length} resource${results.length === 1 ? '' : 's'}${searchInfo}:`);
         
         results.forEach(resource => {
-          console.log(`  ${resource.url}`);
-          console.log(`    Type: ${resource.resourceType || resource.type}, Package: ${resource.package?.name}`);
+          const info = {
+            resourceType: resource.resourceType,
+            kind: resource.kind,
+            type: resource.type
+          };
+          console.log(`${resource.url}, ${JSON.stringify(info)}`);
         });
       }
     }

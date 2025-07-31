@@ -309,9 +309,9 @@ const installPackages = async (packages: string[], workingDir: string, registry?
   for (const pkg of packages) {
     try {
       if (registry) {
-        await $`cd ${workingDir} && npm add ${pkg} --registry ${registry}`;
+        await Bun.$`cd ${workingDir} && npm add ${pkg} --registry ${registry}`;
       } else {
-        await $`cd ${workingDir} && npm add ${pkg}`;
+        await Bun.$`cd ${workingDir} && npm add ${pkg}`;
       }
     } catch (err) {
       console.error(`Failed to install package ${pkg}:`, err);
