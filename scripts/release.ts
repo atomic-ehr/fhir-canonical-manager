@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 
-import { $ } from "bun";
+import { $ } from "../src/compat";
 import * as fs from "fs";
 import * as path from "path";
 

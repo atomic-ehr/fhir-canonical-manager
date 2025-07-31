@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { $ } from 'bun';
+import { $ } from '../compat';
 import { parseArgs, loadPackageJson, savePackageJson } from './index';
 import { CanonicalManager } from '../index';
 

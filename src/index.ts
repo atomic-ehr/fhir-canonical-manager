@@ -6,7 +6,7 @@
 import * as path from 'path';
 import * as fs from 'fs/promises';
 import { createHash } from 'crypto';
-import { $ } from 'bun';
+import { $, ShellError } from './compat';
 
 // Types
 export interface Reference {
