@@ -11,7 +11,7 @@ import { listCommand } from './list';
 import { searchCommand } from './search';
 import { resolveCommand } from './resolve';
 
-const VERSION = '0.0.2';
+const VERSION = '0.0.3';
 
 function showHelp() {
   console.log(`
