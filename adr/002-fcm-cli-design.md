@@ -19,7 +19,7 @@ We will create a minimalistic CLI tool `fcm` that focuses on essential FHIR pack
 
 - **Minimal Commands**: Only essential operations
 - **Simple Output**: Default to human-readable, with JSON option
-- **No Configuration Files**: All options via command line
+- **Standard Configuration**: Use package.json for project config
 - **No Interactive Mode**: Unix philosophy - do one thing well
 - **Predictable Behavior**: No magic, no hidden state
 
@@ -50,13 +50,29 @@ fcm init hl7.fhir.r4.core hl7.fhir.us.core@5.0.1
 
 # With custom registry
 fcm init hl7.fhir.r4.core --registry https://fs.get-ig.org/pkgs
+
+# Initialize from existing package.json
+fcm init
 ```
 
 What it does:
-- Creates `node_modules` if needed
+- Creates/updates `package.json` with fcm configuration
 - Runs `npm install` for specified packages
 - Creates `.fcm/cache` directory
 - Shows installed packages summary
+
+Configuration in package.json:
+```json
+{
+  "name": "my-fhir-project",
+  "fcm": {
+    "packages": [
+      "hl7.fhir.r4.core",
+      "hl7.fhir.us.core@5.0.1"
+    ],
+    "registry": "https://fs.get-ig.org/pkgs"
+  }
+}
 
 #### `fcm list`
 List installed packages or resources.
@@ -133,11 +149,11 @@ All commands support:
 
 ### 5. Implementation Details
 
-#### No State Management
-- No configuration files
-- No user preferences
-- Each command is independent
-- Working directory is always current directory
+#### Configuration Management
+- Configuration stored in `package.json` under `fcm` key
+- Commands read config from current directory's package.json
+- Command-line options override configuration
+- No global configuration or user preferences
 
 #### Simple Output Formats
 - Default: Human-readable text
@@ -159,16 +175,48 @@ $ fcm search Patient && echo "Found" || echo "Not found"
 - No custom package management
 - No version resolution beyond npm
 
-### 6. Usage Examples
+### 6. Configuration in package.json
+
+The CLI reads configuration from the `fcm` key in package.json:
+
+```json
+{
+  "name": "my-fhir-project",
+  "version": "1.0.0",
+  "fcm": {
+    "packages": [
+      "hl7.fhir.r4.core",
+      "hl7.fhir.us.core@5.0.1"
+    ],
+    "registry": "https://fs.get-ig.org/pkgs"
+  },
+  "dependencies": {
+    "hl7.fhir.r4.core": "^4.0.1",
+    "hl7.fhir.us.core": "^5.0.1"
+  }
+}
+```
+
+Configuration behavior:
+- `fcm init` creates/updates the `fcm` section
+- `fcm init` also adds packages to `dependencies`
+- All commands read from `fcm` section if present
+- Command-line arguments override config values
+- Missing `fcm` section is not an error
+
+### 7. Usage Examples
 
 #### Example 1: Quick Setup
 ```bash
 # Initialize a project
 mkdir my-fhir-project && cd my-fhir-project
-fcm init hl7.fhir.r4.core
+fcm init hl7.fhir.r4.core hl7.fhir.us.core@5.0.1
 
 # Check what's installed
 fcm list
+
+# Add more packages later
+fcm init hl7.fhir.extensions
 ```
 
 #### Example 2: Find and Use Resources
@@ -210,7 +258,7 @@ done
 To keep the tool simple and focused:
 
 - ❌ Interactive UI or explorer
-- ❌ Configuration files
+- ❌ Separate configuration files (uses package.json)
 - ❌ Package dependency resolution
 - ❌ Resource validation
 - ❌ Diff/comparison features

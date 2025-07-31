@@ -103,7 +103,7 @@ interface PackageJson {
   dependencies?: Record<string, string>;
 }
 
-interface PackageInfo {
+export interface PackageInfo {
   id: PackageId;
   path: string;
   canonical?: string;
