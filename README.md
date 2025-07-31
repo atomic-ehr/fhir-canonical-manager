@@ -44,7 +44,7 @@ console.log(resource.url); // http://hl7.org/fhir/StructureDefinition/Patient
 
 ## CLI Usage
 
-The package includes a command-line interface (`fcm`) for managing FHIR packages without writing code.
+The package includes a powerful command-line interface (`fcm`) for managing FHIR packages and searching resources without writing code.
 
 ### Installation
 
@@ -54,6 +54,23 @@ npm install -g @atomic-ehr/fhir-canonical-manager
 
 # Or use with npx
 npx @atomic-ehr/fhir-canonical-manager
+
+# Or run directly with bunx
+bunx @atomic-ehr/fhir-canonical-manager
+```
+
+### Getting Started
+
+```bash
+# Create a new project and initialize with FHIR packages
+mkdir my-fhir-project && cd my-fhir-project
+fcm init hl7.fhir.r4.core
+
+# Search for resources
+fcm search Patient
+
+# Get a specific resource
+fcm resolve http://hl7.org/fhir/StructureDefinition/Patient
 ```
 
 ### Commands
@@ -183,6 +200,26 @@ fcm resolve http://hl7.org/fhir/StructureDefinition/Observation > observation.js
 # List all ValueSets in JSON format
 fcm search --type ValueSet --json > valuesets.json
 ```
+
+### Quick Reference
+
+| Task | Command |
+|------|---------|
+| Initialize project | `fcm init hl7.fhir.r4.core` |
+| List packages | `fcm list` |
+| List package resources | `fcm list hl7.fhir.r4.core` |
+| Search all resources | `fcm search` |
+| Search by name | `fcm search Patient` |
+| Search with prefix | `fcm search str def pat` |
+| All StructureDefinitions | `fcm search -sd` |
+| All CodeSystems | `fcm search -cs` |
+| All ValueSets | `fcm search -vs` |
+| Filter by type | `fcm search -t Extension` |
+| Filter by kind | `fcm search -k resource` |
+| Combine filters | `fcm search -sd -t Patient` |
+| Get resource | `fcm resolve <url>` |
+| Export as JSON | `fcm search --json` |
+| Help | `fcm --help` |
 
 ## Core Concepts
 
@@ -665,27 +702,6 @@ interface SourceContext {
 }
 ```
 
-## CLI Tool
-
-The package includes a command-line search tool:
-
-```bash
-# Search by URL pattern
-bun tools/search-canonical.ts --url Patient --limit 10
-
-# Find all StructureDefinitions
-bun tools/search-canonical.ts --type StructureDefinition
-
-# Search by kind
-bun tools/search-canonical.ts --kind resource --limit 20
-
-# Export as JSON
-bun tools/search-canonical.ts --type ValueSet --format json > valuesets.json
-
-# Filter by package
-bun tools/search-canonical.ts --package hl7.fhir.r4.core --type CodeSystem
-```
-
 ## Development
 
 To install dependencies:
@@ -711,11 +727,19 @@ bun run example.ts
 ```
 fhir-canonical-manager/
 ├── src/
-│   └── index.ts          # All implementation code
+│   ├── index.ts          # Core library implementation
+│   ├── compat.ts         # Bun/Node.js compatibility layer
+│   └── cli/              # CLI implementation
+│       ├── index.ts      # CLI entry point
+│       ├── init.ts       # Init command
+│       ├── list.ts       # List command
+│       ├── search.ts     # Search command
+│       └── resolve.ts    # Resolve command
 ├── test/
-│   └── index.test.ts     # All tests
-├── tools/
-│   └── search-canonical.ts # CLI search tool
+│   ├── index.test.ts     # Core library tests
+│   ├── cli.test.ts       # CLI unit tests
+│   └── cli-integration.test.ts # CLI integration tests
+├── dist/                 # Compiled output (generated)
 ├── example.ts            # Usage example
 ├── package.json
 ├── tsconfig.json
