@@ -5,16 +5,25 @@
 import { test, expect, describe, beforeAll, afterAll } from "bun:test";
 import { CanonicalManager } from "../src";
 import type { IndexEntry, Reference, Resource } from "../src";
+import * as fs from 'fs/promises';
+import * as path from 'path';
 
 describe("CanonicalManager", () => {
   let manager: CanonicalManager;
+  const testWorkingDir = "./tmp/test-fhir";
 
   beforeAll(async () => {
-    manager = CanonicalManager({
-      packagePaths: ["./node_modules"]
+    // Clean up test directory
+    await fs.rm(testWorkingDir, { recursive: true, force: true }).catch(() => {});
+
+    manager = CanonicalManager({ 
+      packages: ["hl7.fhir.r4.core"],
+      workingDir: testWorkingDir,
+      registry: "https://packages.simplifier.net"
     });
     await manager.init();
-  });
+  }, 60000); // 60 second timeout for package installation
+
 
   afterAll(async () => {
     await manager.destroy();
@@ -22,6 +31,14 @@ describe("CanonicalManager", () => {
 
   test("should initialize successfully", () => {
     expect(manager).toBeDefined();
+  });
+
+  test("should create working directory and cache", async () => {
+    const packageJsonExists = await fs.access(path.join(testWorkingDir, "package.json")).then(() => true).catch(() => false);
+    expect(packageJsonExists).toBe(true);
+    
+    const cacheExists = await fs.access(path.join(testWorkingDir, ".fcm", "cache")).then(() => true).catch(() => false);
+    expect(cacheExists).toBe(true);
   });
 
   test("should list packages", async () => {
@@ -35,71 +52,60 @@ describe("CanonicalManager", () => {
   });
 
   test("should throw when not initialized", async () => {
-    const uninitializedManager = CanonicalManager();
+    const uninitializedManager = CanonicalManager({
+      packages: ["hl7.fhir.r4.core"],
+      workingDir: "./tmp/uninitialized"
+    });
     await expect(uninitializedManager.packages()).rejects.toThrow(
       "CanonicalManager not initialized"
     );
   });
 
-  test("should resolve canonical URL to IndexEntry", async () => {
-    // This test will only work if there are FHIR packages installed
-    // Skip if no packages are available
-    const packages = await manager.packages();
-    if (packages.length === 0) {
-      console.log("No FHIR packages found, skipping resolve test");
-      return;
-    }
+  test("should resolve canonical URL to IndexEntry using resolveEntry", async () => {
+    const entry = await manager.resolveEntry(
+      "http://hl7.org/fhir/StructureDefinition/Patient"
+    );
 
-    // Try to resolve a common FHIR resource
-    try {
-      const entry = await manager.resolve(
-        "http://hl7.org/fhir/StructureDefinition/Patient"
-      );
-      
-      expect(entry).toBeDefined();
-      expect(entry.id).toBeTruthy();
-      expect(entry.resourceType).toBe("StructureDefinition");
-      expect(entry.indexVersion).toBeGreaterThanOrEqual(1);
-      expect(entry.url).toBe("http://hl7.org/fhir/StructureDefinition/Patient");
-      expect(entry.package).toBeDefined();
-      expect(entry.package?.name).toBeTruthy();
-      expect(entry.package?.version).toBeTruthy();
-    } catch (e) {
-      // Resource might not exist in test environment
-      console.log("Patient StructureDefinition not found, skipping test");
-    }
+    expect(entry).toBeDefined();
+    expect(entry.id).toBeTruthy();
+    expect(entry.resourceType).toBe("StructureDefinition");
+    expect(entry.indexVersion).toBeGreaterThanOrEqual(1);
+    expect(entry.url).toBe("http://hl7.org/fhir/StructureDefinition/Patient");
+    expect(entry.package).toBeDefined();
+    expect(entry.package?.name).toBeTruthy();
+    expect(entry.package?.version).toBeTruthy();
+  });
+
+  test("should resolve canonical URL directly to Resource using resolve", async () => {
+    const resource = await manager.resolve(
+      "http://hl7.org/fhir/StructureDefinition/Patient"
+    );
+    
+    expect(resource).toBeDefined();
+    expect(resource.resourceType).toBe("StructureDefinition");
+    expect(resource.url).toBe("http://hl7.org/fhir/StructureDefinition/Patient");
   });
 
   test("should throw when canonical URL not found", async () => {
     await expect(
-      manager.resolve("http://example.com/non-existent-resource")
+      manager.resolveEntry("http://example.com/non-existent-resource")
     ).rejects.toThrow("Cannot resolve canonical URL");
   });
 
   test("should read resource by reference", async () => {
-    const packages = await manager.packages();
-    if (packages.length === 0) {
-      console.log("No FHIR packages found, skipping read test");
-      return;
-    }
-
-    try {
-      // First resolve to get a reference
-      const entry = await manager.resolve(
-        "http://hl7.org/fhir/StructureDefinition/Patient"
-      );
-      
-      // Then read the resource
-      const resource = await manager.read(entry);
-      
-      expect(resource).toBeDefined();
-      expect(resource.id).toBe(entry.id);
-      expect(resource.resourceType).toBe(entry.resourceType);
-      // Should have FHIR resource properties
-      expect(resource.url).toBeTruthy();
-    } catch (e) {
-      console.log("Patient resource not found, skipping test");
-    }
+    // First resolve to get a reference
+    const entry = await manager.resolveEntry(
+      "http://hl7.org/fhir/StructureDefinition/Patient"
+    );
+    
+    // Then read the resource
+    const resource = await manager.read(entry);
+    
+    expect(resource).toBeDefined();
+    expect(resource.id).toBe(entry.id);
+    expect(resource.resourceType).toBe(entry.resourceType);
+    // Should have FHIR resource properties
+    expect(resource.url).toBeTruthy();
   });
 
   test("should throw when reference is invalid", async () => {
@@ -113,15 +119,9 @@ describe("CanonicalManager", () => {
     );
   });
 
-  test("should search for resources", async () => {
-    const packages = await manager.packages();
-    if (packages.length === 0) {
-      console.log("No FHIR packages found, skipping search test");
-      return;
-    }
-
+  test("should search for resources using searchEntries", async () => {
     // Search by resource type
-    const results = await manager.search({
+    const results = await manager.searchEntries({
       type: "StructureDefinition"
     });
 
@@ -129,22 +129,32 @@ describe("CanonicalManager", () => {
     
     if (results.length > 0) {
       const entry = results[0];
-      expect(entry.id).toBeTruthy();
-      expect(entry.resourceType).toBeTruthy();
-      expect(entry.indexVersion).toBeGreaterThanOrEqual(1);
+      expect(entry?.id).toBeTruthy();
+      expect(entry?.resourceType).toBeTruthy();
+      expect(entry?.indexVersion).toBeGreaterThanOrEqual(1);
+    }
+  });
+
+  test("should search and return resources directly using search", async () => {
+    // Search by resource type
+    const resources = await manager.search({
+      type: "StructureDefinition"
+    });
+
+    expect(Array.isArray(resources)).toBe(true);
+    
+    if (resources.length > 0) {
+      const resource = resources[0];
+      expect(resource?.resourceType).toBe("StructureDefinition");
+      expect(resource?.url).toBeTruthy();
     }
   });
 
   test("should filter search by package", async () => {
     const packages = await manager.packages();
-    if (packages.length === 0) {
-      console.log("No FHIR packages found, skipping filtered search test");
-      return;
-    }
-
     const firstPackage = packages[0];
     
-    const results = await manager.search({
+    const results = await manager.searchEntries({
       package: firstPackage
     });
 
@@ -159,30 +169,37 @@ describe("CanonicalManager", () => {
 
   test("should handle package-specific resolution", async () => {
     const packages = await manager.packages();
-    if (packages.length === 0) {
-      console.log("No FHIR packages found, skipping package-specific test");
-      return;
-    }
-
+    
     // Find any resource URL from the first package
-    const results = await manager.search({ package: packages[0] });
-    if (results.length === 0) {
-      console.log("No resources found in first package");
-      return;
-    }
-
-    const firstResource = results[0];
-    if (!firstResource.url) {
-      console.log("First resource has no URL");
-      return;
-    }
-
+    const results = await manager.searchEntries({ package: packages[0] });
+    
+    const firstResource = results.find(r => r.url);
+    
     // Resolve with package constraint (without version since it might not match)
-    const entry = await manager.resolve(firstResource.url, {
+    const entry = await manager.resolveEntry(firstResource!.url!, {
       package: packages[0].name
     });
 
     expect(entry.package?.name).toBe(packages[0].name);
     expect(entry.package?.version).toBe(packages[0].version);
+  });
+
+  test("should use cached data on second init", async () => {
+    // Create a new manager with same working directory
+    const manager2 = CanonicalManager({ 
+      packages: ["hl7.fhir.r4.core"],
+      workingDir: testWorkingDir
+    });
+    
+    // Should load from cache
+    await manager2.init();
+    
+    // Should have same packages
+    const packages1 = await manager.packages();
+    const packages2 = await manager2.packages();
+    
+    expect(packages2.length).toBe(packages1.length);
+    
+    await manager2.destroy();
   });
 });

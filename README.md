@@ -4,12 +4,13 @@ A TypeScript package manager for FHIR resources that provides canonical URL reso
 
 ## Features
 
-- 🔍 **Package Discovery** - Automatically scans and indexes FHIR packages from node_modules
-- 🎯 **Canonical URL Resolution** - Resolve canonical URLs to specific resource versions
-- 📦 **Package Management** - List and filter resources by package
-- 🔗 **Stable References** - Deterministic hash-based reference IDs
-- 🚀 **Functional Design** - Clean, functional programming style
-- 🎭 **Type-Safe** - Full TypeScript support with comprehensive types
+- 🚀 **Automatic Package Management** - Automatically installs and manages FHIR packages
+- 💾 **Persistent Caching** - Caches package metadata to disk for fast subsequent loads
+- 🔍 **Canonical URL Resolution** - Resolve canonical URLs to specific resource versions
+- 📦 **Multiple Package Support** - Work with multiple FHIR packages simultaneously
+- 🎯 **Flexible Search** - Search resources by type, kind, URL, version, or package
+- ⚡ **Performance Optimized** - In-memory cache with disk persistence
+- 🛠️ **TypeScript First** - Full TypeScript support with comprehensive types
 
 ## Installation
 
@@ -24,191 +25,167 @@ npm install @atomic-ehr/fhir-canonical-manager
 ```typescript
 import { CanonicalManager } from '@atomic-ehr/fhir-canonical-manager';
 
-// Create a manager instance
-const manager = CanonicalManager({
-  packagePaths: ['./node_modules'] // Optional, this is the default
+// Create and initialize the manager
+const manager = CanonicalManager({ 
+    packages: ["hl7.fhir.r4.core"], 
+    workingDir: "tmp/fhir",
+    registry: "https://packages.simplifier.net" // optional
 });
 
-// Initialize (scans for FHIR packages)
 await manager.init();
 
-// Resolve a canonical URL
-const patient = await manager.resolve(
-  'http://hl7.org/fhir/StructureDefinition/Patient'
-);
-
-// Read the full resource
-const resource = await manager.read(patient);
+// Resolve and read a resource
+const resource = await manager.resolve('http://hl7.org/fhir/StructureDefinition/Patient');
 console.log(resource.url); // http://hl7.org/fhir/StructureDefinition/Patient
-
-// Clean up when done
-await manager.destroy();
 ```
 
-## Core Interfaces
+## Core Concepts
 
-```typescript
-interface Reference {
-    id: string; // opaque id - implementation driven
-    resourceType: string;
-}
+### Package Management
 
-interface PackageId {
-    name: string;
-    version: string;
-}
+The manager automatically handles FHIR package installation:
 
-interface IndexEntry extends Reference {
-    indexVersion: number;
-    kind?: string;
-    url?: string;
-    type?: string;
-    version?: string;
-    package?: PackageId;
-}
+1. Creates a working directory if it doesn't exist
+2. Initializes a `package.json` for dependency management
+3. Installs specified FHIR packages using npm
+4. Scans packages for `.index.json` files
+5. Builds an in-memory index of all resources
+6. Persists cache to `.fcm/cache/index.json`
 
-interface Resource extends Reference {
-    url?: string;
-    version?: string;
-    [key: string]: any;
-}
+### Resource Resolution
 
-interface SourceContext {
-    id?: string;
-    package?: PackageId;
-    url?: string;
-    path?: string;
-}
-
-interface CanonicalManager {
-    init(): Promise<void>;
-    destroy(): Promise<void>;
-    packages(): Promise<PackageId[]>;
-    resolve(canonicalUrl: string, options?: {
-        package?: string, 
-        version?: string, 
-        sourceContext?: SourceContext
-    }): Promise<IndexEntry>;
-    read(reference: Reference): Promise<Resource>;
-    search(params: {
-        kind?: string, 
-        url?: string, 
-        type?: string, 
-        version?: string, 
-        package?: PackageId
-    }): Promise<IndexEntry[]>;
-}
-```
+Resources are identified by:
+- **Canonical URL**: The unique identifier for a FHIR resource
+- **Reference ID**: An opaque, deterministic hash based on package and file path
+- **Package Context**: Optional package name/version constraints
 
 ## API Reference
 
-### `CanonicalManager(config?: Config)`
+### `CanonicalManager(config)`
 
 Creates a new instance of the canonical manager.
 
 ```typescript
 interface Config {
-  packagePaths?: string[]; // Paths to scan for FHIR packages (default: ['./node_modules'])
+  packages: string[];      // FHIR packages to install (e.g., ["hl7.fhir.r4.core"])
+  workingDir: string;      // Directory for packages and cache
+  registry?: string;       // NPM registry URL (optional)
 }
+```
+
+Example:
+```typescript
+const manager = CanonicalManager({ 
+    packages: [
+        "hl7.fhir.r4.core",
+        "hl7.fhir.us.core@5.0.1"
+    ], 
+    workingDir: "./fhir-packages",
+    registry: "https://packages.simplifier.net"
+});
 ```
 
 ### `init(): Promise<void>`
 
-Initializes the manager by scanning configured paths for FHIR packages. Must be called before using other methods.
+Initializes the manager. This method:
+- Ensures working directory exists
+- Creates `.fcm/cache` directory
+- Checks for existing cache
+- If no cache: installs packages and builds index
+- If cache exists: loads from disk (fast startup)
 
 ```typescript
 await manager.init();
 ```
 
-### `destroy(): Promise<void>`
+### `resolve(url, options?): Promise<Resource>`
 
-Cleans up resources and clears all caches.
-
-```typescript
-await manager.destroy();
-```
-
-### `packages(): Promise<PackageId[]>`
-
-Returns a list of all discovered FHIR packages.
+Resolves a canonical URL directly to a FHIR resource.
 
 ```typescript
-const packages = await manager.packages();
-// [
-//   { name: '@hl7/fhir-r4-core', version: '4.0.1' },
-//   { name: '@hl7/us-core', version: '3.1.0' }
-// ]
-```
-
-### `resolve(url: string, options?): Promise<IndexEntry>`
-
-Resolves a canonical URL to an index entry.
-
-```typescript
-// Basic resolution
-const entry = await manager.resolve(
-  'http://hl7.org/fhir/StructureDefinition/Patient'
+// Simple resolution
+const patient = await manager.resolve(
+    'http://hl7.org/fhir/StructureDefinition/Patient'
 );
 
 // With package constraint
-const entry = await manager.resolve(
-  'http://hl7.org/fhir/StructureDefinition/Patient',
-  { package: '@hl7/fhir-r4-core' }
+const patient = await manager.resolve(
+    'http://hl7.org/fhir/StructureDefinition/Patient',
+    { package: 'hl7.fhir.r4.core' }
 );
 
 // With version constraint
-const entry = await manager.resolve(
-  'http://hl7.org/fhir/StructureDefinition/Patient',
-  { version: '4.0.1' }
+const patient = await manager.resolve(
+    'http://hl7.org/fhir/StructureDefinition/Patient',
+    { version: '4.0.1' }
 );
 ```
 
-Options:
-- `package?: string` - Filter by package name
-- `version?: string` - Filter by resource version
-- `sourceContext?: SourceContext` - Context for relative resolution
+### `resolveEntry(url, options?): Promise<IndexEntry>`
 
-### `read(reference: Reference): Promise<Resource>`
-
-Reads the full resource content for a given reference.
+Resolves a canonical URL to an index entry (metadata only).
 
 ```typescript
-const entry = await manager.resolve('http://hl7.org/fhir/StructureDefinition/Patient');
-const resource = await manager.read(entry);
+const entry = await manager.resolveEntry(
+    'http://hl7.org/fhir/StructureDefinition/Patient'
+);
 
-console.log(resource.resourceType); // "StructureDefinition"
-console.log(resource.url); // "http://hl7.org/fhir/StructureDefinition/Patient"
+console.log(entry);
+// {
+//   id: "opaque-reference-id",
+//   resourceType: "StructureDefinition",
+//   url: "http://hl7.org/fhir/StructureDefinition/Patient",
+//   version: "4.0.1",
+//   kind: "resource",
+//   type: "Patient",
+//   package: { name: "hl7.fhir.r4.core", version: "4.0.1" }
+// }
 ```
 
-### `search(params): Promise<IndexEntry[]>`
+### `read(reference): Promise<Resource>`
 
-Searches for resources matching the given criteria.
+Reads a resource using its reference.
 
 ```typescript
-// Find all StructureDefinitions
-const structures = await manager.search({
-  type: 'StructureDefinition'
+const entry = await manager.resolveEntry(url);
+const resource = await manager.read(entry);
+```
+
+### `search(params): Promise<Resource[]>`
+
+Searches and returns full resources matching criteria.
+
+```typescript
+// Get all StructureDefinitions
+const structures = await manager.search({ 
+    type: 'StructureDefinition' 
 });
 
-// Find resources by kind
-const resources = await manager.search({
-  kind: 'resource'
+// Get all resources of kind "resource"
+const resources = await manager.search({ 
+    kind: 'resource' 
 });
 
-// Find by URL pattern
-const patients = await manager.search({
-  url: 'http://hl7.org/fhir/StructureDefinition/Patient'
+// Complex search
+const valuesets = await manager.search({ 
+    type: 'ValueSet',
+    package: { name: 'hl7.fhir.r4.core', version: '4.0.1' }
+});
+```
+
+### `searchEntries(params): Promise<IndexEntry[]>`
+
+Searches and returns index entries (metadata only).
+
+```typescript
+// Find all CodeSystems
+const entries = await manager.searchEntries({ 
+    type: 'CodeSystem' 
 });
 
-// Filter by package
-const usCore = await manager.search({
-  package: { name: '@hl7/us-core', version: '3.1.0' }
-});
-
-// Combine filters
-const r4ValueSets = await manager.search({
-  type: 'ValueSet',
-  package: { name: '@hl7/fhir-r4-core', version: '4.0.1' }
+// Find by URL
+const entries = await manager.searchEntries({ 
+    url: 'http://hl7.org/fhir/StructureDefinition/Patient' 
 });
 ```
 
@@ -217,79 +194,256 @@ Search parameters:
 - `url?: string` - Canonical URL (exact match)
 - `type?: string` - Resource type (e.g., 'StructureDefinition', 'ValueSet')
 - `version?: string` - Resource version
-- `package?: PackageId` - Filter by package
+- `package?: PackageId` - Filter by package name and version
 
-## How It Works
+### `packages(): Promise<PackageId[]>`
 
-1. **Package Discovery**: The manager scans configured directories (typically `node_modules`) for FHIR packages
-2. **Index Processing**: It reads `.index.json` files from each package to build a resource catalog
-3. **Reference Generation**: Each resource gets a stable, deterministic ID based on its package and file path
-4. **URL Mapping**: Canonical URLs are mapped to their corresponding resources for quick lookup
-
-## FHIR Package Structure
-
-The manager expects FHIR packages to follow the standard structure:
-
-```
-package-name/
-├── package.json       # Package metadata
-├── .index.json       # Resource index
-├── StructureDefinition-Patient.json
-├── ValueSet-example.json
-└── examples/
-    ├── .index.json   # Examples index
-    └── Patient-example.json
-```
-
-## Use Cases
-
-### Resolving Resources in a FHIR Validator
+Lists all loaded packages.
 
 ```typescript
-const manager = CanonicalManager();
-await manager.init();
+const packages = await manager.packages();
+// [
+//   { name: "hl7.fhir.r4.core", version: "4.0.1" },
+//   { name: "hl7.fhir.us.core", version: "5.0.1" }
+// ]
+```
 
-async function validateResource(resource: any) {
-  // Resolve the profile URL
-  const profile = await manager.resolve(resource.meta.profile[0]);
-  const structureDefinition = await manager.read(profile);
-  
-  // Use the StructureDefinition for validation
-  return validate(resource, structureDefinition);
+### `destroy(): Promise<void>`
+
+Cleans up resources and clears cache from memory (disk cache persists).
+
+```typescript
+await manager.destroy();
+```
+
+## Directory Structure
+
+After initialization, your working directory will contain:
+
+```
+workingDir/
+├── package.json          # NPM package file
+├── node_modules/         # Installed FHIR packages
+│   ├── hl7.fhir.r4.core/
+│   │   ├── package.json
+│   │   ├── .index.json   # FHIR resource index
+│   │   └── *.json        # FHIR resources
+│   └── .../
+└── .fcm/
+    └── cache/
+        └── index.json    # Cached index for fast startup
+```
+
+## Cache Format
+
+The cache is stored as a JSON file with the following structure:
+
+```typescript
+{
+  entries: {
+    "http://hl7.org/fhir/StructureDefinition/Patient": [
+      {
+        id: "hash-based-id",
+        resourceType: "StructureDefinition",
+        url: "http://hl7.org/fhir/StructureDefinition/Patient",
+        version: "4.0.1",
+        kind: "resource",
+        type: "Patient",
+        package: { name: "hl7.fhir.r4.core", version: "4.0.1" }
+      }
+    ]
+  },
+  packages: {
+    "hl7.fhir.r4.core": {
+      id: { name: "hl7.fhir.r4.core", version: "4.0.1" },
+      path: "/path/to/node_modules/hl7.fhir.r4.core",
+      canonical: "http://hl7.org/fhir",
+      fhirVersions: ["4.0.1"]
+    }
+  },
+  references: {
+    "hash-based-id": {
+      packageName: "hl7.fhir.r4.core",
+      packageVersion: "4.0.1",
+      filePath: "/path/to/resource.json",
+      resourceType: "StructureDefinition",
+      url: "http://hl7.org/fhir/StructureDefinition/Patient",
+      version: "4.0.1"
+    }
+  }
 }
 ```
 
-### Building a FHIR Resource Explorer
+## Advanced Usage
+
+### Working with Multiple Packages
 
 ```typescript
-// List all available resource types
-const structureDefs = await manager.search({
-  type: 'StructureDefinition',
-  kind: 'resource'
+const manager = CanonicalManager({ 
+    packages: [
+        "hl7.fhir.r4.core",
+        "hl7.fhir.us.core@5.0.1",
+        "hl7.fhir.us.davinci-drug-formulary"
+    ], 
+    workingDir: "./fhir-packages"
 });
 
-// Group by package
-const byPackage = structureDefs.reduce((acc, entry) => {
-  const pkgName = entry.package?.name || 'unknown';
-  acc[pkgName] = acc[pkgName] || [];
-  acc[pkgName].push(entry);
-  return acc;
-}, {});
+await manager.init();
+
+// Search across all packages
+const allValueSets = await manager.search({ type: 'ValueSet' });
+
+// Search in specific package
+const usCoreProfiles = await manager.search({ 
+    type: 'StructureDefinition',
+    package: { name: 'hl7.fhir.us.core', version: '5.0.1' }
+});
 ```
 
-### Finding Package Dependencies
+### Custom Registry Configuration
 
 ```typescript
-// Get all ValueSets from US Core
-const usValueSets = await manager.search({
-  type: 'ValueSet',
-  package: { name: '@hl7/us-core', version: '3.1.0' }
+// Use a custom NPM registry
+const manager = CanonicalManager({ 
+    packages: ["hl7.fhir.r4.core"],
+    workingDir: "./fhir-packages",
+    registry: "https://my-private-registry.com"
 });
 
-// Check which ones reference external URLs
-for (const valueSet of usValueSets) {
-  const resource = await manager.read(valueSet);
-  // Analyze compose.include for external systems
+// Use default NPM registry
+const manager = CanonicalManager({ 
+    packages: ["hl7.fhir.r4.core"],
+    workingDir: "./fhir-packages"
+    // registry not specified - uses npm default
+});
+```
+
+### Building a FHIR Validator
+
+```typescript
+async function validateResource(resource: any, manager: CanonicalManager) {
+    // Get the profile URL from the resource
+    const profileUrl = resource.meta?.profile?.[0];
+    if (!profileUrl) {
+        throw new Error('No profile specified');
+    }
+    
+    // Resolve the StructureDefinition
+    const profile = await manager.resolve(profileUrl);
+    
+    // Validate resource against profile
+    // ... validation logic ...
+}
+```
+
+### Analyzing Package Dependencies
+
+```typescript
+async function analyzeValueSetDependencies(manager: CanonicalManager) {
+    // Get all ValueSets
+    const valueSets = await manager.search({ type: 'ValueSet' });
+    
+    const dependencies = new Map<string, Set<string>>();
+    
+    for (const vs of valueSets) {
+        const vsPackage = vs.package?.name || 'unknown';
+        
+        // Check compose.include for external code systems
+        if (vs.compose?.include) {
+            for (const include of vs.compose.include) {
+                if (include.system) {
+                    try {
+                        const cs = await manager.resolve(include.system);
+                        const csPackage = cs.package?.name || 'unknown';
+                        
+                        if (csPackage !== vsPackage) {
+                            if (!dependencies.has(vsPackage)) {
+                                dependencies.set(vsPackage, new Set());
+                            }
+                            dependencies.get(vsPackage)!.add(csPackage);
+                        }
+                    } catch {
+                        // External code system not in our packages
+                    }
+                }
+            }
+        }
+    }
+    
+    return dependencies;
+}
+```
+
+## Performance Considerations
+
+### Startup Performance
+
+- **First run**: Slower due to package installation and index building
+- **Subsequent runs**: Fast startup by loading from disk cache
+- **Cache invalidation**: Delete `.fcm/cache` to force rebuild
+
+### Memory Usage
+
+- All index entries are kept in memory for fast lookup
+- Resource content is loaded on-demand
+- For large package sets, consider memory requirements
+
+### Best Practices
+
+1. **Reuse manager instances**: Create once, use many times
+2. **Use `searchEntries()` for metadata**: Faster than `search()` when you don't need full resources
+3. **Specify package constraints**: Faster resolution when package is known
+4. **Cache working directory**: Share between application instances
+
+## Error Handling
+
+The manager throws errors for:
+- Not initialized: Call `init()` before other methods
+- Resource not found: Canonical URL doesn't exist
+- Invalid reference: Reference ID is invalid
+- Package installation failures: Network or registry issues
+
+```typescript
+try {
+    const resource = await manager.resolve('http://invalid.url/Resource');
+} catch (error) {
+    console.error('Failed to resolve:', error.message);
+}
+```
+
+## TypeScript Types
+
+```typescript
+interface Reference {
+    id: string;              // Opaque identifier
+    resourceType: string;    // FHIR resource type
+}
+
+interface PackageId {
+    name: string;           // Package name
+    version: string;        // Package version
+}
+
+interface IndexEntry extends Reference {
+    indexVersion: number;   // Index format version
+    kind?: string;         // resource, datatype, primitive, etc.
+    url?: string;          // Canonical URL
+    type?: string;         // Specific type (e.g., "Patient")
+    version?: string;      // Resource version
+    package?: PackageId;   // Source package
+}
+
+interface Resource extends Reference {
+    url?: string;          // Canonical URL
+    version?: string;      // Resource version
+    [key: string]: any;    // Other FHIR properties
+}
+
+interface SourceContext {
+    id?: string;
+    package?: PackageId;
+    url?: string;
+    path?: string;
 }
 ```
 
@@ -311,14 +465,8 @@ bun tools/search-canonical.ts --kind resource --limit 20
 bun tools/search-canonical.ts --type ValueSet --format json > valuesets.json
 
 # Filter by package
-bun tools/search-canonical.ts --package @hl7/fhir-r4-core --type CodeSystem
+bun tools/search-canonical.ts --package hl7.fhir.r4.core --type CodeSystem
 ```
-
-## Performance Considerations
-
-- **Initialization**: The initial scan can take a few seconds for large package sets
-- **Memory**: The manager keeps an in-memory index of all resources
-- **Caching**: File reads are not cached - consider implementing your own cache if needed
 
 ## Development
 
@@ -340,17 +488,17 @@ To run the example:
 bun run example.ts
 ```
 
-## Project Structure
+### Project Structure
 
 ```
 fhir-canonical-manager/
 ├── src/
-│   └── index.ts      # All implementation code
+│   └── index.ts          # All implementation code
 ├── test/
-│   └── index.test.ts # All tests
+│   └── index.test.ts     # All tests
 ├── tools/
 │   └── search-canonical.ts # CLI search tool
-├── example.ts        # Usage example
+├── example.ts            # Usage example
 ├── package.json
 ├── tsconfig.json
 └── README.md
@@ -358,8 +506,9 @@ fhir-canonical-manager/
 
 ## Requirements
 
-- Bun v1.2.18+ or Node.js 18+
+- Node.js 18+ or Bun 1.0+
 - TypeScript 5.0+
+- Network access for package installation
 
 ## License
 
@@ -369,4 +518,10 @@ MIT
 
 Contributions are welcome! Please feel free to submit a Pull Request.
 
-This project was created using `bun init` in bun v1.2.18. [Bun](https://bun.sh) is a fast all-in-one JavaScript runtime.
+### Development Guidelines
+
+1. All code in single file: `src/index.ts`
+2. Functional programming style
+3. No external dependencies except Node.js built-ins
+4. Comprehensive tests in `test/index.test.ts`
+5. Update README.md with API changes

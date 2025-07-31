@@ -6,6 +6,7 @@
 import * as path from 'path';
 import * as fs from 'fs/promises';
 import { createHash } from 'crypto';
+import { $ } from 'bun';
 
 // Types
 export interface Reference {
@@ -41,26 +42,40 @@ export interface SourceContext {
 }
 
 export interface Config {
-  packagePaths?: string[];
+  packages: string[];
+  workingDir: string;
+  registry?: string;
 }
 
 export interface CanonicalManager {
   init(): Promise<void>;
   destroy(): Promise<void>;
   packages(): Promise<PackageId[]>;
-  resolve(canonicalUrl: string, options?: {
+  resolveEntry(canonicalUrl: string, options?: {
     package?: string,
     version?: string,
     sourceContext?: SourceContext
   }): Promise<IndexEntry>;
+  resolve(canonicalUrl: string, options?: {
+    package?: string,
+    version?: string,
+    sourceContext?: SourceContext
+  }): Promise<Resource>;
   read(reference: Reference): Promise<Resource>;
-  search(params: {
+  searchEntries(params: {
     kind?: string,
     url?: string,
     type?: string,
     version?: string,
     package?: PackageId
   }): Promise<IndexEntry[]>;
+  search(params: {
+    kind?: string,
+    url?: string,
+    type?: string,
+    version?: string,
+    package?: PackageId
+  }): Promise<Resource[]>;
 }
 
 // Internal types
@@ -105,9 +120,15 @@ interface ReferenceMetadata {
 }
 
 interface IndexCache {
-  entries: Map<string, IndexEntry[]>;
-  packages: Map<string, PackageInfo>;
-  references: Map<string, ReferenceMetadata>;
+  entries: Record<string, IndexEntry[]>;
+  packages: Record<string, PackageInfo>;
+  references: Record<string, ReferenceMetadata>;
+}
+
+interface CacheData {
+  entries: Record<string, IndexEntry[]>;
+  packages: Record<string, PackageInfo>;
+  references: Record<string, ReferenceMetadata>;
 }
 
 // Reference management functions
@@ -134,41 +155,41 @@ export const ReferenceManager = (): ReferenceStore & {
   generateId: typeof generateReferenceId;
   getIdsByUrl: (url: string) => string[];
   createReference: (id: string, metadata: ReferenceMetadata) => Reference;
-  getAllReferences: () => Array<[string, ReferenceMetadata]>;
+  getAllReferences: () => Record<string, ReferenceMetadata>;
 } => {
-  const references = new Map<string, ReferenceMetadata>();
-  const urlToIds = new Map<string, Set<string>>();
+  const references: Record<string, ReferenceMetadata> = {};
+  const urlToIds: Record<string, string[]> = {};
 
   const set = (id: string, metadata: ReferenceMetadata): void => {
-    references.set(id, metadata);
+    references[id] = metadata;
     if (metadata.url) {
-      const ids = urlToIds.get(metadata.url) || new Set();
-      ids.add(id);
-      urlToIds.set(metadata.url, ids);
+      if (!urlToIds[metadata.url]) {
+        urlToIds[metadata.url] = [];
+      }
+      if (!urlToIds[metadata.url].includes(id)) {
+        urlToIds[metadata.url].push(id);
+      }
     }
   };
 
   const clear = (): void => {
-    references.clear();
-    urlToIds.clear();
+    Object.keys(references).forEach(key => delete references[key]);
+    Object.keys(urlToIds).forEach(key => delete urlToIds[key]);
   };
 
   return {
     generateId: generateReferenceId,
-    get: (id: string) => references.get(id),
+    get: (id: string) => references[id],
     set,
-    has: (id: string) => references.has(id),
+    has: (id: string) => id in references,
     clear,
-    size: () => references.size,
-    getIdsByUrl: (url: string) => {
-      const ids = urlToIds.get(url);
-      return ids ? Array.from(ids) : [];
-    },
+    size: () => Object.keys(references).length,
+    getIdsByUrl: (url: string) => urlToIds[url] || [],
     createReference: (id: string, metadata: ReferenceMetadata): Reference => ({
       id,
       resourceType: metadata.resourceType
     }),
-    getAllReferences: () => Array.from(references.entries())
+    getAllReferences: () => references
   };
 };
 
@@ -218,6 +239,14 @@ const fileExists = async (filePath: string): Promise<boolean> => {
   }
 };
 
+const ensureDir = async (dirPath: string): Promise<void> => {
+  try {
+    await fs.mkdir(dirPath, { recursive: true });
+  } catch {
+    // Ignore errors
+  }
+};
+
 const isFhirPackage = async (dirPath: string): Promise<boolean> => {
   const indexPath = path.join(dirPath, '.index.json');
   return fileExists(indexPath);
@@ -229,11 +258,65 @@ const createCache = (): IndexCache & {
 } => {
   const referenceManager = ReferenceManager();
   return {
-    entries: new Map(),
-    packages: new Map(),
-    references: referenceManager,
+    entries: {},
+    packages: {},
+    references: {},
     referenceManager
   };
+};
+
+// Cache persistence functions
+const saveCacheToDisk = async (cache: ReturnType<typeof createCache>, cacheDir: string): Promise<void> => {
+  const cacheData: CacheData = {
+    entries: cache.entries,
+    packages: cache.packages,
+    references: cache.referenceManager.getAllReferences()
+  };
+  
+  const cachePath = path.join(cacheDir, 'index.json');
+  await fs.writeFile(cachePath, JSON.stringify(cacheData, null, 2));
+};
+
+const loadCacheFromDisk = async (cacheDir: string): Promise<CacheData | null> => {
+  try {
+    const cachePath = path.join(cacheDir, 'index.json');
+    const content = await fs.readFile(cachePath, 'utf-8');
+    return JSON.parse(content) as CacheData;
+  } catch {
+    return null;
+  }
+};
+
+// Package management functions
+const installPackages = async (packages: string[], workingDir: string, registry?: string): Promise<void> => {
+  await ensureDir(workingDir);
+  
+  // Check if package.json exists
+  const packageJsonPath = path.join(workingDir, 'package.json');
+  if (!(await fileExists(packageJsonPath))) {
+    // Create minimal package.json
+    const minimalPackageJson = {
+      name: "fhir-canonical-manager-workspace",
+      version: "1.0.0",
+      private: true,
+      dependencies: {}
+    };
+    await fs.writeFile(packageJsonPath, JSON.stringify(minimalPackageJson, null, 2));
+  }
+  
+  // Install packages
+  for (const pkg of packages) {
+    try {
+      if (registry) {
+        await $`cd ${workingDir} && npm add ${pkg} --registry ${registry}`;
+      } else {
+        await $`cd ${workingDir} && npm add ${pkg}`;
+      }
+    } catch (err) {
+      console.error(`Failed to install package ${pkg}:`, err);
+      throw err;
+    }
+  }
 };
 
 // Package processing functions
@@ -284,10 +367,10 @@ const processIndex = async (
         }
       };
       
-      if (!cache.entries.has(file.url)) {
-        cache.entries.set(file.url, []);
+      if (!cache.entries[file.url]) {
+        cache.entries[file.url] = [];
       }
-      cache.entries.get(file.url)!.push(entry);
+      cache.entries[file.url].push(entry);
     }
   } catch {
     // Silently ignore index processing errors
@@ -309,7 +392,7 @@ const scanPackage = async (
       canonical: packageJson.canonical,
       fhirVersions: packageJson.fhirVersions
     };
-    cache.packages.set(packageJson.name, packageInfo);
+    cache.packages[packageJson.name] = packageInfo;
     
     await processIndex(packagePath, packageJson, cache);
     
@@ -358,11 +441,11 @@ const resolveWithContext = async (
   url: string,
   context: SourceContext,
   cache: ReturnType<typeof createCache>,
-  resolve: (url: string, options?: any) => Promise<IndexEntry>
+  resolveEntry: (url: string, options?: any) => Promise<IndexEntry>
 ): Promise<IndexEntry | null> => {
   if (context.package) {
     try {
-      return await resolve(url, {
+      return await resolveEntry(url, {
         package: context.package.name,
         version: context.package.version
       });
@@ -374,10 +457,10 @@ const resolveWithContext = async (
 };
 
 // Main implementation
-export const CanonicalManager = (config?: Config): CanonicalManager => {
-  const finalConfig: Required<Config> = {
-    packagePaths: config?.packagePaths || ['./node_modules']
-  };
+export const CanonicalManager = (config: Config): CanonicalManager => {
+  const { packages, workingDir, registry } = config;
+  const nodeModulesPath = path.join(workingDir, 'node_modules');
+  const cacheDir = path.join(workingDir, '.fcm', 'cache');
   
   let cache = createCache();
   let initialized = false;
@@ -391,26 +474,46 @@ export const CanonicalManager = (config?: Config): CanonicalManager => {
   const init = async (): Promise<void> => {
     if (initialized) return;
     
-    for (const basePath of finalConfig.packagePaths) {
-      await scanDirectory(basePath, cache);
+    // Ensure directories exist
+    await ensureDir(workingDir);
+    await ensureDir(cacheDir);
+    
+    // Try to load cache from disk
+    const cachedData = await loadCacheFromDisk(cacheDir);
+    if (cachedData) {
+      // Restore cache from disk
+      cache.entries = cachedData.entries;
+      cache.packages = cachedData.packages;
+      Object.entries(cachedData.references).forEach(([id, metadata]) => {
+        cache.referenceManager.set(id, metadata);
+      });
+    } else {
+      // Install packages if needed
+      await installPackages(packages, workingDir, registry);
+      
+      // Scan installed packages
+      await scanDirectory(nodeModulesPath, cache);
+      
+      // Save cache to disk
+      await saveCacheToDisk(cache, cacheDir);
     }
     
     initialized = true;
   };
 
   const destroy = async (): Promise<void> => {
-    cache.entries.clear();
-    cache.packages.clear();
+    cache.entries = {};
+    cache.packages = {};
     cache.referenceManager.clear();
     initialized = false;
   };
 
-  const packages = async (): Promise<PackageId[]> => {
+  const getPackages = async (): Promise<PackageId[]> => {
     ensureInitialized();
-    return Array.from(cache.packages.values()).map(p => p.id);
+    return Object.values(cache.packages).map(p => p.id);
   };
 
-  const resolve = async (
+  const resolveEntry = async (
     canonicalUrl: string,
     options?: {
       package?: string;
@@ -425,14 +528,14 @@ export const CanonicalManager = (config?: Config): CanonicalManager => {
         canonicalUrl,
         options.sourceContext,
         cache,
-        resolve
+        resolveEntry
       );
       if (contextResolved) {
         return contextResolved;
       }
     }
 
-    const entries = cache.entries.get(canonicalUrl) || [];
+    const entries = cache.entries[canonicalUrl] || [];
     
     if (entries.length === 0) {
       throw new Error(`Cannot resolve canonical URL: ${canonicalUrl}`);
@@ -453,6 +556,18 @@ export const CanonicalManager = (config?: Config): CanonicalManager => {
     }
 
     return filtered[0];
+  };
+
+  const resolve = async (
+    canonicalUrl: string,
+    options?: {
+      package?: string;
+      version?: string;
+      sourceContext?: SourceContext;
+    }
+  ): Promise<Resource> => {
+    const entry = await resolveEntry(canonicalUrl, options);
+    return read(entry);
   };
 
   const read = async (reference: Reference): Promise<Resource> => {
@@ -477,7 +592,7 @@ export const CanonicalManager = (config?: Config): CanonicalManager => {
     }
   };
 
-  const search = async (params: {
+  const searchEntries = async (params: {
     kind?: string;
     url?: string;
     type?: string;
@@ -489,9 +604,9 @@ export const CanonicalManager = (config?: Config): CanonicalManager => {
     let results: IndexEntry[] = [];
     
     if (params.url) {
-      results = cache.entries.get(params.url) || [];
+      results = cache.entries[params.url] || [];
     } else {
-      for (const entries of cache.entries.values()) {
+      for (const entries of Object.values(cache.entries)) {
         results.push(...entries);
       }
     }
@@ -518,12 +633,26 @@ export const CanonicalManager = (config?: Config): CanonicalManager => {
     return results;
   };
 
+  const search = async (params: {
+    kind?: string;
+    url?: string;
+    type?: string;
+    version?: string;
+    package?: PackageId;
+  }): Promise<Resource[]> => {
+    const entries = await searchEntries(params);
+    const resources = await Promise.all(entries.map(entry => read(entry)));
+    return resources;
+  };
+
   return {
     init,
     destroy,
-    packages,
+    packages: getPackages,
+    resolveEntry,
     resolve,
     read,
+    searchEntries,
     search
   };
 };
