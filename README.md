@@ -13,6 +13,7 @@ A TypeScript package manager for FHIR resources that provides canonical URL reso
 - 🎯 **Flexible Search** - Search resources by type, kind, URL, version, or package
 - ⚡ **Performance Optimized** - In-memory cache with disk persistence
 - 🛠️ **TypeScript First** - Full TypeScript support with comprehensive types
+- 🖥️ **CLI Tool** - Command-line interface for package management and resource discovery
 
 ## Installation
 
@@ -39,6 +40,111 @@ await manager.init();
 // Resolve and read a resource
 const resource = await manager.resolve('http://hl7.org/fhir/StructureDefinition/Patient');
 console.log(resource.url); // http://hl7.org/fhir/StructureDefinition/Patient
+```
+
+## CLI Usage
+
+The package includes a command-line interface (`fcm`) for managing FHIR packages without writing code.
+
+### Installation
+
+```bash
+# Install globally
+npm install -g @atomic-ehr/fhir-canonical-manager
+
+# Or use with npx
+npx @atomic-ehr/fhir-canonical-manager
+```
+
+### Commands
+
+#### `fcm init`
+Initialize FHIR packages in the current directory.
+
+```bash
+# Initialize with packages
+fcm init hl7.fhir.r4.core hl7.fhir.us.core@5.0.1
+
+# With custom registry
+fcm init hl7.fhir.r4.core --registry https://packages.simplifier.net
+
+# Initialize from existing package.json
+fcm init
+```
+
+Configuration is stored in `package.json`:
+```json
+{
+  "fcm": {
+    "packages": ["hl7.fhir.r4.core", "hl7.fhir.us.core@5.0.1"],
+    "registry": "https://fs.get-ig.org/pkgs"
+  }
+}
+```
+
+#### `fcm list`
+List installed packages or resources.
+
+```bash
+# List all packages
+fcm list
+
+# List resources in a package
+fcm list hl7.fhir.r4.core
+
+# Filter by type
+fcm list hl7.fhir.r4.core --type StructureDefinition
+
+# Output as JSON
+fcm list --json
+```
+
+#### `fcm search`
+Search for resources by canonical URL pattern.
+
+```bash
+# Search across all packages
+fcm search Patient
+
+# Search with type filter
+fcm search observation --type ValueSet
+
+# Search in specific package
+fcm search allergy --package hl7.fhir.us.core
+
+# Output as JSON
+fcm search Patient --json
+```
+
+#### `fcm resolve`
+Get a resource by its canonical URL.
+
+```bash
+# Display resource
+fcm resolve http://hl7.org/fhir/StructureDefinition/Patient
+
+# Save to file
+fcm resolve http://hl7.org/fhir/ValueSet/administrative-gender > gender.json
+
+# Show only specific fields
+fcm resolve http://hl7.org/fhir/StructureDefinition/Patient --fields url,type,kind
+```
+
+### CLI Examples
+
+```bash
+# Set up a new FHIR project
+mkdir my-fhir-project && cd my-fhir-project
+fcm init hl7.fhir.r4.core
+
+# Search for Observation-related resources
+fcm search observation
+
+# Get a specific resource and save it
+fcm resolve http://hl7.org/fhir/StructureDefinition/Observation > observation.json
+
+# List all ValueSets in JSON format
+fcm search --type ValueSet --json > valuesets.json
 ```
 
 ## Core Concepts
