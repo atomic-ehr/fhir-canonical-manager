@@ -1,390 +1,275 @@
 # ADR-002: FCM CLI Tool Design
 
 ## Status
-Proposed
+Proposed (Revised for Minimalistic Approach)
 
 ## Context
 While the FCM library provides a programmatic API for managing FHIR packages, developers need command-line tools for:
 - Quick exploration of FHIR resources
-- Project initialization and setup
-- Package management without writing code
-- Integration into build scripts and CI/CD pipelines
-- Interactive exploration of canonical URLs
+- Basic package management without writing code
+- Simple canonical URL resolution
+- Integration into scripts and workflows
 
-Current tools require custom scripts for each task, leading to inconsistent interfaces and duplicated effort.
+Current approaches require custom scripts for each task, but a full-featured CLI might be overly complex for most use cases.
 
 ## Decision
-We will create a comprehensive CLI tool `fcm` that provides both interactive and non-interactive modes for FHIR package management.
+We will create a minimalistic CLI tool `fcm` that focuses on essential FHIR package management tasks with a simple, predictable interface.
 
-### 1. CLI Architecture
+### 1. Core Design Principles
 
-#### Command Structure
+- **Minimal Commands**: Only essential operations
+- **Simple Output**: Default to human-readable, with JSON option
+- **No Configuration Files**: All options via command line
+- **No Interactive Mode**: Unix philosophy - do one thing well
+- **Predictable Behavior**: No magic, no hidden state
+
+### 2. Command Structure
+
 ```bash
-fcm [command] [options]
+fcm <command> [options]
 
 Commands:
-  init          Initialize a new FHIR project
-  install       Install FHIR packages
-  list          List installed packages or resources
-  search        Search for resources by canonical URL
-  resolve       Resolve a canonical URL to a resource
-  explore       Interactive resource explorer
-  config        Manage FCM configuration
+  init       Initialize FHIR packages in current directory
+  list       List packages or resources  
+  search     Search for resources
+  resolve    Get a resource by canonical URL
+
+Options:
+  --help     Show help
+  --version  Show version
 ```
 
-#### Global Options
-```bash
---working-dir, -w    Working directory (default: current directory)
---registry, -r       NPM registry URL (default: https://fs.get-ig.org/pkgs)
---format, -f         Output format: json, yaml, table (default: table)
---quiet, -q          Suppress non-essential output
---help, -h           Show help
---version, -v        Show version
-```
-
-### 2. Core Commands
+### 3. Essential Commands
 
 #### `fcm init`
-Initialize a new FHIR project with package management.
+Initialize FHIR packages in the current directory.
 
 ```bash
-# Interactive mode
-fcm init
+# Initialize with packages
+fcm init hl7.fhir.r4.core hl7.fhir.us.core@5.0.1
 
-# Non-interactive with options
-fcm init --packages hl7.fhir.r4.core,hl7.fhir.us.core --dir my-fhir-project
+# With custom registry
+fcm init hl7.fhir.r4.core --registry https://fs.get-ig.org/pkgs
 ```
 
-Features:
-- Creates project directory structure
-- Generates `.fcm/config.json` configuration
-- Optionally creates `package.json` for npm compatibility
-- Installs specified packages
-
-#### `fcm install`
-Install FHIR packages into the current project.
-
-```bash
-# Install specific packages
-fcm install hl7.fhir.r4.core hl7.fhir.us.core@5.0.1
-
-# Install from config file
-fcm install
-
-# Install with specific registry
-fcm install my.private.ig --registry https://my-registry.com
-```
-
-Features:
-- Version support using npm syntax
-- Multiple package installation
-- Registry override per package
-- Progress indicators for large packages
+What it does:
+- Creates `node_modules` if needed
+- Runs `npm install` for specified packages
+- Creates `.fcm/cache` directory
+- Shows installed packages summary
 
 #### `fcm list`
 List installed packages or resources.
 
 ```bash
-# List all packages
-fcm list packages
+# List all packages (default)
+fcm list
 
 # List resources in a package
-fcm list resources --package hl7.fhir.r4.core
+fcm list hl7.fhir.r4.core
 
-# List specific resource types
-fcm list resources --type StructureDefinition --kind resource
+# Filter by type
+fcm list hl7.fhir.r4.core --type StructureDefinition
 
-# Output as JSON
-fcm list packages --format json
+# JSON output
+fcm list --json
 ```
 
-Output formats:
-- **Table**: Human-readable with columns
-- **JSON**: Machine-readable for scripting
-- **YAML**: Human and machine readable
-- **CSV**: For spreadsheet import
+Output example:
+```
+Packages:
+  hl7.fhir.r4.core@4.0.1 (1,342 resources)
+  hl7.fhir.us.core@5.0.1 (234 resources)
+```
 
 #### `fcm search`
-Search for resources across packages.
+Search for resources by canonical URL pattern.
 
 ```bash
-# Search by partial URL
+# Search across all packages
 fcm search Patient
 
-# Search with filters
-fcm search --type ValueSet --url gender
+# Search with type filter
+fcm search observation --type ValueSet
 
 # Search in specific package
-fcm search --package hl7.fhir.us.core --type StructureDefinition
+fcm search allergy --package hl7.fhir.us.core
 
-# Limit results
-fcm search --type CodeSystem --limit 10
+# JSON output
+fcm search Patient --json
 ```
 
-Features:
-- Fuzzy/partial matching on URLs
-- Multiple filter combinations
-- Result highlighting
-- Export capabilities
+Output example:
+```
+Found 3 resources matching "Patient":
+  http://hl7.org/fhir/StructureDefinition/Patient
+    Type: StructureDefinition, Package: hl7.fhir.r4.core
+  http://hl7.org/fhir/ValueSet/patient-contactrelationship  
+    Type: ValueSet, Package: hl7.fhir.r4.core
+  http://hl7.org/fhir/us/core/StructureDefinition/us-core-patient
+    Type: StructureDefinition, Package: hl7.fhir.us.core
+```
 
 #### `fcm resolve`
-Resolve a canonical URL and display the resource.
+Get a resource by its canonical URL.
 
 ```bash
-# Resolve and display
+# Display resource
 fcm resolve http://hl7.org/fhir/StructureDefinition/Patient
 
-# Output specific format
-fcm resolve http://hl7.org/fhir/ValueSet/administrative-gender --format yaml
-
 # Save to file
-fcm resolve http://hl7.org/fhir/CodeSystem/observation-status > observation-status.json
+fcm resolve http://hl7.org/fhir/ValueSet/administrative-gender > gender.json
 
-# Show specific fields only
-fcm resolve http://hl7.org/fhir/StructureDefinition/Patient --fields url,name,kind,type
+# Show only specific fields
+fcm resolve http://hl7.org/fhir/StructureDefinition/Patient --fields url,type,kind
 ```
 
-### 3. Interactive Mode
+### 4. Common Options
 
-#### `fcm explore`
-Launch interactive FHIR resource explorer.
+All commands support:
+- `--json` - Output as JSON instead of formatted text
+- `--quiet` - Suppress informational messages
+- `--help` - Show command-specific help
 
-```bash
-fcm explore
-```
+### 5. Implementation Details
 
-Features:
-- **Package Browser**: Navigate through installed packages
-- **Resource Tree**: Hierarchical view of resources
-- **Search Bar**: Real-time search with autocomplete
-- **Resource Viewer**: Syntax-highlighted JSON/YAML display
-- **Relationship Explorer**: Navigate references between resources
-- **Export Options**: Save selected resources
+#### No State Management
+- No configuration files
+- No user preferences
+- Each command is independent
+- Working directory is always current directory
 
-UI Components:
-```
-┌─ Packages ──────────┬─ Resources ─────────────────────────┐
-│ hl7.fhir.r4.core   │ Search: [Patient_____________]      │
-│ > hl7.fhir.us.core │                                     │
-│   my.custom.ig     │ StructureDefinition (134)           │
-│                    │   □ Account                         │
-│                    │   □ ActivityDefinition              │
-│                    │   ■ Patient                         │
-│                    │   □ Practitioner                    │
-└────────────────────┴─────────────────────────────────────┘
-┌─ Resource View ─────────────────────────────────────────┐
-│ URL: http://hl7.org/fhir/StructureDefinition/Patient   │
-│ Type: StructureDefinition                               │
-│ Kind: resource                                          │
-│                                                         │
-│ {                                                       │
-│   "resourceType": "StructureDefinition",               │
-│   "url": "http://hl7.org/fhir/StructureDefinition/...", │
-│   ...                                                   │
-│ }                                                       │
-└─────────────────────────────────────────────────────────┘
-[q]uit [e]xport [s]earch [/]filter [?]help
-```
-
-### 4. Configuration Management
-
-#### Configuration File
-`.fcm/config.json` in project root:
-
-```json
-{
-  "version": "1.0",
-  "packages": [
-    "hl7.fhir.r4.core",
-    "hl7.fhir.us.core@5.0.1"
-  ],
-  "registry": "https://fs.get-ig.org/pkgs",
-  "registries": {
-    "my.private.ig": "https://my-registry.com"
-  },
-  "cache": {
-    "enabled": true,
-    "ttl": 86400
-  }
-}
-```
-
-#### `fcm config`
-Manage configuration settings.
-
-```bash
-# Show current config
-fcm config show
-
-# Set registry
-fcm config set registry https://my-registry.com
-
-# Add package
-fcm config add package hl7.fhir.us.core@5.0.1
-
-# Set package-specific registry
-fcm config set registries.my.private.ig https://my-registry.com
-```
-
-### 5. Integration Features
-
-#### Shell Completion
-```bash
-# Install completion
-fcm completion bash > /etc/bash_completion.d/fcm
-fcm completion zsh > ~/.zsh/completions/_fcm
-```
-
-#### Scripting Support
-```bash
-# Check if package installed
-fcm list packages --format json | jq '.[] | select(.name=="hl7.fhir.r4.core")'
-
-# Extract all ValueSets
-fcm search --type ValueSet --format json | jq -r '.[] | .url' | \
-  xargs -I {} fcm resolve {} > valuesets.ndjson
-
-# Generate resource inventory
-fcm list resources --format csv > resource-inventory.csv
-```
-
-#### CI/CD Integration
-```yaml
-# GitHub Actions example
-- name: Setup FHIR packages
-  run: |
-    npm install -g @atomic-ehr/fcm
-    fcm init --packages hl7.fhir.r4.core
-    fcm list packages
-```
-
-### 6. Advanced Features
-
-#### Resource Validation
-```bash
-# Validate a resource against its profile
-fcm validate my-patient.json --profile http://hl7.org/fhir/StructureDefinition/Patient
-```
-
-#### Dependency Analysis
-```bash
-# Show package dependencies
-fcm deps hl7.fhir.us.core
-
-# Show resource dependencies
-fcm deps http://hl7.org/fhir/StructureDefinition/Observation
-```
-
-#### Diff and Compare
-```bash
-# Compare resources between packages
-fcm diff http://hl7.org/fhir/StructureDefinition/Patient \
-  --package1 hl7.fhir.r4.core@4.0.1 \
-  --package2 hl7.fhir.r4.core@4.0.2
-```
-
-### 7. Implementation Strategy
-
-#### Technology Stack
-- **CLI Framework**: Commander.js or Yargs for command parsing
-- **Interactive UI**: Blessed or Ink for terminal UI
-- **Configuration**: Cosmiconfig for flexible config loading
-- **Output Formatting**: Chalk for colors, cli-table3 for tables
-- **Progress**: ora or cli-progress for long operations
-
-#### Package Distribution
-```json
-{
-  "name": "@atomic-ehr/fcm",
-  "bin": {
-    "fcm": "./dist/cli.js"
-  },
-  "engines": {
-    "node": ">=18.0.0"
-  }
-}
-```
+#### Simple Output Formats
+- Default: Human-readable text
+- JSON: For scripting (with --json flag)
+- No tables, colors, or spinners by default
 
 #### Error Handling
-- Clear, actionable error messages
-- Suggestions for common mistakes
-- Debug mode with --verbose flag
-- Proper exit codes for scripting
+```bash
+# Clear error messages
+$ fcm resolve http://unknown.url/Resource
+Error: Resource not found: http://unknown.url/Resource
+
+# Proper exit codes
+$ fcm search Patient && echo "Found" || echo "Not found"
+```
+
+#### Package Management
+- Relies on npm for package installation
+- No custom package management
+- No version resolution beyond npm
+
+### 6. Usage Examples
+
+#### Example 1: Quick Setup
+```bash
+# Initialize a project
+mkdir my-fhir-project && cd my-fhir-project
+fcm init hl7.fhir.r4.core
+
+# Check what's installed
+fcm list
+```
+
+#### Example 2: Find and Use Resources
+```bash
+# Search for observation-related resources
+fcm search observation --type StructureDefinition
+
+# Get a specific resource
+fcm resolve http://hl7.org/fhir/StructureDefinition/Observation > observation.json
+```
+
+#### Example 3: Scripting
+```bash
+#!/bin/bash
+# Extract all ValueSets
+
+# Get all ValueSet URLs as JSON
+VALUESETS=$(fcm search "" --type ValueSet --json | jq -r '.[].url')
+
+# Resolve each one
+for url in $VALUESETS; do
+  filename=$(echo $url | sed 's/[^a-zA-Z0-9]/_/g').json
+  fcm resolve "$url" > "valuesets/$filename"
+done
+```
+
+#### Example 4: CI Integration
+```bash
+# .github/workflows/test.yml
+- name: Setup FHIR
+  run: |
+    npm install -g @atomic-ehr/fcm
+    fcm init hl7.fhir.r4.core hl7.fhir.us.core@5.0.1
+    fcm list
+```
+
+### 7. What's NOT Included
+
+To keep the tool simple and focused:
+
+- ❌ Interactive UI or explorer
+- ❌ Configuration files
+- ❌ Package dependency resolution
+- ❌ Resource validation
+- ❌ Diff/comparison features
+- ❌ Shell completion
+- ❌ Progress bars or spinners
+- ❌ Colored output by default
+- ❌ Multiple output formats (only text and JSON)
+- ❌ Watch mode or file monitoring
+- ❌ Custom registries per package
+- ❌ Caching configuration
 
 ## Consequences
 
 ### Positive
-- **Unified Interface**: Single tool for all FHIR package operations
-- **Discoverability**: Easy exploration of available resources
-- **Automation**: Scriptable commands for CI/CD
-- **User-Friendly**: Interactive mode for exploration
-- **Flexible Output**: Multiple formats for different use cases
+- **Simple to Learn**: Only 4 commands to remember
+- **Predictable**: No configuration means consistent behavior
+- **Scriptable**: JSON output and proper exit codes
+- **Fast**: Minimal overhead, no complex features
+- **Maintainable**: Less code, fewer dependencies
 
 ### Negative
-- **Complexity**: More code to maintain than library alone
-- **Dependencies**: Additional CLI-specific dependencies
-- **Platform Testing**: Must test on multiple OS/shell combinations
-- **Documentation**: Requires extensive command documentation
+- **Limited Features**: No advanced functionality
+- **No Customization**: No user preferences or configuration
+- **Basic Output**: No rich terminal UI features
+- **Manual Work**: Some tasks require scripting
 
-### Migration Path
-1. Start with core commands (init, install, list, search, resolve)
-2. Add interactive explorer as separate feature
-3. Implement advanced features based on user feedback
-4. Maintain backward compatibility for scripting
+### Future Considerations
 
-## Examples
+If users need more features, consider:
+1. Creating separate specialized tools (fcm-explorer, fcm-validator)
+2. Adding features only if they maintain simplicity
+3. Keeping the core tool minimal
 
-### Example 1: Project Setup
-```bash
-# Initialize new project
-fcm init my-fhir-app
-cd my-fhir-app
+## Implementation Notes
 
-# Install packages
-fcm install hl7.fhir.r4.core hl7.fhir.us.core@5.0.1
+### Technology Choices
+- **Minimal Dependencies**: Only essential npm packages
+- **No CLI Framework**: Simple argument parsing
+- **Built with Bun**: Fast execution, single binary potential
 
-# Verify installation
-fcm list packages
-```
+### Package Structure
+```typescript
+// Simple command dispatch
+const commands = {
+  init: initCommand,
+  list: listCommand,
+  search: searchCommand,
+  resolve: resolveCommand
+};
 
-### Example 2: Resource Discovery
-```bash
-# Find all Observation-related resources
-fcm search Observation
-
-# Get specific resource
-fcm resolve http://hl7.org/fhir/StructureDefinition/Observation --format yaml
-
-# Explore interactively
-fcm explore
-```
-
-### Example 3: Build Script Integration
-```bash
-#!/bin/bash
-# ci-check-fhir.sh
-
-set -e
-
-# Ensure packages are installed
-fcm install
-
-# Verify expected packages
-EXPECTED_PACKAGES="hl7.fhir.r4.core hl7.fhir.us.core"
-INSTALLED=$(fcm list packages --format json | jq -r '.[].name' | tr '\n' ' ')
-
-for pkg in $EXPECTED_PACKAGES; do
-  if [[ ! $INSTALLED =~ $pkg ]]; then
-    echo "Missing required package: $pkg"
-    exit 1
-  fi
-done
-
-echo "All FHIR packages verified"
+const command = process.argv[2];
+if (commands[command]) {
+  await commands[command](process.argv.slice(3));
+} else {
+  console.error(`Unknown command: ${command}`);
+  process.exit(1);
+}
 ```
 
 ## References
-- Commander.js: https://github.com/tj/commander.js
-- Blessed Terminal UI: https://github.com/chjj/blessed
-- Cosmiconfig: https://github.com/davidtheclark/cosmiconfig
-- NPM Package Best Practices: https://docs.npmjs.com/cli/v8/using-npm/developers
+- Unix Philosophy: https://en.wikipedia.org/wiki/Unix_philosophy
+- 12 Factor CLI Apps: https://medium.com/@jdxcode/12-factor-cli-apps-dd3c227a0e46
