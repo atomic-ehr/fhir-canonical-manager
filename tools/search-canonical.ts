@@ -33,7 +33,7 @@
  */
 
 import { CanonicalManager } from '../src';
-import type { IndexEntry } from '../src/types';
+import type { IndexEntry } from '../src';
 
 interface SearchOptions {
   url?: string;
@@ -85,10 +85,13 @@ function parseArgs(): SearchOptions {
         }
         break;
       case '--limit':
-        options.limit = parseInt(args[++i], 10);
-        if (isNaN(options.limit)) {
-          console.error('Invalid limit: must be a number');
-          process.exit(1);
+        const limitStr = args[++i];
+        if (limitStr) {
+          options.limit = parseInt(limitStr, 10);
+          if (isNaN(options.limit)) {
+            console.error('Invalid limit: must be a number');
+            process.exit(1);
+          }
         }
         break;
       default:
@@ -198,8 +201,9 @@ async function main() {
   }
   
   // Initialize the manager
-  const manager = new CanonicalManager({
-    logLevel: 'error' // Quiet mode for CLI tool
+  const manager = CanonicalManager({
+    packages: ['hl7.fhir.r4.core'],
+    workingDir: './tmp/search-tool'
   });
   
   try {
@@ -227,7 +231,7 @@ async function main() {
     }
     
     // Perform search
-    let results = await manager.search(searchParams);
+    let results = await manager.searchEntries(searchParams);
     
     // Filter by URL if provided (partial match)
     if (options.url) {

@@ -53,8 +53,9 @@ async function main() {
     process.exit(1);
   }
 
-  const manager = new CanonicalManager({
-    logLevel: 'error'
+  const manager = CanonicalManager({
+    packages: ['hl7.fhir.r4.core'],
+    workingDir: './tmp/explore-tool'
   });
 
   try {
@@ -70,7 +71,7 @@ async function main() {
     }
     
     // Read the full resource
-    const cs = await manager.read(entry) as CodeSystem;
+    const cs = await manager.read(entry) as unknown as CodeSystem;
     
     console.log('\n' + '='.repeat(80));
     console.log(`CodeSystem: ${cs.name}`);

@@ -3,6 +3,9 @@
   "module": "src/index.ts",
   "main": "src/index.ts",
   "type": "module",
+  "scripts": {
+    "typecheck": "bun tsc --noEmit"
+  },
   "devDependencies": {
     "@types/bun": "latest",
     "@atomic-ehr/hl7.fhir.r4.core": "latest",

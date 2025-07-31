@@ -22,7 +22,7 @@ describe("CanonicalManager", () => {
       registry: "https://packages.simplifier.net"
     });
     await manager.init();
-  }, 60000); // 60 second timeout for package installation
+  });
 
 
   afterAll(async () => {
@@ -152,7 +152,9 @@ describe("CanonicalManager", () => {
 
   test("should filter search by package", async () => {
     const packages = await manager.packages();
-    const firstPackage = packages[0];
+    expect(packages.length).toBeGreaterThan(0);
+    
+    const firstPackage = packages[0]!;
     
     const results = await manager.searchEntries({
       package: firstPackage
@@ -169,19 +171,25 @@ describe("CanonicalManager", () => {
 
   test("should handle package-specific resolution", async () => {
     const packages = await manager.packages();
+    expect(packages.length).toBeGreaterThan(0);
+    
+    const firstPackage = packages[0]!;
     
     // Find any resource URL from the first package
-    const results = await manager.searchEntries({ package: packages[0] });
+    const results = await manager.searchEntries({ package: firstPackage });
+    expect(results.length).toBeGreaterThan(0);
     
     const firstResource = results.find(r => r.url);
+    expect(firstResource).toBeDefined();
+    expect(firstResource!.url).toBeDefined();
     
     // Resolve with package constraint (without version since it might not match)
     const entry = await manager.resolveEntry(firstResource!.url!, {
-      package: packages[0].name
+      package: firstPackage.name
     });
 
-    expect(entry.package?.name).toBe(packages[0].name);
-    expect(entry.package?.version).toBe(packages[0].version);
+    expect(entry.package?.name).toBe(firstPackage.name);
+    expect(entry.package?.version).toBe(firstPackage.version);
   });
 
   test("should use cached data on second init", async () => {

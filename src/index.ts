@@ -166,8 +166,9 @@ export const ReferenceManager = (): ReferenceStore & {
       if (!urlToIds[metadata.url]) {
         urlToIds[metadata.url] = [];
       }
-      if (!urlToIds[metadata.url].includes(id)) {
-        urlToIds[metadata.url].push(id);
+      const ids = urlToIds[metadata.url];
+      if (ids && !ids.includes(id)) {
+        ids.push(id);
       }
     }
   };
@@ -370,7 +371,10 @@ const processIndex = async (
       if (!cache.entries[file.url]) {
         cache.entries[file.url] = [];
       }
-      cache.entries[file.url].push(entry);
+      const entries = cache.entries[file.url];
+      if (entries) {
+        entries.push(entry);
+      }
     }
   } catch {
     // Silently ignore index processing errors
@@ -555,7 +559,7 @@ export const CanonicalManager = (config: Config): CanonicalManager => {
       throw new Error(`No matching resource found for ${canonicalUrl} with given options`);
     }
 
-    return filtered[0];
+    return filtered[0]!;
   };
 
   const resolve = async (
@@ -624,9 +628,10 @@ export const CanonicalManager = (config: Config): CanonicalManager => {
     }
     
     if (params.package) {
+      const pkg = params.package;
       results = results.filter(e => 
-        e.package?.name === params.package.name && 
-        e.package?.version === params.package.version
+        e.package?.name === pkg.name && 
+        e.package?.version === pkg.version
       );
     }
     
