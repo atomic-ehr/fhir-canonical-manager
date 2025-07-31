@@ -3,6 +3,17 @@ import { parseArgs } from "../src/cli/index";
 import { searchCommand } from "../src/cli/search";
 import * as fs from "fs";
 import * as path from "path";
+import { createHash } from "crypto";
+
+// Helper to create mock package-lock.json and calculate its hash
+const createMockPackageLock = (testDir: string): string => {
+  const packageLockContent = JSON.stringify({ lockfileVersion: 2, mockData: "test" }, null, 2);
+  fs.writeFileSync(
+    path.join(testDir, "package-lock.json"),
+    packageLockContent
+  );
+  return createHash('sha256').update(packageLockContent).digest('hex');
+};
 
 describe("CLI parseArgs", () => {
   test("should parse short aliases for resource types", () => {
@@ -76,12 +87,16 @@ describe("CLI search output format", () => {
         }, null, 2)
       );
       
+      // Create mock package-lock.json and get its hash
+      const packageLockHash = createMockPackageLock(testDir);
+      
       // Create mock .fcm cache directory with test data
       const fcmDir = path.join(testDir, ".fcm", "cache");
       fs.mkdirSync(fcmDir, { recursive: true });
       
       // Create a minimal index.json with test data
       const mockIndex = {
+        packageLockHash, // Use calculated hash
         packages: [{
           name: "hl7.fhir.r4.core",
           version: "4.0.1"
@@ -133,9 +148,9 @@ describe("CLI search output format", () => {
       // Should contain the header
       expect(output).toContain('Found 2 resources matching "pat":');
       
-      // Should have single-line format with JSON
-      expect(output).toContain('http://hl7.org/fhir/StructureDefinition/Patient, {"resourceType":"StructureDefinition","kind":"resource","type":"Patient"}');
-      expect(output).toContain('http://hl7.org/fhir/StructureDefinition/patient-animal, {"resourceType":"StructureDefinition","kind":"complex-type","type":"Extension"}');
+      // Should have single-line format with JSON including package
+      expect(output).toContain('http://hl7.org/fhir/StructureDefinition/Patient, {"resourceType":"StructureDefinition","kind":"resource","type":"Patient","package":"hl7.fhir.r4.core"}');
+      expect(output).toContain('http://hl7.org/fhir/StructureDefinition/patient-animal, {"resourceType":"StructureDefinition","kind":"complex-type","type":"Extension","package":"hl7.fhir.r4.core"}');
       
       // Verify JSON structure is valid
       const lines = output.split("\n").filter(line => line.includes(", {"));
@@ -146,6 +161,7 @@ describe("CLI search output format", () => {
         expect(parsed).toHaveProperty("resourceType");
         expect(parsed).toHaveProperty("kind");
         expect(parsed).toHaveProperty("type");
+        expect(parsed).toHaveProperty("package");
       });
       
     } finally {
@@ -181,12 +197,16 @@ describe("CLI search output format", () => {
         }, null, 2)
       );
       
+      // Create mock package-lock.json and get its hash
+      const packageLockHash = createMockPackageLock(testDir);
+      
       // Create empty index
       const fcmDir = path.join(testDir, ".fcm", "cache");
       fs.mkdirSync(fcmDir, { recursive: true });
       fs.writeFileSync(
         path.join(fcmDir, "index.json"),
         JSON.stringify({
+          packageLockHash,
           packages: [{ name: "hl7.fhir.r4.core", version: "4.0.1" }],
           entries: {},
           references: {}
@@ -233,11 +253,15 @@ describe("CLI search output format", () => {
         }, null, 2)
       );
       
+      // Create mock package-lock.json and get its hash
+      const packageLockHash = createMockPackageLock(testDir);
+      
       // Create index with mixed types
       const fcmDir = path.join(testDir, ".fcm", "cache");
       fs.mkdirSync(fcmDir, { recursive: true });
       
       const mockIndex = {
+        packageLockHash,
         packages: [{
           name: "hl7.fhir.r4.core",
           version: "4.0.1"
@@ -323,11 +347,15 @@ describe("CLI search output format", () => {
         }, null, 2)
       );
       
+      // Create mock package-lock.json and get its hash
+      const packageLockHash = createMockPackageLock(testDir);
+      
       // Create index with mixed kinds
       const fcmDir = path.join(testDir, ".fcm", "cache");
       fs.mkdirSync(fcmDir, { recursive: true });
       
       const mockIndex = {
+        packageLockHash,
         packages: [{
           name: "hl7.fhir.r4.core",
           version: "4.0.1"

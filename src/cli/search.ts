@@ -86,7 +86,8 @@ export async function searchCommand(args: string[]): Promise<void> {
           const info = {
             resourceType: resource.resourceType,
             kind: resource.kind,
-            type: resource.type
+            type: resource.type,
+            package: resource.package?.name
           };
           console.log(`${resource.url}, ${JSON.stringify(info)}`);
         });

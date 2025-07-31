@@ -25,14 +25,13 @@
     "prepublishOnly": "bun run build"
   },
   "devDependencies": {
+    "@atomic-ehr/hl7.fhir.r4.core": "^0.0.1",
     "@types/bun": "latest",
-    "@atomic-ehr/hl7.fhir.r4.core": "latest",
     "typescript": "^5"
   },
   "peerDependencies": {
     "typescript": "^5"
   },
-  "dependencies": {},
   "fcm": {
     "packages": [
       "hl7.fhir.r4.core",

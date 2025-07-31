@@ -129,6 +129,7 @@ interface CacheData {
   entries: Record<string, IndexEntry[]>;
   packages: Record<string, PackageInfo>;
   references: Record<string, ReferenceMetadata>;
+  packageLockHash?: string; // Hash of package-lock.json to detect changes
 }
 
 // Reference management functions
@@ -266,12 +267,26 @@ const createCache = (): IndexCache & {
   };
 };
 
+// Compute hash of package-lock.json for cache validation
+const computePackageLockHash = async (workingDir: string): Promise<string | null> => {
+  try {
+    const packageLockPath = path.join(workingDir, 'package-lock.json');
+    const content = await fs.readFile(packageLockPath, 'utf-8');
+    return createHash('sha256').update(content).digest('hex');
+  } catch {
+    return null;
+  }
+};
+
 // Cache persistence functions
-const saveCacheToDisk = async (cache: ReturnType<typeof createCache>, cacheDir: string): Promise<void> => {
+const saveCacheToDisk = async (cache: ReturnType<typeof createCache>, cacheDir: string, workingDir: string): Promise<void> => {
+  const packageLockHash = await computePackageLockHash(workingDir);
+  
   const cacheData: CacheData = {
     entries: cache.entries,
     packages: cache.packages,
-    references: cache.referenceManager.getAllReferences()
+    references: cache.referenceManager.getAllReferences(),
+    packageLockHash: packageLockHash || undefined
   };
   
   const cachePath = path.join(cacheDir, 'index.json');
@@ -482,9 +497,18 @@ export const CanonicalManager = (config: Config): CanonicalManager => {
     await ensureDir(workingDir);
     await ensureDir(cacheDir);
     
+    // Get current package-lock.json hash
+    const currentPackageLockHash = await computePackageLockHash(workingDir);
+    
     // Try to load cache from disk
     const cachedData = await loadCacheFromDisk(cacheDir);
-    if (cachedData) {
+    
+    // Check if cache is valid (exists and package-lock.json hasn't changed)
+    const cacheValid = cachedData && 
+      cachedData.packageLockHash === currentPackageLockHash &&
+      currentPackageLockHash !== null;
+    
+    if (cacheValid) {
       // Restore cache from disk
       cache.entries = cachedData.entries;
       cache.packages = cachedData.packages;
@@ -492,14 +516,22 @@ export const CanonicalManager = (config: Config): CanonicalManager => {
         cache.referenceManager.set(id, metadata);
       });
     } else {
+      // Cache is invalid or doesn't exist - rebuild it
+      if (cachedData && cachedData.packageLockHash !== currentPackageLockHash) {
+        console.log('Package dependencies have changed, rebuilding index...');
+      }
+      
       // Install packages if needed
       await installPackages(packages, workingDir, registry);
+      
+      // Clear cache before scanning
+      cache = createCache();
       
       // Scan installed packages
       await scanDirectory(nodeModulesPath, cache);
       
-      // Save cache to disk
-      await saveCacheToDisk(cache, cacheDir);
+      // Save cache to disk with current package-lock hash
+      await saveCacheToDisk(cache, cacheDir, workingDir);
     }
     
     initialized = true;
