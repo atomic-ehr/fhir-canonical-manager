@@ -31,11 +31,21 @@ export class ShellError extends Error {
   }
 }
 
+interface ShellResult {
+  stdout: string;
+  stderr: string;
+  exitCode: number;
+}
+
+interface ShellPromise extends Promise<ShellResult> {
+  quiet(): Promise<ShellResult>;
+}
+
 /**
  * Shell command execution that mimics Bun.$
  * Works with both Bun and Node.js environments
  */
-export function $(strings: TemplateStringsArray, ...values: any[]) {
+export function $(strings: TemplateStringsArray, ...values: any[]): ShellPromise {
   const command = strings.reduce((acc, str, i) => {
     return acc + str + (values[i] || '');
   }, '');
@@ -48,10 +58,18 @@ export function $(strings: TemplateStringsArray, ...values: any[]) {
       // Apply quiet option before executing if requested
       if (options.quiet) {
         const result = await bunShell(strings, ...values).quiet();
-        return result;
+        return {
+          stdout: result.stdout ? result.stdout.toString() : '',
+          stderr: result.stderr ? result.stderr.toString() : '',
+          exitCode: result.exitCode || 0
+        };
       } else {
         const result = await bunShell(strings, ...values);
-        return result;
+        return {
+          stdout: result.stdout ? result.stdout.toString() : '',
+          stderr: result.stderr ? result.stderr.toString() : '',
+          exitCode: result.exitCode || 0
+        };
       }
     }
 
@@ -74,12 +92,7 @@ export function $(strings: TemplateStringsArray, ...values: any[]) {
   };
 
   // Return chainable API
-  return {
-    then(resolve: any, reject: any) {
-      return execute().then(resolve, reject);
-    },
-    quiet() {
-      return execute({ quiet: true });
-    }
-  };
+  const promise = execute() as any;
+  promise.quiet = () => execute({ quiet: true });
+  return promise as ShellPromise;
 }

@@ -6,7 +6,7 @@
 import * as path from 'path';
 import * as fs from 'fs/promises';
 import { createHash } from 'crypto';
-import { $, ShellError } from './compat';
+import { $, ShellError } from './compat.js';
 
 // Types
 export interface Reference {
@@ -324,9 +324,9 @@ const installPackages = async (packages: string[], workingDir: string, registry?
   for (const pkg of packages) {
     try {
       if (registry) {
-        await Bun.$`cd ${workingDir} && npm add ${pkg} --registry ${registry}`;
+        await $`cd ${workingDir} && npm add ${pkg} --registry ${registry}`;
       } else {
-        await Bun.$`cd ${workingDir} && npm add ${pkg}`;
+        await $`cd ${workingDir} && npm add ${pkg}`;
       }
     } catch (err) {
       console.error(`Failed to install package ${pkg}:`, err);
