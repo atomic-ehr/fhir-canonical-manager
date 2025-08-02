@@ -475,9 +475,12 @@ const resolveWithContext = async (
   return null;
 };
 
+// Default FHIR package registry
+const DEFAULT_REGISTRY = 'https://fs.get-ig.org/pkgs';
+
 // Main implementation
 export const CanonicalManager = (config: Config): CanonicalManager => {
-  const { packages, workingDir, registry } = config;
+  const { packages, workingDir, registry = DEFAULT_REGISTRY } = config;
   const nodeModulesPath = path.join(workingDir, 'node_modules');
   const cacheDir = path.join(workingDir, '.fcm', 'cache');
   
