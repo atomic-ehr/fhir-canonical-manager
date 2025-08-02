@@ -3,7 +3,7 @@
  * This allows the library to work with both Bun.$ and Node.js child_process
  * 
  * Usage:
- *   import { $ } from './compat';
+ *   import { $ } from './compat.js';
  *   await $`npm install package-name`;
  *   await $`npm install package-name`.quiet();
  * 

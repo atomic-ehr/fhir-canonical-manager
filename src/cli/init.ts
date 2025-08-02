@@ -1,8 +1,8 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { $ } from '../compat';
-import { parseArgs, loadPackageJson, savePackageJson } from './index';
-import { CanonicalManager } from '../index';
+import { $ } from '../compat.js';
+import { parseArgs, loadPackageJson, savePackageJson } from './index.js';
+import { CanonicalManager } from '../index.js';
 
 export async function initCommand(args: string[]): Promise<void> {
   const { positional, options } = parseArgs(args);

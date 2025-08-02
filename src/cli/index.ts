@@ -3,14 +3,14 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
-import { CanonicalManager } from '../index';
-import type { Config, IndexEntry, PackageInfo } from '../index';
+import { CanonicalManager } from '../index.js';
+import type { Config, IndexEntry, PackageInfo } from '../index.js';
 
 // Command handlers
-import { initCommand } from './init';
-import { listCommand } from './list';
-import { searchCommand } from './search';
-import { resolveCommand } from './resolve';
+import { initCommand } from './init.js';
+import { listCommand } from './list.js';
+import { searchCommand } from './search.js';
+import { resolveCommand } from './resolve.js';
 
 // Get version from package.json
 const __filename = fileURLToPath(import.meta.url);

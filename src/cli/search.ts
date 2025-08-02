@@ -1,5 +1,5 @@
-import { parseArgs, loadPackageJson, getConfigFromPackageJson } from './index';
-import { CanonicalManager } from '../index';
+import { parseArgs, loadPackageJson, getConfigFromPackageJson } from './index.js';
+import { CanonicalManager } from '../index.js';
 
 export async function searchCommand(args: string[]): Promise<void> {
   const { positional, options } = parseArgs(args);
