@@ -1,4 +1,4 @@
-#!/usr/bin/env bun
+#!/usr/bin/env node
 
 import * as fs from 'fs';
 import * as path from 'path';
@@ -160,6 +160,10 @@ export function getConfigFromPackageJson(packageJson: any): Partial<Config> {
 }
 
 // Run CLI
-if (import.meta.main) {
+// Check if this file is being run directly
+const isMain = import.meta.url === `file://${process.argv[1]}` || 
+                (typeof Bun !== 'undefined' && import.meta.main);
+
+if (isMain) {
   main();
 }

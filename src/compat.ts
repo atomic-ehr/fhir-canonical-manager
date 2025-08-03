@@ -96,3 +96,22 @@ export function $(strings: TemplateStringsArray, ...values: any[]): ShellPromise
   promise.quiet = () => execute({ quiet: true });
   return promise as ShellPromise;
 }
+
+/**
+ * Detect available package manager
+ */
+export async function detectPackageManager(): Promise<'bun' | 'npm' | null> {
+  try {
+    // Check for bun first
+    await $`bun --version`.quiet();
+    return 'bun';
+  } catch {
+    try {
+      // Fall back to npm
+      await $`npm --version`.quiet();
+      return 'npm';
+    } catch {
+      return null;
+    }
+  }
+}

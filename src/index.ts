@@ -6,7 +6,7 @@
 import * as path from 'path';
 import * as fs from 'fs/promises';
 import { createHash } from 'crypto';
-import { $, ShellError } from './compat.js';
+import { $, ShellError, detectPackageManager } from './compat.js';
 
 // Types
 export interface Reference {
@@ -320,13 +320,35 @@ const installPackages = async (packages: string[], workingDir: string, registry?
     await fs.writeFile(packageJsonPath, JSON.stringify(minimalPackageJson, null, 2));
   }
   
+  // Detect available package manager
+  const packageManager = await detectPackageManager();
+  if (!packageManager) {
+    throw new Error('No package manager found. Please install npm or bun.');
+  }
+  
   // Install packages
   for (const pkg of packages) {
     try {
-      if (registry) {
-        await $`cd ${workingDir} && npm add ${pkg} --registry ${registry}`;
+      if (packageManager === 'bun') {
+        // Use bun with auth bypass trick
+        const env = {
+          HOME: workingDir,  // Prevent reading user's .npmrc
+          NPM_CONFIG_USERCONFIG: '/dev/null'  // Extra safety
+        };
+        const envStr = Object.entries(env).map(([k, v]) => `${k}="${v}"`).join(' ');
+        
+        if (registry) {
+          await $`cd ${workingDir} && ${envStr} bun add ${pkg} --registry ${registry}`;
+        } else {
+          await $`cd ${workingDir} && ${envStr} bun add ${pkg}`;
+        }
       } else {
-        await $`cd ${workingDir} && npm add ${pkg}`;
+        // Use npm (handles auth correctly)
+        if (registry) {
+          await $`cd ${workingDir} && npm add ${pkg} --registry ${registry}`;
+        } else {
+          await $`cd ${workingDir} && npm add ${pkg}`;
+        }
       }
     } catch (err) {
       console.error(`Failed to install package ${pkg}:`, err);
