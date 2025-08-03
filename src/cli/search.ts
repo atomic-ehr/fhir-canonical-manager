@@ -15,6 +15,9 @@ export async function searchCommand(args: string[]): Promise<void> {
   if (!packageJson?.fcm?.packages || packageJson.fcm.packages.length === 0) {
     console.error("Error: No FHIR packages configured");
     console.error("Run 'fcm init' first to initialize packages");
+    if (process.env.NODE_ENV === 'test' || process.env.BUN_TEST) {
+      throw new Error("No FHIR packages configured");
+    }
     process.exit(1);
   }
 
@@ -23,12 +26,19 @@ export async function searchCommand(args: string[]): Promise<void> {
   await manager.init();
 
   try {
-    // Build search criteria
-    const searchCriteria: any = {};
+    // Build filters for smart search
+    const filters: any = {};
     
-    // Handle kind filter through search criteria
+    if (resourceTypeFilter) {
+      filters.resourceType = resourceTypeFilter;
+    }
+    
+    if (typeFilter) {
+      filters.type = typeFilter;
+    }
+    
     if (kindFilter) {
-      searchCriteria.kind = kindFilter;
+      filters.kind = kindFilter;
     }
 
     if (packageFilter) {
@@ -36,42 +46,16 @@ export async function searchCommand(args: string[]): Promise<void> {
       const pkg = packages.find(p => p.name === packageFilter);
       if (!pkg) {
         console.error(`Error: Package '${packageFilter}' not found`);
+        if (process.env.NODE_ENV === 'test' || process.env.BUN_TEST) {
+          throw new Error(`Package '${packageFilter}' not found`);
+        }
         process.exit(1);
       }
-      searchCriteria.package = pkg;
+      filters.package = pkg;
     }
 
-    // Search for resources
-    let results = await manager.searchEntries(searchCriteria);
-
-    // Filter by resourceType if specified
-    if (resourceTypeFilter) {
-      results = results.filter(entry => entry.resourceType === resourceTypeFilter);
-    }
-
-    // Filter by type if specified (e.g., Extension, Patient, Observation)
-    if (typeFilter) {
-      results = results.filter(entry => entry.type === typeFilter);
-    }
-
-    // Filter by URL pattern if provided
-    if (searchTerms.length > 0) {
-      // Convert search terms to lowercase for case-insensitive matching
-      const terms = searchTerms.map(t => t.toLowerCase());
-      
-      results = results.filter(entry => {
-        if (!entry.url) return false;
-        const urlLower = entry.url.toLowerCase();
-        
-        // Check if all search terms match as prefixes in the URL
-        return terms.every(term => {
-          // Split the URL into parts (by /, -, _, .)
-          const urlParts = urlLower.split(/[\/\-_\.]+/);
-          // Check if any part starts with the search term
-          return urlParts.some(part => part.startsWith(term));
-        });
-      });
-    }
+    // Use the new smartSearch from core
+    const results = await manager.smartSearch(searchTerms, filters);
 
     if (isJson) {
       console.log(JSON.stringify(results, null, 2));

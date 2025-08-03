@@ -30,7 +30,7 @@ fcm <command> [options]
 
 Commands:
   init       Initialize FHIR packages in current directory
-  list       List packages or resources  
+  list       List packages or resources
   search     Search for resources
   resolve    Get a resource by canonical URL
 
@@ -49,7 +49,7 @@ Initialize FHIR packages in the current directory.
 fcm init hl7.fhir.r4.core hl7.fhir.us.core@5.0.1
 
 # With custom registry
-fcm init hl7.fhir.r4.core --registry https://fs.get-ig.org/pkgs
+fcm init hl7.fhir.r4.core --registry https://fs.get-ig.org/pkgs/
 
 # Initialize from existing package.json
 fcm init
@@ -70,7 +70,7 @@ Configuration in package.json:
       "hl7.fhir.r4.core",
       "hl7.fhir.us.core@5.0.1"
     ],
-    "registry": "https://fs.get-ig.org/pkgs"
+    "registry": "https://fs.get-ig.org/pkgs/"
   }
 }
 
@@ -120,7 +120,7 @@ Output example:
 Found 3 resources matching "Patient":
   http://hl7.org/fhir/StructureDefinition/Patient
     Type: StructureDefinition, Package: hl7.fhir.r4.core
-  http://hl7.org/fhir/ValueSet/patient-contactrelationship  
+  http://hl7.org/fhir/ValueSet/patient-contactrelationship
     Type: ValueSet, Package: hl7.fhir.r4.core
   http://hl7.org/fhir/us/core/StructureDefinition/us-core-patient
     Type: StructureDefinition, Package: hl7.fhir.us.core
@@ -188,7 +188,7 @@ The CLI reads configuration from the `fcm` key in package.json:
       "hl7.fhir.r4.core",
       "hl7.fhir.us.core@5.0.1"
     ],
-    "registry": "https://fs.get-ig.org/pkgs"
+    "registry": "https://fs.get-ig.org/pkgs/"
   },
   "dependencies": {
     "hl7.fhir.r4.core": "^4.0.1",

@@ -29,10 +29,10 @@ npm install @atomic-ehr/fhir-canonical-manager
 import { CanonicalManager } from '@atomic-ehr/fhir-canonical-manager';
 
 // Create and initialize the manager
-const manager = CanonicalManager({ 
-    packages: ["hl7.fhir.r4.core"], 
+const manager = CanonicalManager({
+    packages: ["hl7.fhir.r4.core"],
     workingDir: "tmp/fhir",
-    registry: "https://fs.get-ig.org/pkgs" // optional, default registry
+    registry: "https://fs.get-ig.org/pkgs/" // optional, default registry
 });
 
 await manager.init();
@@ -94,7 +94,7 @@ Configuration is stored in `package.json`:
 {
   "fcm": {
     "packages": ["hl7.fhir.r4.core", "hl7.fhir.us.core@5.0.1"],
-    "registry": "https://fs.get-ig.org/pkgs"
+    "registry": "https://fs.get-ig.org/pkgs/"
   }
 }
 ```
@@ -257,13 +257,13 @@ interface Config {
 
 Example:
 ```typescript
-const manager = CanonicalManager({ 
+const manager = CanonicalManager({
     packages: [
         "hl7.fhir.r4.core",
         "hl7.fhir.us.core@5.0.1"
-    ], 
+    ],
     workingDir: "./fhir-packages",
-    registry: "https://fs.get-ig.org/pkgs"
+    registry: "https://fs.get-ig.org/pkgs/"
 });
 ```
 
@@ -339,17 +339,17 @@ Searches and returns full resources matching criteria.
 
 ```typescript
 // Get all StructureDefinitions
-const structures = await manager.search({ 
-    type: 'StructureDefinition' 
+const structures = await manager.search({
+    type: 'StructureDefinition'
 });
 
 // Get all resources of kind "resource"
-const resources = await manager.search({ 
-    kind: 'resource' 
+const resources = await manager.search({
+    kind: 'resource'
 });
 
 // Complex search
-const valuesets = await manager.search({ 
+const valuesets = await manager.search({
     type: 'ValueSet',
     package: { name: 'hl7.fhir.r4.core', version: '4.0.1' }
 });
@@ -361,13 +361,13 @@ Searches and returns index entries (metadata only).
 
 ```typescript
 // Find all CodeSystems
-const entries = await manager.searchEntries({ 
-    type: 'CodeSystem' 
+const entries = await manager.searchEntries({
+    type: 'CodeSystem'
 });
 
 // Find by URL
-const entries = await manager.searchEntries({ 
-    url: 'http://hl7.org/fhir/StructureDefinition/Patient' 
+const entries = await manager.searchEntries({
+    url: 'http://hl7.org/fhir/StructureDefinition/Patient'
 });
 ```
 
@@ -534,12 +534,12 @@ The cache is stored as a JSON file with the following structure:
 ### Working with Multiple Packages
 
 ```typescript
-const manager = CanonicalManager({ 
+const manager = CanonicalManager({
     packages: [
         "hl7.fhir.r4.core",
         "hl7.fhir.us.core@5.0.1",
         "hl7.fhir.us.davinci-drug-formulary"
-    ], 
+    ],
     workingDir: "./fhir-packages"
 });
 
@@ -549,7 +549,7 @@ await manager.init();
 const allValueSets = await manager.search({ type: 'ValueSet' });
 
 // Search in specific package
-const usCoreProfiles = await manager.search({ 
+const usCoreProfiles = await manager.search({
     type: 'StructureDefinition',
     package: { name: 'hl7.fhir.us.core', version: '5.0.1' }
 });
@@ -559,14 +559,14 @@ const usCoreProfiles = await manager.search({
 
 ```typescript
 // Use the default FHIR package registry
-const manager = CanonicalManager({ 
+const manager = CanonicalManager({
     packages: ["hl7.fhir.r4.core"],
     workingDir: "./fhir-packages",
-    registry: "https://fs.get-ig.org/pkgs"
+    registry: "https://fs.get-ig.org/pkgs/"
 });
 
 // Use a custom NPM registry
-const manager = CanonicalManager({ 
+const manager = CanonicalManager({
     packages: ["hl7.fhir.r4.core"],
     workingDir: "./fhir-packages",
     registry: "https://my-private-registry.com"
@@ -582,10 +582,10 @@ async function validateResource(resource: any, manager: CanonicalManager) {
     if (!profileUrl) {
         throw new Error('No profile specified');
     }
-    
+
     // Resolve the StructureDefinition
     const profile = await manager.resolve(profileUrl);
-    
+
     // Validate resource against profile
     // ... validation logic ...
 }
@@ -597,12 +597,12 @@ async function validateResource(resource: any, manager: CanonicalManager) {
 async function analyzeValueSetDependencies(manager: CanonicalManager) {
     // Get all ValueSets
     const valueSets = await manager.search({ type: 'ValueSet' });
-    
+
     const dependencies = new Map<string, Set<string>>();
-    
+
     for (const vs of valueSets) {
         const vsPackage = vs.package?.name || 'unknown';
-        
+
         // Check compose.include for external code systems
         if (vs.compose?.include) {
             for (const include of vs.compose.include) {
@@ -610,7 +610,7 @@ async function analyzeValueSetDependencies(manager: CanonicalManager) {
                     try {
                         const cs = await manager.resolve(include.system);
                         const csPackage = cs.package?.name || 'unknown';
-                        
+
                         if (csPackage !== vsPackage) {
                             if (!dependencies.has(vsPackage)) {
                                 dependencies.set(vsPackage, new Set());
@@ -624,7 +624,7 @@ async function analyzeValueSetDependencies(manager: CanonicalManager) {
             }
         }
     }
-    
+
     return dependencies;
 }
 ```

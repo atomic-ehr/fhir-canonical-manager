@@ -21,7 +21,7 @@ We will create a FHIR Canonical Manager (FCM) that provides a high-level API for
 const manager = CanonicalManager({
   packages: ["hl7.fhir.r4.core", "hl7.fhir.us.core@5.0.1"],
   workingDir: "./fhir-workspace",
-  registry: "https://fs.get-ig.org/pkgs"
+  registry: "https://fs.get-ig.org/pkgs/"
 });
 
 await manager.init();

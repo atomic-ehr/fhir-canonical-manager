@@ -10,6 +10,9 @@ export async function resolveCommand(args: string[]): Promise<void> {
     console.error("Error: Canonical URL required");
     console.error("Usage: fcm resolve <canonical-url> [--fields field1,field2]");
     console.error("Example: fcm resolve http://hl7.org/fhir/StructureDefinition/Patient");
+    if (process.env.NODE_ENV === 'test') {
+      throw new Error("Canonical URL required");
+    }
     process.exit(1);
   }
 
@@ -18,6 +21,9 @@ export async function resolveCommand(args: string[]): Promise<void> {
   if (!packageJson?.fcm?.packages || packageJson.fcm.packages.length === 0) {
     console.error("Error: No FHIR packages configured");
     console.error("Run 'fcm init' first to initialize packages");
+    if (process.env.NODE_ENV === 'test') {
+      throw new Error("No FHIR packages configured");
+    }
     process.exit(1);
   }
 
@@ -47,6 +53,9 @@ export async function resolveCommand(args: string[]): Promise<void> {
     }
   } catch (error) {
     console.error(`Error: Resource not found: ${url}`);
+    if (process.env.NODE_ENV === 'test') {
+      throw error;
+    }
     process.exit(1);
   } finally {
     await manager.destroy();

@@ -3,11 +3,11 @@
  * A package manager for FHIR resources with canonical URL resolution
  */
 
-import * as path from 'path';
-import * as fs from 'fs/promises';
-import { createHash } from 'crypto';
-import { exec } from 'child_process';
-import { promisify } from 'util';
+import * as path from "path";
+import * as fs from "fs/promises";
+import { createHash } from "crypto";
+import { exec } from "child_process";
+import { promisify } from "util";
 
 // Shell command utilities
 const execAsync = promisify(exec);
@@ -18,9 +18,14 @@ class ShellError extends Error {
   stdout: string;
   stderr: string;
 
-  constructor(message: string, exitCode: number, stdout: string, stderr: string) {
+  constructor(
+    message: string,
+    exitCode: number,
+    stdout: string,
+    stderr: string,
+  ) {
     super(message);
-    this.name = 'ShellError';
+    this.name = "ShellError";
     this.exitCode = exitCode;
     this.stdout = stdout;
     this.stderr = stderr;
@@ -43,8 +48,8 @@ interface ShellPromise extends Promise<ShellResult> {
  */
 function $(strings: TemplateStringsArray, ...values: any[]): ShellPromise {
   const command = strings.reduce((acc, str, i) => {
-    return acc + str + (values[i] || '');
-  }, '');
+    return acc + str + (values[i] || "");
+  }, "");
 
   let envVars: Record<string, string> = {};
 
@@ -55,38 +60,33 @@ function $(strings: TemplateStringsArray, ...values: any[]): ShellPromise {
         shell: true,
         maxBuffer: 10 * 1024 * 1024, // 10MB buffer
       };
-      
+
       // Apply environment variables if set
       if (Object.keys(envVars).length > 0) {
         execOptions.env = { ...process.env, ...envVars };
       }
-      
+
       const { stdout, stderr } = await execAsync(command, execOptions);
-      
+
       return {
-        stdout: stdout?.toString() || '',
-        stderr: stderr?.toString() || '',
-        exitCode: 0
+        stdout: stdout?.toString() || "",
+        stderr: stderr?.toString() || "",
+        exitCode: 0,
       };
     } catch (error: any) {
       // Extract error details
       const code = error.code || 1;
-      const stdout = error.stdout?.toString() || '';
-      const stderr = error.stderr?.toString() || error.message || '';
-      
-      throw new ShellError(
-        `Command failed: ${command}`,
-        code,
-        stdout,
-        stderr
-      );
+      const stdout = error.stdout?.toString() || "";
+      const stderr = error.stderr?.toString() || error.message || "";
+
+      throw new ShellError(`Command failed: ${command}`, code, stdout, stderr);
     }
   };
 
   // Create a lazy promise that only executes when awaited
   let executed = false;
   let resultPromise: Promise<ShellResult> | null = null;
-  
+
   const lazyPromise = {
     then(onFulfilled?: any, onRejected?: any) {
       if (!executed) {
@@ -107,7 +107,7 @@ function $(strings: TemplateStringsArray, ...values: any[]): ShellPromise {
         (reason: any) => {
           onFinally?.();
           throw reason;
-        }
+        },
       );
     },
     quiet() {
@@ -118,25 +118,25 @@ function $(strings: TemplateStringsArray, ...values: any[]): ShellPromise {
       return this;
     },
     // Add Symbol.toStringTag to satisfy Promise interface
-    [Symbol.toStringTag]: 'ShellPromise' as const
+    [Symbol.toStringTag]: "ShellPromise" as const,
   };
-  
+
   return lazyPromise as any as ShellPromise;
 }
 
 /**
  * Detect available package manager
  */
-async function detectPackageManager(): Promise<'bun' | 'npm' | null> {
+async function detectPackageManager(): Promise<"bun" | "npm" | null> {
   try {
     // Check for bun first
     await $`bun --version`.quiet();
-    return 'bun';
+    return "bun";
   } catch {
     try {
       // Fall back to npm
       await $`npm --version`.quiet();
-      return 'npm';
+      return "npm";
     } catch {
       return null;
     }
@@ -189,36 +189,51 @@ export interface CanonicalManager {
   init(): Promise<void>;
   destroy(): Promise<void>;
   packages(): Promise<PackageId[]>;
-  resolveEntry(canonicalUrl: string, options?: {
-    package?: string,
-    version?: string,
-    sourceContext?: SourceContext
-  }): Promise<IndexEntry>;
-  resolve(canonicalUrl: string, options?: {
-    package?: string,
-    version?: string,
-    sourceContext?: SourceContext
-  }): Promise<Resource>;
+  resolveEntry(
+    canonicalUrl: string,
+    options?: {
+      package?: string;
+      version?: string;
+      sourceContext?: SourceContext;
+    },
+  ): Promise<IndexEntry>;
+  resolve(
+    canonicalUrl: string,
+    options?: {
+      package?: string;
+      version?: string;
+      sourceContext?: SourceContext;
+    },
+  ): Promise<Resource>;
   read(reference: Reference): Promise<Resource>;
   searchEntries(params: {
-    kind?: string,
-    url?: string,
-    type?: string,
-    version?: string,
-    package?: PackageId
+    kind?: string;
+    url?: string;
+    type?: string;
+    version?: string;
+    package?: PackageId;
   }): Promise<IndexEntry[]>;
   search(params: {
-    kind?: string,
-    url?: string,
-    type?: string,
-    version?: string,
-    package?: PackageId
+    kind?: string;
+    url?: string;
+    type?: string;
+    version?: string;
+    package?: PackageId;
   }): Promise<Resource[]>;
+  smartSearch(
+    searchTerms: string[],
+    filters?: {
+      resourceType?: string;
+      type?: string;
+      kind?: string;
+      package?: PackageId;
+    }
+  ): Promise<IndexEntry[]>;
 }
 
 // Internal types
 interface IndexFile {
-  'index-version': number;
+  "index-version": number;
   files: IndexFileEntry[];
 }
 
@@ -287,7 +302,7 @@ const generateReferenceId = (metadata: {
   filePath: string;
 }): string => {
   const input = `${metadata.packageName}@${metadata.packageVersion}:${metadata.filePath}`;
-  return createHash('sha256').update(input).digest('base64url');
+  return createHash("sha256").update(input).digest("base64url");
 };
 
 export const ReferenceManager = (): ReferenceStore & {
@@ -313,8 +328,8 @@ export const ReferenceManager = (): ReferenceStore & {
   };
 
   const clear = (): void => {
-    Object.keys(references).forEach(key => delete references[key]);
-    Object.keys(urlToIds).forEach(key => delete urlToIds[key]);
+    Object.keys(references).forEach((key) => delete references[key]);
+    Object.keys(urlToIds).forEach((key) => delete urlToIds[key]);
   };
 
   return {
@@ -327,32 +342,34 @@ export const ReferenceManager = (): ReferenceStore & {
     getIdsByUrl: (url: string) => urlToIds[url] || [],
     createReference: (id: string, metadata: ReferenceMetadata): Reference => ({
       id,
-      resourceType: metadata.resourceType
+      resourceType: metadata.resourceType,
     }),
-    getAllReferences: () => references
+    getAllReferences: () => references,
   };
 };
 
 // Parser functions
 const isValidFileEntry = (entry: any): boolean => {
-  if (!entry || typeof entry !== 'object') return false;
-  if (!entry.filename || typeof entry.filename !== 'string') return false;
-  if (!entry.resourceType || typeof entry.resourceType !== 'string') return false;
-  if (!entry.id || typeof entry.id !== 'string') return false;
-  
-  const optionalStringFields = ['url', 'version', 'kind', 'type'];
+  if (!entry || typeof entry !== "object") return false;
+  if (!entry.filename || typeof entry.filename !== "string") return false;
+  if (!entry.resourceType || typeof entry.resourceType !== "string")
+    return false;
+  if (!entry.id || typeof entry.id !== "string") return false;
+
+  const optionalStringFields = ["url", "version", "kind", "type"];
   for (const field of optionalStringFields) {
-    if (entry[field] !== undefined && typeof entry[field] !== 'string') {
+    if (entry[field] !== undefined && typeof entry[field] !== "string") {
       return false;
     }
   }
-  
+
   return true;
 };
 
 const isValidIndexFile = (data: any): boolean => {
-  if (!data || typeof data !== 'object') return false;
-  if (!data['index-version'] || typeof data['index-version'] !== 'number') return false;
+  if (!data || typeof data !== "object") return false;
+  if (!data["index-version"] || typeof data["index-version"] !== "number")
+    return false;
   if (!Array.isArray(data.files)) return false;
   return data.files.every((file: any) => isValidFileEntry(file));
 };
@@ -388,7 +405,7 @@ const ensureDir = async (dirPath: string): Promise<void> => {
 };
 
 const isFhirPackage = async (dirPath: string): Promise<boolean> => {
-  const indexPath = path.join(dirPath, '.index.json');
+  const indexPath = path.join(dirPath, ".index.json");
   return fileExists(indexPath);
 };
 
@@ -401,23 +418,25 @@ const createCache = (): IndexCache & {
     entries: {},
     packages: {},
     references: {},
-    referenceManager
+    referenceManager,
   };
 };
 
 // Compute hash of package-lock.json or bun.lock for cache validation
-const computePackageLockHash = async (workingDir: string): Promise<string | null> => {
+const computePackageLockHash = async (
+  workingDir: string,
+): Promise<string | null> => {
   try {
     // Try package-lock.json first
-    const packageLockPath = path.join(workingDir, 'package-lock.json');
+    const packageLockPath = path.join(workingDir, "package-lock.json");
     try {
-      const content = await fs.readFile(packageLockPath, 'utf-8');
-      return createHash('sha256').update(content).digest('hex');
+      const content = await fs.readFile(packageLockPath, "utf-8");
+      return createHash("sha256").update(content).digest("hex");
     } catch {
       // Try bun.lock if package-lock.json doesn't exist
-      const bunLockPath = path.join(workingDir, 'bun.lock');
-      const content = await fs.readFile(bunLockPath, 'utf-8');
-      return createHash('sha256').update(content).digest('hex');
+      const bunLockPath = path.join(workingDir, "bun.lock");
+      const content = await fs.readFile(bunLockPath, "utf-8");
+      return createHash("sha256").update(content).digest("hex");
     }
   } catch {
     return null;
@@ -425,24 +444,30 @@ const computePackageLockHash = async (workingDir: string): Promise<string | null
 };
 
 // Cache persistence functions
-const saveCacheToDisk = async (cache: ReturnType<typeof createCache>, cacheDir: string, workingDir: string): Promise<void> => {
+const saveCacheToDisk = async (
+  cache: ReturnType<typeof createCache>,
+  cacheDir: string,
+  workingDir: string,
+): Promise<void> => {
   const packageLockHash = await computePackageLockHash(workingDir);
-  
+
   const cacheData: CacheData = {
     entries: cache.entries,
     packages: cache.packages,
     references: cache.referenceManager.getAllReferences(),
-    packageLockHash: packageLockHash || undefined
+    packageLockHash: packageLockHash || undefined,
   };
-  
-  const cachePath = path.join(cacheDir, 'index.json');
+
+  const cachePath = path.join(cacheDir, "index.json");
   await fs.writeFile(cachePath, JSON.stringify(cacheData, null, 2));
 };
 
-const loadCacheFromDisk = async (cacheDir: string): Promise<CacheData | null> => {
+const loadCacheFromDisk = async (
+  cacheDir: string,
+): Promise<CacheData | null> => {
   try {
-    const cachePath = path.join(cacheDir, 'index.json');
-    const content = await fs.readFile(cachePath, 'utf-8');
+    const cachePath = path.join(cacheDir, "index.json");
+    const content = await fs.readFile(cachePath, "utf-8");
     return JSON.parse(content) as CacheData;
   } catch {
     return null;
@@ -450,49 +475,56 @@ const loadCacheFromDisk = async (cacheDir: string): Promise<CacheData | null> =>
 };
 
 // Package management functions
-const installPackages = async (packages: string[], workingDir: string, registry?: string): Promise<void> => {
+const installPackages = async (
+  packages: string[],
+  workingDir: string,
+  registry?: string,
+): Promise<void> => {
   await ensureDir(workingDir);
-  
+
   // Check if package.json exists
-  const packageJsonPath = path.join(workingDir, 'package.json');
+  const packageJsonPath = path.join(workingDir, "package.json");
   if (!(await fileExists(packageJsonPath))) {
     // Create minimal package.json
     const minimalPackageJson = {
       name: "fhir-canonical-manager-workspace",
       version: "1.0.0",
       private: true,
-      dependencies: {}
+      dependencies: {},
     };
-    await fs.writeFile(packageJsonPath, JSON.stringify(minimalPackageJson, null, 2));
+    await fs.writeFile(
+      packageJsonPath,
+      JSON.stringify(minimalPackageJson, null, 2),
+    );
   }
-  
+
   // Detect available package manager
   const packageManager = await detectPackageManager();
   if (!packageManager) {
-    throw new Error('No package manager found. Please install npm or bun.');
+    throw new Error("No package manager found. Please install npm or bun.");
   }
-  
+
   // Install packages
   for (const pkg of packages) {
     try {
-      if (packageManager === 'bun') {
+      if (packageManager === "bun") {
         // Use bun with auth bypass trick for FHIR registry
         const env = {
-          HOME: workingDir,  // Prevent reading user's .npmrc
-          NPM_CONFIG_USERCONFIG: '/dev/null'  // Extra safety
+          HOME: workingDir, // Prevent reading user's .npmrc
+          NPM_CONFIG_USERCONFIG: "/dev/null", // Extra safety
         };
-        
-        const cmd = registry 
+
+        const cmd = registry
           ? `cd ${workingDir} && bun add ${pkg} --registry ${registry}`
           : `cd ${workingDir} && bun add ${pkg}`;
-          
+
         await $`${cmd}`.env(env);
       } else {
         // Use npm (handles auth correctly)
         const cmd = registry
           ? `cd ${workingDir} && npm add ${pkg} --registry ${registry}`
           : `cd ${workingDir} && npm add ${pkg}`;
-          
+
         await $`${cmd}`;
       }
     } catch (err) {
@@ -506,50 +538,50 @@ const installPackages = async (packages: string[], workingDir: string, registry?
 const processIndex = async (
   basePath: string,
   packageJson: PackageJson,
-  cache: ReturnType<typeof createCache>
+  cache: ReturnType<typeof createCache>,
 ): Promise<void> => {
-  const indexPath = path.join(basePath, '.index.json');
-  
+  const indexPath = path.join(basePath, ".index.json");
+
   try {
-    const indexContent = await fs.readFile(indexPath, 'utf-8');
+    const indexContent = await fs.readFile(indexPath, "utf-8");
     const index = parseIndex(indexContent, indexPath);
-    
+
     if (!index) return;
-    
+
     for (const file of index.files) {
       if (!file.url) continue;
-      
+
       const filePath = path.join(basePath, file.filename);
-      
+
       const id = cache.referenceManager.generateId({
         packageName: packageJson.name,
         packageVersion: packageJson.version,
-        filePath
+        filePath,
       });
-      
+
       cache.referenceManager.set(id, {
         packageName: packageJson.name,
         packageVersion: packageJson.version,
         filePath,
         resourceType: file.resourceType,
         url: file.url,
-        version: file.version
+        version: file.version,
       });
-      
+
       const entry: IndexEntry = {
         id,
         resourceType: file.resourceType,
-        indexVersion: index['index-version'],
+        indexVersion: index["index-version"],
         url: file.url,
         version: file.version,
         kind: file.kind,
         type: file.type,
         package: {
           name: packageJson.name,
-          version: packageJson.version
-        }
+          version: packageJson.version,
+        },
       };
-      
+
       if (!cache.entries[file.url]) {
         cache.entries[file.url] = [];
       }
@@ -565,25 +597,25 @@ const processIndex = async (
 
 const scanPackage = async (
   packagePath: string,
-  cache: ReturnType<typeof createCache>
+  cache: ReturnType<typeof createCache>,
 ): Promise<void> => {
   try {
-    const packageJsonPath = path.join(packagePath, 'package.json');
-    const packageJsonContent = await fs.readFile(packageJsonPath, 'utf-8');
+    const packageJsonPath = path.join(packagePath, "package.json");
+    const packageJsonContent = await fs.readFile(packageJsonPath, "utf-8");
     const packageJson: PackageJson = JSON.parse(packageJsonContent);
-    
+
     const packageInfo: PackageInfo = {
       id: { name: packageJson.name, version: packageJson.version },
       path: packagePath,
       canonical: packageJson.canonical,
-      fhirVersions: packageJson.fhirVersions
+      fhirVersions: packageJson.fhirVersions,
     };
     cache.packages[packageJson.name] = packageInfo;
-    
+
     await processIndex(packagePath, packageJson, cache);
-    
-    const examplesPath = path.join(packagePath, 'examples');
-    if (await fileExists(path.join(examplesPath, '.index.json'))) {
+
+    const examplesPath = path.join(packagePath, "examples");
+    if (await fileExists(path.join(examplesPath, ".index.json"))) {
       await processIndex(examplesPath, packageJson, cache);
     }
   } catch {
@@ -593,21 +625,23 @@ const scanPackage = async (
 
 const scanDirectory = async (
   dirPath: string,
-  cache: ReturnType<typeof createCache>
+  cache: ReturnType<typeof createCache>,
 ): Promise<void> => {
   try {
     const entries = await fs.readdir(dirPath, { withFileTypes: true });
-    
+
     for (const entry of entries) {
       if (!entry.isDirectory()) continue;
-      
+
       const fullPath = path.join(dirPath, entry.name);
-      
-      if (entry.name.startsWith('@')) {
-        const scopedEntries = await fs.readdir(fullPath, { withFileTypes: true });
+
+      if (entry.name.startsWith("@")) {
+        const scopedEntries = await fs.readdir(fullPath, {
+          withFileTypes: true,
+        });
         for (const scopedEntry of scopedEntries) {
           if (!scopedEntry.isDirectory()) continue;
-          
+
           const scopedPath = path.join(fullPath, scopedEntry.name);
           if (await isFhirPackage(scopedPath)) {
             await scanPackage(scopedPath, cache);
@@ -627,13 +661,13 @@ const resolveWithContext = async (
   url: string,
   context: SourceContext,
   cache: ReturnType<typeof createCache>,
-  resolveEntry: (url: string, options?: any) => Promise<IndexEntry>
+  resolveEntry: (url: string, options?: any) => Promise<IndexEntry>,
 ): Promise<IndexEntry | null> => {
   if (context.package) {
     try {
       return await resolveEntry(url, {
         package: context.package.name,
-        version: context.package.version
+        version: context.package.version,
       });
     } catch {
       // Fall through to global resolution
@@ -643,41 +677,46 @@ const resolveWithContext = async (
 };
 
 // Default FHIR package registry
-const DEFAULT_REGISTRY = 'https://fs.get-ig.org/pkgs';
+const DEFAULT_REGISTRY = "https://fs.get-ig.org/pkgs/";
 
 // Main implementation
 export const CanonicalManager = (config: Config): CanonicalManager => {
-  const { packages, workingDir, registry = DEFAULT_REGISTRY } = config;
-  const nodeModulesPath = path.join(workingDir, 'node_modules');
-  const cacheDir = path.join(workingDir, '.fcm', 'cache');
-  
+  const { packages, workingDir } = config;
+  // Ensure registry URL ends with /
+  const registry = config.registry 
+    ? config.registry.endsWith('/') ? config.registry : `${config.registry}/`
+    : DEFAULT_REGISTRY;
+  const nodeModulesPath = path.join(workingDir, "node_modules");
+  const cacheDir = path.join(workingDir, ".fcm", "cache");
+
   let cache = createCache();
   let initialized = false;
 
   const ensureInitialized = (): void => {
     if (!initialized) {
-      throw new Error('CanonicalManager not initialized. Call init() first.');
+      throw new Error("CanonicalManager not initialized. Call init() first.");
     }
   };
 
   const init = async (): Promise<void> => {
     if (initialized) return;
-    
+
     // Ensure directories exist
     await ensureDir(workingDir);
     await ensureDir(cacheDir);
-    
+
     // Get current package-lock.json hash
     const currentPackageLockHash = await computePackageLockHash(workingDir);
-    
+
     // Try to load cache from disk
     const cachedData = await loadCacheFromDisk(cacheDir);
-    
+
     // Check if cache is valid (exists and package-lock.json hasn't changed)
-    const cacheValid = cachedData && 
+    const cacheValid =
+      cachedData &&
       cachedData.packageLockHash === currentPackageLockHash &&
       currentPackageLockHash !== null;
-    
+
     if (cacheValid) {
       // Restore cache from disk
       cache.entries = cachedData.entries;
@@ -688,22 +727,22 @@ export const CanonicalManager = (config: Config): CanonicalManager => {
     } else {
       // Cache is invalid or doesn't exist - rebuild it
       if (cachedData && cachedData.packageLockHash !== currentPackageLockHash) {
-        console.log('Package dependencies have changed, rebuilding index...');
+        console.log("Package dependencies have changed, rebuilding index...");
       }
-      
+
       // Install packages if needed
       await installPackages(packages, workingDir, registry);
-      
+
       // Clear cache before scanning
       cache = createCache();
-      
+
       // Scan installed packages
       await scanDirectory(nodeModulesPath, cache);
-      
+
       // Save cache to disk with current package-lock hash
       await saveCacheToDisk(cache, cacheDir, workingDir);
     }
-    
+
     initialized = true;
   };
 
@@ -716,7 +755,7 @@ export const CanonicalManager = (config: Config): CanonicalManager => {
 
   const getPackages = async (): Promise<PackageId[]> => {
     ensureInitialized();
-    return Object.values(cache.packages).map(p => p.id);
+    return Object.values(cache.packages).map((p) => p.id);
   };
 
   const resolveEntry = async (
@@ -725,7 +764,7 @@ export const CanonicalManager = (config: Config): CanonicalManager => {
       package?: string;
       version?: string;
       sourceContext?: SourceContext;
-    }
+    },
   ): Promise<IndexEntry> => {
     ensureInitialized();
 
@@ -734,7 +773,7 @@ export const CanonicalManager = (config: Config): CanonicalManager => {
         canonicalUrl,
         options.sourceContext,
         cache,
-        resolveEntry
+        resolveEntry,
       );
       if (contextResolved) {
         return contextResolved;
@@ -742,23 +781,25 @@ export const CanonicalManager = (config: Config): CanonicalManager => {
     }
 
     const entries = cache.entries[canonicalUrl] || [];
-    
+
     if (entries.length === 0) {
       throw new Error(`Cannot resolve canonical URL: ${canonicalUrl}`);
     }
 
     let filtered = [...entries];
-    
+
     if (options?.package) {
-      filtered = filtered.filter(e => e.package?.name === options.package);
+      filtered = filtered.filter((e) => e.package?.name === options.package);
     }
-    
+
     if (options?.version) {
-      filtered = filtered.filter(e => e.version === options.version);
+      filtered = filtered.filter((e) => e.version === options.version);
     }
 
     if (filtered.length === 0) {
-      throw new Error(`No matching resource found for ${canonicalUrl} with given options`);
+      throw new Error(
+        `No matching resource found for ${canonicalUrl} with given options`,
+      );
     }
 
     return filtered[0]!;
@@ -770,7 +811,7 @@ export const CanonicalManager = (config: Config): CanonicalManager => {
       package?: string;
       version?: string;
       sourceContext?: SourceContext;
-    }
+    },
   ): Promise<Resource> => {
     const entry = await resolveEntry(canonicalUrl, options);
     return read(entry);
@@ -778,20 +819,20 @@ export const CanonicalManager = (config: Config): CanonicalManager => {
 
   const read = async (reference: Reference): Promise<Resource> => {
     ensureInitialized();
-    
+
     const metadata = cache.referenceManager.get(reference.id);
     if (!metadata) {
       throw new Error(`Invalid reference ID: ${reference.id}`);
     }
 
     try {
-      const content = await fs.readFile(metadata.filePath, 'utf-8');
+      const content = await fs.readFile(metadata.filePath, "utf-8");
       const resource = JSON.parse(content);
-      
+
       return {
         ...resource,
         id: reference.id,
-        resourceType: reference.resourceType
+        resourceType: reference.resourceType,
       };
     } catch (err) {
       throw new Error(`Failed to read resource: ${err}`);
@@ -806,9 +847,9 @@ export const CanonicalManager = (config: Config): CanonicalManager => {
     package?: PackageId;
   }): Promise<IndexEntry[]> => {
     ensureInitialized();
-    
+
     let results: IndexEntry[] = [];
-    
+
     if (params.url) {
       results = cache.entries[params.url] || [];
     } else {
@@ -816,27 +857,27 @@ export const CanonicalManager = (config: Config): CanonicalManager => {
         results.push(...entries);
       }
     }
-    
+
     if (params.kind !== undefined) {
-      results = results.filter(e => e.kind === params.kind);
+      results = results.filter((e) => e.kind === params.kind);
     }
-    
+
     if (params.type !== undefined) {
-      results = results.filter(e => e.type === params.type);
+      results = results.filter((e) => e.type === params.type);
     }
-    
+
     if (params.version !== undefined) {
-      results = results.filter(e => e.version === params.version);
+      results = results.filter((e) => e.version === params.version);
     }
-    
+
     if (params.package) {
       const pkg = params.package;
-      results = results.filter(e => 
-        e.package?.name === pkg.name && 
-        e.package?.version === pkg.version
+      results = results.filter(
+        (e) =>
+          e.package?.name === pkg.name && e.package?.version === pkg.version,
       );
     }
-    
+
     return results;
   };
 
@@ -848,8 +889,96 @@ export const CanonicalManager = (config: Config): CanonicalManager => {
     package?: PackageId;
   }): Promise<Resource[]> => {
     const entries = await searchEntries(params);
-    const resources = await Promise.all(entries.map(entry => read(entry)));
+    const resources = await Promise.all(entries.map((entry) => read(entry)));
     return resources;
+  };
+
+  const smartSearch = async (
+    searchTerms: string[],
+    filters?: {
+      resourceType?: string;
+      type?: string;
+      kind?: string;
+      package?: PackageId;
+    }
+  ): Promise<IndexEntry[]> => {
+    ensureInitialized();
+    
+    // Start with base search using filters
+    let results = await searchEntries({
+      kind: filters?.kind,
+      package: filters?.package,
+    });
+
+    // Apply resourceType filter
+    if (filters?.resourceType) {
+      results = results.filter(entry => entry.resourceType === filters.resourceType);
+    }
+
+    // Apply type filter
+    if (filters?.type) {
+      results = results.filter(entry => entry.type === filters.type);
+    }
+
+    // Apply smart search terms if provided
+    if (searchTerms.length > 0) {
+      const terms = searchTerms.map(t => t.toLowerCase());
+      
+      results = results.filter(entry => {
+        if (!entry.url) return false;
+        const urlLower = entry.url.toLowerCase();
+        
+        // Also check type and resourceType for matching
+        const fullText = [
+          urlLower,
+          entry.type?.toLowerCase() || '',
+          entry.resourceType?.toLowerCase() || ''
+        ].join(' ');
+        
+        // Check if all search terms match
+        return terms.every(term => {
+          // Split the text into parts (by /, -, _, ., spaces)
+          const allParts = fullText.split(/[\/\-_\.\s]+/);
+          
+          // Check if any part starts with the search term
+          const directMatch = allParts.some(part => part.startsWith(term));
+          if (directMatch) return true;
+          
+          // Smart matching for common abbreviations
+          const expandedTerms: Record<string, string[]> = {
+            'str': ['structure'],
+            'struct': ['structure'],
+            'def': ['definition'],
+            'pati': ['patient'],
+            'obs': ['observation'],
+            'org': ['organization'],
+            'pract': ['practitioner'],
+            'med': ['medication', 'medicinal'],
+            'req': ['request'],
+            'resp': ['response'],
+            'ref': ['reference'],
+            'val': ['value'],
+            'code': ['codesystem', 'code'],
+            'cs': ['codesystem'],
+            'vs': ['valueset'],
+            'sd': ['structuredefinition'],
+          };
+          
+          // Check if the term is an abbreviation
+          const expansions = expandedTerms[term] || [];
+          for (const expansion of expansions) {
+            if (allParts.some(part => part.startsWith(expansion))) {
+              return true;
+            }
+          }
+          
+          // If still no match, check if the term appears anywhere (substring match)
+          return fullText.includes(term);
+        });
+      });
+    }
+
+    return results;
   };
 
   return {
@@ -860,7 +989,8 @@ export const CanonicalManager = (config: Config): CanonicalManager => {
     resolve,
     read,
     searchEntries,
-    search
+    search,
+    smartSearch,
   };
 };
 

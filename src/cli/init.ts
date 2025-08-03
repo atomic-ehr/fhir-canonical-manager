@@ -1,9 +1,9 @@
-import * as fs from 'fs';
-import * as path from 'path';
-import { exec } from 'child_process';
-import { promisify } from 'util';
-import { parseArgs, loadPackageJson, savePackageJson } from './index.js';
-import { CanonicalManager } from '../index.js';
+import * as fs from "fs";
+import * as path from "path";
+import { exec } from "child_process";
+import { promisify } from "util";
+import { parseArgs, loadPackageJson, savePackageJson } from "./index.js";
+import { CanonicalManager } from "../index.js";
 
 const execAsync = promisify(exec);
 
@@ -15,13 +15,13 @@ export async function initCommand(args: string[]): Promise<void> {
   // Load or create package.json
   let packageJson = await loadPackageJson();
   const isNewPackageJson = !packageJson;
-  
+
   if (!packageJson) {
     // Create minimal package.json
     packageJson = {
       name: path.basename(process.cwd()),
       version: "1.0.0",
-      type: "module"
+      type: "module",
     };
   }
 
@@ -29,17 +29,23 @@ export async function initCommand(args: string[]): Promise<void> {
   if (!packageJson.fcm) {
     packageJson.fcm = {
       packages: [],
-      registry: registry || "https://fs.get-ig.org/pkgs"
+      registry: registry 
+        ? (registry.endsWith('/') ? registry : `${registry}/`)
+        : "https://fs.get-ig.org/pkgs/",
     };
   }
 
   // If no packages specified, use packages from config
-  const packagesToInstall = packages.length > 0 ? packages : packageJson.fcm.packages;
-  
+  const packagesToInstall =
+    packages.length > 0 ? packages : packageJson.fcm.packages;
+
   if (packagesToInstall.length === 0) {
     console.error("Error: No packages specified");
     console.error("Usage: fcm init [packages...]");
     console.error("Example: fcm init hl7.fhir.r4.core hl7.fhir.us.core@5.0.1");
+    if (process.env.NODE_ENV === 'test') {
+      throw new Error("No packages specified");
+    }
     process.exit(1);
   }
 
@@ -50,9 +56,9 @@ export async function initCommand(args: string[]): Promise<void> {
   });
   packageJson.fcm.packages = Array.from(existingPackages);
 
-  // Update registry if provided
+  // Update registry if provided, ensuring it ends with /
   if (registry) {
-    packageJson.fcm.registry = registry;
+    packageJson.fcm.registry = registry.endsWith('/') ? registry : `${registry}/`;
   }
 
   // Initialize dependencies if not present
@@ -62,24 +68,24 @@ export async function initCommand(args: string[]): Promise<void> {
 
   // Save package.json
   await savePackageJson(packageJson);
-  
+
   if (isNewPackageJson) {
     console.log("Created package.json");
   }
 
   // Install packages using npm
   console.log("Installing FHIR packages...");
-  
+
   for (const pkg of packagesToInstall) {
     console.log(`Installing ${pkg}...`);
     try {
-      const command = packageJson.fcm.registry 
+      const command = packageJson.fcm.registry
         ? `npm install ${pkg} --registry ${packageJson.fcm.registry}`
         : `npm install ${pkg}`;
-      
-      await execAsync(command, { 
+
+      await execAsync(command, {
         cwd: process.cwd(),
-        maxBuffer: 10 * 1024 * 1024 // 10MB buffer
+        maxBuffer: 10 * 1024 * 1024, // 10MB buffer
       });
     } catch (error) {
       console.error(`Failed to install ${pkg}`);
@@ -89,18 +95,19 @@ export async function initCommand(args: string[]): Promise<void> {
 
   // Initialize CanonicalManager to build cache
   console.log("Building package index...");
+  console.log("Registry", packageJson?.fcm?.registry);
   const manager = CanonicalManager({
     packages: packageJson.fcm.packages,
     workingDir: process.cwd(),
-    registry: packageJson.fcm.registry
+    registry: packageJson.fcm.registry,
   });
 
   await manager.init();
-  
+
   // Show summary
   const installedPackages = await manager.packages();
   console.log("\nInstalled packages:");
-  installedPackages.forEach(pkg => {
+  installedPackages.forEach((pkg) => {
     console.log(`  ${pkg.name}@${pkg.version}`);
   });
 

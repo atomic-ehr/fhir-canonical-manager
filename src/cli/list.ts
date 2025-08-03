@@ -12,6 +12,9 @@ export async function listCommand(args: string[]): Promise<void> {
   if (!packageJson?.fcm?.packages || packageJson.fcm.packages.length === 0) {
     console.error("Error: No FHIR packages configured");
     console.error("Run 'fcm init' first to initialize packages");
+    if (process.env.NODE_ENV === 'test') {
+      throw new Error("No FHIR packages configured");
+    }
     process.exit(1);
   }
 
@@ -41,6 +44,9 @@ export async function listCommand(args: string[]): Promise<void> {
         console.error(`Error: Package '${packageName}' not found`);
         console.error("Available packages:");
         packages.forEach(p => console.error(`  - ${p.name}`));
+        if (process.env.NODE_ENV === 'test') {
+          throw new Error(`Package '${packageName}' not found`);
+        }
         process.exit(1);
       }
 

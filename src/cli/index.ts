@@ -1,29 +1,29 @@
 #!/usr/bin/env node
 
-import * as fs from 'fs';
-import * as path from 'path';
-import { fileURLToPath } from 'url';
-import { CanonicalManager } from '../index.js';
-import type { Config, IndexEntry, PackageInfo } from '../index.js';
+import * as fs from "fs";
+import * as path from "path";
+import { fileURLToPath } from "url";
+import { CanonicalManager } from "../index.js";
+import type { Config, IndexEntry, PackageInfo } from "../index.js";
 
 // Command handlers
-import { initCommand } from './init.js';
-import { listCommand } from './list.js';
-import { searchCommand } from './search.js';
-import { resolveCommand } from './resolve.js';
+import { initCommand } from "./init.js";
+import { listCommand } from "./list.js";
+import { searchCommand } from "./search.js";
+import { resolveCommand } from "./resolve.js";
 
 // Get version from package.json
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const packageJsonPath = path.join(__dirname, '..', '..', 'package.json');
+const packageJsonPath = path.join(__dirname, "..", "..", "package.json");
 
-let VERSION = 'unknown';
+let VERSION = "unknown";
 try {
-  const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf-8'));
+  const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf-8"));
   VERSION = packageJson.version;
 } catch (error) {
   // Fallback version if package.json can't be read
-  VERSION = '0.0.3';
+  VERSION = "0.0.3";
 }
 
 function showHelp() {
@@ -34,7 +34,7 @@ Usage: fcm <command> [options]
 
 Commands:
   init       Initialize FHIR packages in current directory
-  list       List packages or resources  
+  list       List packages or resources
   search     Search for resources
   resolve    Get a resource by canonical URL
 
@@ -54,13 +54,19 @@ async function main() {
   const args = process.argv.slice(2);
   const command = args[0];
 
-  if (!command || command === '--help' || command === '-h') {
+  if (!command || command === "--help" || command === "-h") {
     showHelp();
+    if (process.env.NODE_ENV === 'test') {
+      return;
+    }
     process.exit(0);
   }
 
-  if (command === '--version' || command === '-v') {
+  if (command === "--version" || command === "-v") {
     console.log(VERSION);
+    if (process.env.NODE_ENV === 'test') {
+      return;
+    }
     process.exit(0);
   }
 
@@ -68,56 +74,67 @@ async function main() {
     init: initCommand,
     list: listCommand,
     search: searchCommand,
-    resolve: resolveCommand
+    resolve: resolveCommand,
   };
 
   if (!commands[command]) {
     console.error(`Error: Unknown command '${command}'`);
     console.error(`Run 'fcm --help' for usage information`);
+    if (process.env.NODE_ENV === 'test') {
+      throw new Error(`Unknown command '${command}'`);
+    }
     process.exit(1);
   }
 
   try {
     await commands[command](args.slice(1));
   } catch (error) {
-    console.error(`Error: ${error instanceof Error ? error.message : String(error)}`);
+    console.error(
+      `Error: ${error instanceof Error ? error.message : String(error)}`,
+    );
+    if (process.env.NODE_ENV === 'test') {
+      throw error;
+    }
     process.exit(1);
   }
 }
 
 // Export utility functions for commands
-export function parseArgs(args: string[]): { positional: string[], options: Record<string, string | boolean> } {
+export function parseArgs(args: string[]): {
+  positional: string[];
+  options: Record<string, string | boolean>;
+} {
   const positional: string[] = [];
   const options: Record<string, string | boolean> = {};
 
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
-    if (arg && arg.startsWith('--')) {
+    if (arg && arg.startsWith("--")) {
       const key = arg.slice(2);
       const nextArg = args[i + 1];
-      if (nextArg && !nextArg.startsWith('--')) {
+      if (nextArg && !nextArg.startsWith("--")) {
         options[key] = nextArg;
         i++;
       } else {
         options[key] = true;
       }
-    } else if (arg && arg.startsWith('-')) {
+    } else if (arg && arg.startsWith("-")) {
       // Handle short aliases
       switch (arg) {
-        case '-sd':
-          options.resourceType = 'StructureDefinition';
+        case "-sd":
+          options.resourceType = "StructureDefinition";
           break;
-        case '-cs':
-          options.resourceType = 'CodeSystem';
+        case "-cs":
+          options.resourceType = "CodeSystem";
           break;
-        case '-vs':
-          options.resourceType = 'ValueSet';
+        case "-vs":
+          options.resourceType = "ValueSet";
           break;
         default:
           // Handle other single-letter flags
           const key = arg.slice(1);
           const nextArg = args[i + 1];
-          if (nextArg && !nextArg.startsWith('-')) {
+          if (nextArg && !nextArg.startsWith("-")) {
             options[key] = nextArg;
             i++;
           } else {
@@ -133,10 +150,10 @@ export function parseArgs(args: string[]): { positional: string[], options: Reco
 }
 
 export async function loadPackageJson(): Promise<any> {
-  const packagePath = path.join(process.cwd(), 'package.json');
+  const packagePath = path.join(process.cwd(), "package.json");
   try {
     if (fs.existsSync(packagePath)) {
-      const content = fs.readFileSync(packagePath, 'utf-8');
+      const content = fs.readFileSync(packagePath, "utf-8");
       return JSON.parse(content);
     }
   } catch (error) {
@@ -146,8 +163,8 @@ export async function loadPackageJson(): Promise<any> {
 }
 
 export async function savePackageJson(data: any): Promise<void> {
-  const packagePath = path.join(process.cwd(), 'package.json');
-  fs.writeFileSync(packagePath, JSON.stringify(data, null, 2) + '\n');
+  const packagePath = path.join(process.cwd(), "package.json");
+  fs.writeFileSync(packagePath, JSON.stringify(data, null, 2) + "\n");
 }
 
 export function getConfigFromPackageJson(packageJson: any): Partial<Config> {
@@ -155,15 +172,8 @@ export function getConfigFromPackageJson(packageJson: any): Partial<Config> {
   return {
     packages: fcm.packages || [],
     registry: fcm.registry,
-    workingDir: process.cwd()
+    workingDir: process.cwd(),
   };
 }
 
-// Run CLI
-// Check if this file is being run directly
-const isMain = import.meta.url === `file://${process.argv[1]}` || 
-                (typeof Bun !== 'undefined' && import.meta.main);
-
-if (isMain) {
-  main();
-}
+main();
