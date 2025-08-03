@@ -53,7 +53,7 @@ describe("CanonicalManager", () => {
 
   test("should throw when not initialized", async () => {
     const uninitializedManager = CanonicalManager({
-      packages: ["hl7.fhir.r4.core"],
+      packages: ["hl7.fhir.r4.core@4.0.1"],
       workingDir: "./tmp/uninitialized"
     });
     await expect(uninitializedManager.packages()).rejects.toThrow(
@@ -252,7 +252,7 @@ describe("CanonicalManager", () => {
     }
   });
 
-  test("should search for resources across all packages", async () => {
+  test("should search for resources across the installed package", async () => {
     // Get all entries first
     const allEntries = await manager.searchEntries({});
     
@@ -275,8 +275,9 @@ describe("CanonicalManager", () => {
     
     console.log("Patient-related resources by package:", byPackage);
     
-    // Should have resources from multiple packages
-    expect(Object.keys(byPackage).length).toBeGreaterThanOrEqual(2);
+    // Since we only installed hl7.fhir.r4.core, should have resources from 1 package
+    expect(Object.keys(byPackage).length).toBe(1);
+    expect(byPackage['hl7.fhir.r4.core']).toBeGreaterThan(0);
     
     // Log some examples of patient-related resources
     const examples = patientRelated.slice(0, 5).map(e => ({
@@ -308,8 +309,9 @@ describe("CanonicalManager", () => {
   test("should use cached data on second init", async () => {
     // Create a new manager with same working directory
     const manager2 = CanonicalManager({ 
-      packages: ["hl7.fhir.r4.core"],
-      workingDir: testWorkingDir
+      packages: ["hl7.fhir.r4.core@4.0.1"],
+      workingDir: testWorkingDir,
+      registry: "https://fs.get-ig.org/pkgs"
     });
     
     // Should load from cache
@@ -340,13 +342,32 @@ describe("CanonicalManager", () => {
       expect(cacheContent.packageLockHash).toBeDefined();
       const originalHash = cacheContent.packageLockHash;
       
-      // Modify package-lock.json (simulate package change)
+      // Modify lock file (simulate package change)
+      // Check which lock file exists
       const packageLockPath = path.join(testWorkingDir, "package-lock.json");
-      const packageLockContent = JSON.parse(await fs.readFile(packageLockPath, 'utf-8'));
+      const bunLockPath = path.join(testWorkingDir, "bun.lock");
+      
+      let lockFilePath: string;
+      let lockFileContent: any;
+      
+      try {
+        // Try package-lock.json first
+        lockFileContent = JSON.parse(await fs.readFile(packageLockPath, 'utf-8'));
+        lockFilePath = packageLockPath;
+      } catch {
+        // Try bun.lock
+        lockFileContent = await fs.readFile(bunLockPath, 'utf-8');
+        lockFilePath = bunLockPath;
+      }
       
       // Make a minimal change to the lock file
-      packageLockContent.modified = new Date().toISOString();
-      await fs.writeFile(packageLockPath, JSON.stringify(packageLockContent, null, 2));
+      if (lockFilePath === packageLockPath) {
+        lockFileContent.modified = new Date().toISOString();
+        await fs.writeFile(lockFilePath, JSON.stringify(lockFileContent, null, 2));
+      } else {
+        // For bun.lock, just append a comment
+        await fs.writeFile(lockFilePath, lockFileContent + '\n# Modified: ' + new Date().toISOString());
+      }
       
       // Clear console output
       consoleOutput.length = 0;
@@ -368,9 +389,15 @@ describe("CanonicalManager", () => {
       expect(newCacheContent.packageLockHash).toBeDefined();
       expect(newCacheContent.packageLockHash).not.toBe(originalHash);
       
-      // Restore original package-lock for other tests
-      delete packageLockContent.modified;
-      await fs.writeFile(packageLockPath, JSON.stringify(packageLockContent, null, 2));
+      // Restore original lock file for other tests
+      if (lockFilePath === packageLockPath) {
+        delete lockFileContent.modified;
+        await fs.writeFile(lockFilePath, JSON.stringify(lockFileContent, null, 2));
+      } else {
+        // For bun.lock, restore original content
+        const originalContent = lockFileContent.toString().split('\n# Modified:')[0];
+        await fs.writeFile(lockFilePath, originalContent);
+      }
       
       await manager3.destroy();
     } finally {

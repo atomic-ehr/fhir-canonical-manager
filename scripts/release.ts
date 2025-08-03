@@ -1,8 +1,30 @@
 #!/usr/bin/env bun
 
-import { $ } from "../src/compat";
+import { exec } from 'child_process';
+import { promisify } from 'util';
 import * as fs from "fs";
 import * as path from "path";
+
+const execAsync = promisify(exec);
+
+// Helper to execute commands
+async function run(command: string, options?: { quiet?: boolean }) {
+  try {
+    const { stdout, stderr } = await execAsync(command, {
+      maxBuffer: 10 * 1024 * 1024 // 10MB buffer
+    });
+    return {
+      stdout: stdout?.toString() || '',
+      stderr: stderr?.toString() || '',
+      exitCode: 0
+    };
+  } catch (error: any) {
+    if (options?.quiet) {
+      throw error;
+    }
+    throw new Error(`Command failed: ${command}\n${error.message}`);
+  }
+}
 
 type ReleaseType = "patch" | "minor" | "major";
 
@@ -10,7 +32,7 @@ async function release(type: ReleaseType = "patch") {
   console.log(`📦 Starting ${type} release...`);
 
   // Check if we're on main branch
-  const result = await $`git branch --show-current`;
+  const result = await run('git branch --show-current');
   const currentBranch = result.stdout.trim();
   if (currentBranch !== "main") {
     console.error("❌ Releases must be made from the main branch");
@@ -19,7 +41,7 @@ async function release(type: ReleaseType = "patch") {
   }
 
   // Check for uncommitted changes
-  const statusResult = await $`git status --porcelain`;
+  const statusResult = await run('git status --porcelain');
   if (statusResult.stdout.trim()) {
     console.error("❌ There are uncommitted changes");
     console.error("   Please commit or stash your changes before releasing");
@@ -28,15 +50,15 @@ async function release(type: ReleaseType = "patch") {
 
   // Pull latest changes
   console.log("🔄 Pulling latest changes...");
-  await $`git pull origin main`;
+  await run('git pull origin main');
 
   // Run tests
   console.log("🧪 Running tests...");
-  await $`bun test`;
+  await run('bun test');
 
   // Run typecheck
   console.log("🔍 Running typecheck...");
-  await $`bun run typecheck`;
+  await run('bun run typecheck');
 
   // Read current version
   const packageJsonPath = path.join(process.cwd(), "package.json");
@@ -46,7 +68,7 @@ async function release(type: ReleaseType = "patch") {
 
   // Bump version
   console.log(`⬆️  Bumping ${type} version...`);
-  await $`npm version ${type} --no-git-tag-version`;
+  await run(`npm version ${type} --no-git-tag-version`);
 
   // Read new version
   const updatedPackageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf-8"));
@@ -56,7 +78,7 @@ async function release(type: ReleaseType = "patch") {
   // Check if version already exists on npm
   console.log("🔍 Checking if version already exists on npm...");
   try {
-    await $`npm view ${packageJson.name}@${newVersion} version`.quiet();
+    await run(`npm view ${packageJson.name}@${newVersion} version`, { quiet: true });
     console.error(`❌ Version ${newVersion} already exists on npm`);
     
     // Revert version change
@@ -71,34 +93,34 @@ async function release(type: ReleaseType = "patch") {
 
   // Build the package
   console.log("🔨 Building package...");
-  await $`bun run build`;
+  await run('bun run build');
 
   // Create git commit and tag
   console.log("📝 Creating commit and tag...");
-  await $`git add package.json`;
-  await $`git commit -m "chore: release v${newVersion}"`;
-  await $`git tag v${newVersion}`;
+  await run('git add package.json');
+  await run(`git commit -m "chore: release v${newVersion}"`);
+  await run(`git tag v${newVersion}`);
 
   // Publish to npm
   console.log("🚀 Publishing to npm...");
   try {
-    await $`npm publish --access public`;
+    await run('npm publish --access public');
     console.log("✅ Published to npm successfully");
   } catch (error) {
     console.error("❌ Failed to publish to npm");
     console.error("   Reverting git changes...");
     
     // Revert the commit and tag
-    await $`git reset --hard HEAD~1`;
-    await $`git tag -d v${newVersion}`;
+    await run('git reset --hard HEAD~1');
+    await run(`git tag -d v${newVersion}`);
     
     throw error;
   }
 
   // Push to git
   console.log("📤 Pushing to git...");
-  await $`git push origin main`;
-  await $`git push origin v${newVersion}`;
+  await run('git push origin main');
+  await run(`git push origin v${newVersion}`);
 
   console.log(`\n🎉 Successfully released v${newVersion}!`);
   console.log(`\n📦 Install with: npm install ${packageJson.name}@${newVersion}`);

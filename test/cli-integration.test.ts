@@ -33,11 +33,11 @@ describe("CLI Integration Tests", () => {
     const packageJson = {
       name: "test-project",
       fcm: {
-        packages: ["hl7.fhir.r4.core"],
+        packages: ["hl7.fhir.r4.core@4.0.1"],
         registry: "https://fs.get-ig.org/pkgs"
       },
       dependencies: {
-        "hl7.fhir.r4.core": "latest"
+        "hl7.fhir.r4.core": "4.0.1"
       }
     };
     
@@ -67,11 +67,11 @@ describe("CLI Integration Tests", () => {
       const packageJson = {
         name: "test-project",
         fcm: {
-          packages: ["hl7.fhir.r4.core"],
+          packages: ["hl7.fhir.r4.core@4.0.1"],
           registry: "https://fs.get-ig.org/pkgs"
         },
         dependencies: {
-          "hl7.fhir.r4.core": "latest"
+          "hl7.fhir.r4.core": "4.0.1"
         }
       };
       fs.writeFileSync(

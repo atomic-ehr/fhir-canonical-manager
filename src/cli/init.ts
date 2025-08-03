@@ -1,8 +1,11 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { $ } from '../compat.js';
+import { exec } from 'child_process';
+import { promisify } from 'util';
 import { parseArgs, loadPackageJson, savePackageJson } from './index.js';
 import { CanonicalManager } from '../index.js';
+
+const execAsync = promisify(exec);
 
 export async function initCommand(args: string[]): Promise<void> {
   const { positional, options } = parseArgs(args);
@@ -70,11 +73,14 @@ export async function initCommand(args: string[]): Promise<void> {
   for (const pkg of packagesToInstall) {
     console.log(`Installing ${pkg}...`);
     try {
-      if (packageJson.fcm.registry) {
-        await $`npm install ${pkg} --registry ${packageJson.fcm.registry}`.quiet();
-      } else {
-        await $`npm install ${pkg}`.quiet();
-      }
+      const command = packageJson.fcm.registry 
+        ? `npm install ${pkg} --registry ${packageJson.fcm.registry}`
+        : `npm install ${pkg}`;
+      
+      await execAsync(command, { 
+        cwd: process.cwd(),
+        maxBuffer: 10 * 1024 * 1024 // 10MB buffer
+      });
     } catch (error) {
       console.error(`Failed to install ${pkg}`);
       throw error;

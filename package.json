@@ -21,7 +21,8 @@
     "build": "bun run build:clean && bun run build:types",
     "build:clean": "rm -rf dist",
     "build:types": "bunx tsc -p tsconfig.build.json",
-    "typecheck": "bun tsc --noEmit",
+    "typecheck": "bunx tsc --noEmit",
+    "typecheck:watch": "bunx tsc --noEmit --watch",
     "prepublishOnly": "bun run build"
   },
   "devDependencies": {
