@@ -12,139 +12,24 @@ import { promisify } from "util";
 // Shell command utilities
 const execAsync = promisify(exec);
 
-// Shell error type
-class ShellError extends Error {
-  exitCode: number;
-  stdout: string;
-  stderr: string;
-
-  constructor(
-    message: string,
-    exitCode: number,
-    stdout: string,
-    stderr: string,
-  ) {
-    super(message);
-    this.name = "ShellError";
-    this.exitCode = exitCode;
-    this.stdout = stdout;
-    this.stderr = stderr;
-  }
-}
-
-interface ShellResult {
-  stdout: string;
-  stderr: string;
-  exitCode: number;
-}
-
-interface ShellPromise extends Promise<ShellResult> {
-  quiet(): Promise<ShellResult>;
-  env(variables: Record<string, string>): ShellPromise;
-}
-
-/**
- * Shell command execution using standard Node.js child_process
- */
-function $(strings: TemplateStringsArray, ...values: any[]): ShellPromise {
-  const command = strings.reduce((acc, str, i) => {
-    return acc + str + (values[i] || "");
-  }, "");
-
-  let envVars: Record<string, string> = {};
-
-  // Always use Node.js child_process for consistent behavior
-  const execute = async (options: { quiet?: boolean } = {}) => {
-    try {
-      const execOptions: any = {
-        shell: true,
-        maxBuffer: 10 * 1024 * 1024, // 10MB buffer
-      };
-
-      // Apply environment variables if set
-      if (Object.keys(envVars).length > 0) {
-        execOptions.env = { ...process.env, ...envVars };
-      }
-
-      const { stdout, stderr } = await execAsync(command, execOptions);
-
-      return {
-        stdout: stdout?.toString() || "",
-        stderr: stderr?.toString() || "",
-        exitCode: 0,
-      };
-    } catch (error: any) {
-      // Extract error details
-      const code = error.code || 1;
-      const stdout = error.stdout?.toString() || "";
-      const stderr = error.stderr?.toString() || error.message || "";
-
-      throw new ShellError(`Command failed: ${command}`, code, stdout, stderr);
-    }
-  };
-
-  // Create a lazy promise that only executes when awaited
-  let executed = false;
-  let resultPromise: Promise<ShellResult> | null = null;
-
-  const lazyPromise = {
-    then(onFulfilled?: any, onRejected?: any) {
-      if (!executed) {
-        executed = true;
-        resultPromise = execute();
-      }
-      return resultPromise!.then(onFulfilled, onRejected);
-    },
-    catch(onRejected?: any) {
-      return this.then(undefined, onRejected);
-    },
-    finally(onFinally?: any) {
-      return this.then(
-        (value: any) => {
-          onFinally?.();
-          return value;
-        },
-        (reason: any) => {
-          onFinally?.();
-          throw reason;
-        },
-      );
-    },
-    quiet() {
-      return execute({ quiet: true });
-    },
-    env(vars: Record<string, string>) {
-      envVars = vars;
-      return this;
-    },
-    // Add Symbol.toStringTag to satisfy Promise interface
-    [Symbol.toStringTag]: "ShellPromise" as const,
-  };
-
-  return lazyPromise as any as ShellPromise;
-}
-
 /**
  * Detect available package manager
  */
 async function detectPackageManager(): Promise<"bun" | "npm" | null> {
   try {
     // Check for bun first
-    await $`bun --version`.quiet();
+    await execAsync("bun --version");
     return "bun";
   } catch {
     try {
       // Fall back to npm
-      await $`npm --version`.quiet();
+      await execAsync("npm --version");
       return "npm";
     } catch {
       return null;
     }
   }
 }
-
-// Export shell utilities for testing
-export { ShellError, detectPackageManager };
 
 // Types
 export interface Reference {
@@ -510,6 +395,7 @@ const installPackages = async (
       if (packageManager === "bun") {
         // Use bun with auth bypass trick for FHIR registry
         const env = {
+          ...process.env,
           HOME: workingDir, // Prevent reading user's .npmrc
           NPM_CONFIG_USERCONFIG: "/dev/null", // Extra safety
         };
@@ -518,14 +404,19 @@ const installPackages = async (
           ? `cd ${workingDir} && bun add ${pkg} --registry ${registry}`
           : `cd ${workingDir} && bun add ${pkg}`;
 
-        await $`${cmd}`.env(env);
+        await execAsync(cmd, { 
+          env,
+          maxBuffer: 10 * 1024 * 1024 // 10MB buffer
+        });
       } else {
         // Use npm (handles auth correctly)
         const cmd = registry
           ? `cd ${workingDir} && npm add ${pkg} --registry ${registry}`
           : `cd ${workingDir} && npm add ${pkg}`;
 
-        await $`${cmd}`;
+        await execAsync(cmd, {
+          maxBuffer: 10 * 1024 * 1024 // 10MB buffer  
+        });
       }
     } catch (err) {
       console.error(`Failed to install package ${pkg}:`, err);

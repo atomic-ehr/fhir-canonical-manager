@@ -5,8 +5,8 @@ import * as fs from "fs";
 
 describe("CLI Integration Tests", () => {
   const cliPath = path.join(process.cwd(), "dist/cli/index.js");
-  const testDir = path.join(process.cwd(), "test-integration-cli");
-  const testDirUsCore = path.join(process.cwd(), "test-integration-cli-uscore");
+  const testDir = path.join(process.cwd(), "tmp", "test-integration-cli");
+  const testDirUsCore = path.join(process.cwd(), "tmp", "test-integration-cli-uscore");
 
   // Setup function to ensure CLI is built
   const ensureCLIBuilt = async () => {
