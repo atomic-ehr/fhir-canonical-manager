@@ -106,11 +106,11 @@ describe("CLI Integration Tests", () => {
     const packageJson = {
       name: "test-project-uscore",
       fcm: {
-        packages: ["hl7.fhir.us.core@8.0.0"],
+        packages: ["hl7.fhir.r4.core@4.0.1", "hl7.fhir.us.core@6.1.0"],
         registry: "https://fs.get-ig.org/pkgs"
       },
       dependencies: {
-        "hl7.fhir.us.core": "8.0.0"
+        "hl7.fhir.us.core": "6.1.0"
       }
     };
     
