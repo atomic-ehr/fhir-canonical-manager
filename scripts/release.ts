@@ -10,7 +10,8 @@ async function release(type: ReleaseType = "patch") {
   console.log(`📦 Starting ${type} release...`);
 
   // Check if we're on main branch
-  const currentBranch = (await $`git branch --show-current`.text()).trim();
+  const result = await $`git branch --show-current`;
+  const currentBranch = result.stdout.trim();
   if (currentBranch !== "main") {
     console.error("❌ Releases must be made from the main branch");
     console.error(`   Current branch: ${currentBranch}`);
@@ -18,8 +19,8 @@ async function release(type: ReleaseType = "patch") {
   }
 
   // Check for uncommitted changes
-  const gitStatus = await $`git status --porcelain`.text();
-  if (gitStatus.trim()) {
+  const statusResult = await $`git status --porcelain`;
+  if (statusResult.stdout.trim()) {
     console.error("❌ There are uncommitted changes");
     console.error("   Please commit or stash your changes before releasing");
     process.exit(1);

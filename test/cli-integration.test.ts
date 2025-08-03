@@ -144,7 +144,7 @@ describe("CLI Integration Tests", () => {
     const packages = new Set<string>();
     resourceLines.forEach(line => {
       const match = line.match(/"package":"([^"]+)"/);
-      if (match) {
+      if (match && match[1]) {
         packages.add(match[1]);
       }
     });
