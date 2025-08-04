@@ -112,7 +112,7 @@ export interface CanonicalManager {
       type?: string;
       kind?: string;
       package?: PackageId;
-    }
+    },
   ): Promise<IndexEntry[]>;
 }
 
@@ -404,9 +404,9 @@ const installPackages = async (
           ? `cd ${workingDir} && bun add ${pkg} --registry ${registry}`
           : `cd ${workingDir} && bun add ${pkg}`;
 
-        await execAsync(cmd, { 
+        await execAsync(cmd, {
           env,
-          maxBuffer: 10 * 1024 * 1024 // 10MB buffer
+          maxBuffer: 10 * 1024 * 1024, // 10MB buffer
         });
       } else {
         // Use npm (handles auth correctly)
@@ -415,7 +415,7 @@ const installPackages = async (
           : `cd ${workingDir} && npm add ${pkg}`;
 
         await execAsync(cmd, {
-          maxBuffer: 10 * 1024 * 1024 // 10MB buffer  
+          maxBuffer: 10 * 1024 * 1024, // 10MB buffer
         });
       }
     } catch (err) {
@@ -574,8 +574,10 @@ const DEFAULT_REGISTRY = "https://fs.get-ig.org/pkgs/";
 export const CanonicalManager = (config: Config): CanonicalManager => {
   const { packages, workingDir } = config;
   // Ensure registry URL ends with /
-  const registry = config.registry 
-    ? config.registry.endsWith('/') ? config.registry : `${config.registry}/`
+  const registry = config.registry
+    ? config.registry.endsWith("/")
+      ? config.registry
+      : `${config.registry}/`
     : DEFAULT_REGISTRY;
   const nodeModulesPath = path.join(workingDir, "node_modules");
   const cacheDir = path.join(workingDir, ".fcm", "cache");
@@ -791,10 +793,10 @@ export const CanonicalManager = (config: Config): CanonicalManager => {
       type?: string;
       kind?: string;
       package?: PackageId;
-    }
+    },
   ): Promise<IndexEntry[]> => {
     ensureInitialized();
-    
+
     // Start with base search using filters
     let results = await searchEntries({
       kind: filters?.kind,
@@ -803,66 +805,68 @@ export const CanonicalManager = (config: Config): CanonicalManager => {
 
     // Apply resourceType filter
     if (filters?.resourceType) {
-      results = results.filter(entry => entry.resourceType === filters.resourceType);
+      results = results.filter(
+        (entry) => entry.resourceType === filters.resourceType,
+      );
     }
 
     // Apply type filter
     if (filters?.type) {
-      results = results.filter(entry => entry.type === filters.type);
+      results = results.filter((entry) => entry.type === filters.type);
     }
 
     // Apply smart search terms if provided
     if (searchTerms.length > 0) {
-      const terms = searchTerms.map(t => t.toLowerCase());
-      
-      results = results.filter(entry => {
+      const terms = searchTerms.map((t) => t.toLowerCase());
+
+      results = results.filter((entry) => {
         if (!entry.url) return false;
         const urlLower = entry.url.toLowerCase();
-        
+
         // Also check type and resourceType for matching
         const fullText = [
           urlLower,
-          entry.type?.toLowerCase() || '',
-          entry.resourceType?.toLowerCase() || ''
-        ].join(' ');
-        
+          entry.type?.toLowerCase() || "",
+          entry.resourceType?.toLowerCase() || "",
+        ].join(" ");
+
         // Check if all search terms match
-        return terms.every(term => {
+        return terms.every((term) => {
           // Split the text into parts (by /, -, _, ., spaces)
           const allParts = fullText.split(/[\/\-_\.\s]+/);
-          
+
           // Check if any part starts with the search term
-          const directMatch = allParts.some(part => part.startsWith(term));
+          const directMatch = allParts.some((part) => part.startsWith(term));
           if (directMatch) return true;
-          
+
           // Smart matching for common abbreviations
           const expandedTerms: Record<string, string[]> = {
-            'str': ['structure'],
-            'struct': ['structure'],
-            'def': ['definition'],
-            'pati': ['patient'],
-            'obs': ['observation'],
-            'org': ['organization'],
-            'pract': ['practitioner'],
-            'med': ['medication', 'medicinal'],
-            'req': ['request'],
-            'resp': ['response'],
-            'ref': ['reference'],
-            'val': ['value'],
-            'code': ['codesystem', 'code'],
-            'cs': ['codesystem'],
-            'vs': ['valueset'],
-            'sd': ['structuredefinition'],
+            str: ["structure"],
+            struct: ["structure"],
+            def: ["definition"],
+            pati: ["patient"],
+            obs: ["observation"],
+            org: ["organization"],
+            pract: ["practitioner"],
+            med: ["medication", "medicinal"],
+            req: ["request"],
+            resp: ["response"],
+            ref: ["reference"],
+            val: ["value"],
+            code: ["codesystem", "code"],
+            cs: ["codesystem"],
+            vs: ["valueset"],
+            sd: ["structuredefinition"],
           };
-          
+
           // Check if the term is an abbreviation
           const expansions = expandedTerms[term] || [];
           for (const expansion of expansions) {
-            if (allParts.some(part => part.startsWith(expansion))) {
+            if (allParts.some((part) => part.startsWith(expansion))) {
               return true;
             }
           }
-          
+
           // If still no match, check if the term appears anywhere (substring match)
           return fullText.includes(term);
         });
