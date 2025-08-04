@@ -4,12 +4,12 @@
 
 import { test, expect, describe, beforeAll, afterAll } from "bun:test";
 import { CanonicalManager } from "../src";
-import type { IndexEntry, Reference, Resource } from "../src";
+import type { IndexEntry, Reference, Resource, PackageId, CanonicalManager as ICanonicalManager } from "../src/types";
 import * as fs from "fs/promises";
 import * as path from "path";
 
 describe("CanonicalManager", () => {
-  let manager: CanonicalManager;
+  let manager: ICanonicalManager;
   const testWorkingDir = "./tmp/test-fhir";
 
   beforeAll(async () => {
@@ -52,7 +52,7 @@ describe("CanonicalManager", () => {
     const packages = await manager.packages();
     expect(Array.isArray(packages)).toBe(true);
     // Should have at least one package if any FHIR packages are installed
-    packages.forEach((pkg) => {
+    packages.forEach((pkg: PackageId) => {
       expect(pkg).toHaveProperty("name");
       expect(pkg).toHaveProperty("version");
     });
@@ -172,7 +172,7 @@ describe("CanonicalManager", () => {
     expect(Array.isArray(results)).toBe(true);
 
     // All results should be from the specified package
-    results.forEach((entry) => {
+    results.forEach((entry: IndexEntry) => {
       expect(entry.package?.name).toBe(firstPackage.name);
       expect(entry.package?.version).toBe(firstPackage.version);
     });
@@ -186,7 +186,7 @@ describe("CanonicalManager", () => {
     expect(results.length).toBeGreaterThan(0);
     
     // Should find StructureDefinition resources with "patient" in the URL
-    const patientStructDef = results.find(r => 
+    const patientStructDef = results.find((r: IndexEntry) => 
       r.url === 'http://hl7.org/fhir/StructureDefinition/Patient' &&
       r.resourceType === 'StructureDefinition'
     );
@@ -201,7 +201,7 @@ describe("CanonicalManager", () => {
     expect(results.length).toBeGreaterThan(0);
     
     // Should find Observation-related resources
-    const hasObservation = results.some(r => 
+    const hasObservation = results.some((r: IndexEntry) => 
       r.url?.toLowerCase().includes('observation')
     );
     expect(hasObservation).toBe(true);
@@ -215,7 +215,7 @@ describe("CanonicalManager", () => {
     expect(results.length).toBeGreaterThan(0);
     
     // Should find ValueSet resources
-    const hasValueSet = results.some(r => 
+    const hasValueSet = results.some((r: IndexEntry) => 
       r.resourceType === 'ValueSet' || r.url?.toLowerCase().includes('valueset')
     );
     expect(hasValueSet).toBe(true);
@@ -236,7 +236,7 @@ describe("CanonicalManager", () => {
     });
     
     // Should have patient-related StructureDefinitions
-    const hasPatient = results.some(r => 
+    const hasPatient = results.some((r: IndexEntry) => 
       r.url?.toLowerCase().includes('patient')
     );
     expect(hasPatient).toBe(true);

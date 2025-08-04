@@ -1,0 +1,289 @@
+/**
+ * Main CanonicalManager implementation
+ */
+
+import * as path from 'path';
+import * as fs from 'fs/promises';
+import type {
+  Config,
+  CanonicalManager,
+  PackageId,
+  IndexEntry,
+  Resource,
+  Reference,
+  SourceContext,
+} from '../types';
+import { DEFAULT_REGISTRY } from '../constants';
+import { ensureDir } from '../fs';
+import { installPackages } from '../package';
+import {
+  createCache,
+  saveCacheToDisk,
+  loadCacheFromDisk,
+  computePackageLockHash,
+  type ExtendedCache,
+} from '../cache';
+import { scanDirectory } from '../scanner';
+import { resolveWithContext } from '../resolver';
+import { filterBySmartSearch } from '../search';
+
+export const createCanonicalManager = (config: Config): CanonicalManager => {
+  const { packages, workingDir } = config;
+  // Ensure registry URL ends with /
+  const registry = config.registry
+    ? config.registry.endsWith("/")
+      ? config.registry
+      : `${config.registry}/`
+    : DEFAULT_REGISTRY;
+  const nodeModulesPath = path.join(workingDir, "node_modules");
+  const cacheDir = path.join(workingDir, ".fcm", "cache");
+
+  let cache = createCache();
+  let initialized = false;
+
+  const ensureInitialized = (): void => {
+    if (!initialized) {
+      throw new Error("CanonicalManager not initialized. Call init() first.");
+    }
+  };
+
+  const init = async (): Promise<void> => {
+    if (initialized) return;
+
+    // Ensure directories exist
+    await ensureDir(workingDir);
+    await ensureDir(cacheDir);
+
+    // Get current package-lock.json hash
+    const currentPackageLockHash = await computePackageLockHash(workingDir);
+
+    // Try to load cache from disk
+    const cachedData = await loadCacheFromDisk(cacheDir);
+
+    // Check if cache is valid (exists and package-lock.json hasn't changed)
+    const cacheValid =
+      cachedData &&
+      cachedData.packageLockHash === currentPackageLockHash &&
+      currentPackageLockHash !== null;
+
+    if (cacheValid) {
+      // Restore cache from disk
+      cache.entries = cachedData.entries;
+      cache.packages = cachedData.packages;
+      Object.entries(cachedData.references).forEach(([id, metadata]) => {
+        cache.referenceManager.set(id, metadata);
+      });
+    } else {
+      // Cache is invalid or doesn't exist - rebuild it
+      if (cachedData && cachedData.packageLockHash !== currentPackageLockHash) {
+        console.log("Package dependencies have changed, rebuilding index...");
+      }
+
+      // Install packages if needed
+      await installPackages(packages, workingDir, registry);
+
+      // Clear cache before scanning
+      cache = createCache();
+
+      // Scan installed packages
+      await scanDirectory(nodeModulesPath, cache);
+
+      // Save cache to disk with current package-lock hash
+      await saveCacheToDisk(cache, cacheDir, workingDir);
+    }
+
+    initialized = true;
+  };
+
+  const destroy = async (): Promise<void> => {
+    cache.entries = {};
+    cache.packages = {};
+    cache.referenceManager.clear();
+    initialized = false;
+  };
+
+  const getPackages = async (): Promise<PackageId[]> => {
+    ensureInitialized();
+    return Object.values(cache.packages).map((p) => p.id);
+  };
+
+  const resolveEntry = async (
+    canonicalUrl: string,
+    options?: {
+      package?: string;
+      version?: string;
+      sourceContext?: SourceContext;
+    },
+  ): Promise<IndexEntry> => {
+    ensureInitialized();
+
+    if (options?.sourceContext) {
+      const contextResolved = await resolveWithContext(
+        canonicalUrl,
+        options.sourceContext,
+        cache,
+        resolveEntry,
+      );
+      if (contextResolved) {
+        return contextResolved;
+      }
+    }
+
+    const entries = cache.entries[canonicalUrl] || [];
+
+    if (entries.length === 0) {
+      throw new Error(`Cannot resolve canonical URL: ${canonicalUrl}`);
+    }
+
+    let filtered = [...entries];
+
+    if (options?.package) {
+      filtered = filtered.filter((e) => e.package?.name === options.package);
+    }
+
+    if (options?.version) {
+      filtered = filtered.filter((e) => e.version === options.version);
+    }
+
+    if (filtered.length === 0) {
+      throw new Error(
+        `No matching resource found for ${canonicalUrl} with given options`,
+      );
+    }
+
+    return filtered[0]!;
+  };
+
+  const resolve = async (
+    canonicalUrl: string,
+    options?: {
+      package?: string;
+      version?: string;
+      sourceContext?: SourceContext;
+    },
+  ): Promise<Resource> => {
+    const entry = await resolveEntry(canonicalUrl, options);
+    return read(entry);
+  };
+
+  const read = async (reference: Reference): Promise<Resource> => {
+    ensureInitialized();
+
+    const metadata = cache.referenceManager.get(reference.id);
+    if (!metadata) {
+      throw new Error(`Invalid reference ID: ${reference.id}`);
+    }
+
+    try {
+      const content = await fs.readFile(metadata.filePath, "utf-8");
+      const resource = JSON.parse(content);
+
+      return {
+        ...resource,
+        id: reference.id,
+        resourceType: reference.resourceType,
+      };
+    } catch (err) {
+      throw new Error(`Failed to read resource: ${err}`);
+    }
+  };
+
+  const searchEntries = async (params: {
+    kind?: string;
+    url?: string;
+    type?: string;
+    version?: string;
+    package?: PackageId;
+  }): Promise<IndexEntry[]> => {
+    ensureInitialized();
+
+    let results: IndexEntry[] = [];
+
+    if (params.url) {
+      results = cache.entries[params.url] || [];
+    } else {
+      for (const entries of Object.values(cache.entries)) {
+        results.push(...entries);
+      }
+    }
+
+    if (params.kind !== undefined) {
+      results = results.filter((e) => e.kind === params.kind);
+    }
+
+    if (params.type !== undefined) {
+      results = results.filter((e) => e.type === params.type);
+    }
+
+    if (params.version !== undefined) {
+      results = results.filter((e) => e.version === params.version);
+    }
+
+    if (params.package) {
+      const pkg = params.package;
+      results = results.filter(
+        (e) =>
+          e.package?.name === pkg.name && e.package?.version === pkg.version,
+      );
+    }
+
+    return results;
+  };
+
+  const search = async (params: {
+    kind?: string;
+    url?: string;
+    type?: string;
+    version?: string;
+    package?: PackageId;
+  }): Promise<Resource[]> => {
+    const entries = await searchEntries(params);
+    const resources = await Promise.all(entries.map((entry) => read(entry)));
+    return resources;
+  };
+
+  const smartSearch = async (
+    searchTerms: string[],
+    filters?: {
+      resourceType?: string;
+      type?: string;
+      kind?: string;
+      package?: PackageId;
+    },
+  ): Promise<IndexEntry[]> => {
+    ensureInitialized();
+
+    // Start with base search using filters
+    let results = await searchEntries({
+      kind: filters?.kind,
+      package: filters?.package,
+    });
+
+    // Apply resourceType filter
+    if (filters?.resourceType) {
+      results = results.filter(
+        (entry) => entry.resourceType === filters.resourceType,
+      );
+    }
+
+    // Apply type filter
+    if (filters?.type) {
+      results = results.filter((entry) => entry.type === filters.type);
+    }
+
+    // Apply smart search filtering
+    return filterBySmartSearch(results, searchTerms);
+  };
+
+  return {
+    init,
+    destroy,
+    packages: getPackages,
+    resolveEntry,
+    resolve,
+    read,
+    searchEntries,
+    search,
+    smartSearch,
+  };
+};

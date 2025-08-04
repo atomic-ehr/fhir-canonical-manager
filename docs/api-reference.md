@@ -1,395 +1,153 @@
 # API Reference
 
-## CanonicalManager
+## Overview
 
-The main interface for managing FHIR resources.
+FHIR Canonical Manager provides a modular API organized into 9 distinct components. Each module has specific responsibilities and can be used independently or together through the main `CanonicalManager` interface.
 
-### Constructor
+## Main Exports
 
 ```typescript
-CanonicalManager(config: Config): CanonicalManager
+// Main factory function
+import { CanonicalManager } from '@atomic-ehr/fhir-canonical-manager';
+
+// Alternative imports
+import { createCanonicalManager } from '@atomic-ehr/fhir-canonical-manager';
+
+// Type imports
+import type { 
+  CanonicalManager,
+  IndexEntry,
+  Resource,
+  PackageId,
+  Reference
+} from '@atomic-ehr/fhir-canonical-manager';
 ```
 
-**Location:** [src/index.ts:674-986](../src/index.ts#L674-L986)
+## Module Documentation
 
-Creates a new CanonicalManager instance.
+The API is organized into the following modules:
 
-#### Parameters
+### Core Components
+- **[CanonicalManager](./api/manager.md)** - Main orchestration layer
+- **[Types](./api/types.md)** - TypeScript interfaces and type definitions
+- **[Reference Manager](./api/reference.md)** - Reference ID management
 
-| Name | Type | Description |
-|------|------|-------------|
-| `config` | `Config` | Configuration object |
+### Infrastructure
+- **[Cache](./api/cache.md)** - Caching layer with persistence
+- **[File System](./api/fs.md)** - File system utilities
+- **[Package Manager](./api/package.md)** - NPM package installation
 
-#### Config Interface
+### Processing
+- **[Scanner](./api/scanner.md)** - Package discovery and indexing
+- **[Resolver](./api/resolver.md)** - Canonical URL resolution
+- **[Search](./api/search.md)** - Smart search functionality
+
+## Quick Start
+
+### Basic Usage
 
 ```typescript
-interface Config {
-  packages: string[];           // FHIR packages to install/use
-  workingDir?: string;          // Directory for cache and packages (default: cwd)
-  registry?: string;            // NPM registry URL (default: https://fs.get-ig.org/pkgs/)
-}
-```
+import { CanonicalManager } from '@atomic-ehr/fhir-canonical-manager';
 
-#### Example
-
-```typescript
+// Create manager instance
 const manager = CanonicalManager({
-  packages: ['hl7.fhir.r4.core@4.0.1', 'hl7.fhir.us.core@6.1.0'],
-  workingDir: './fhir-cache',
-  registry: 'https://custom-registry.com/'
+  packages: ['hl7.fhir.r4.core@4.0.1'],
+  workingDir: './fhir-cache'
 });
-```
 
-### Methods
-
-#### init()
-
-```typescript
-async init(): Promise<void>
-```
-
-**Location:** [src/index.ts:686-753](../src/index.ts#L686-L753)
-
-Initializes the manager by installing packages and building the index.
-
-**Behavior:**
-1. Ensures working directory exists
-2. Detects package manager (Bun/npm)
-3. Installs missing packages
-4. Scans and indexes all FHIR packages
-5. Saves cache to disk
-
-**Example:**
-```typescript
+// Initialize (installs packages, builds index)
 await manager.init();
-```
 
-#### destroy()
-
-```typescript
-async destroy(): Promise<void>
-```
-
-**Location:** [src/index.ts:755-757](../src/index.ts#L755-L757)
-
-Cleans up resources and saves cache.
-
-**Example:**
-```typescript
-await manager.destroy();
-```
-
-#### packages()
-
-```typescript
-async packages(): Promise<PackageId[]>
-```
-
-**Location:** [src/index.ts:759-762](../src/index.ts#L759-L762)
-
-Returns list of available packages.
-
-**Returns:** Array of `PackageId` objects
-
-```typescript
-interface PackageId {
-  name: string;
-  version: string;
-}
-```
-
-**Example:**
-```typescript
-const packages = await manager.packages();
-// [{ name: 'hl7.fhir.r4.core', version: '4.0.1' }]
-```
-
-#### resolveEntry()
-
-```typescript
-async resolveEntry(
-  canonicalUrl: string,
-  options?: {
-    package?: string;
-    version?: string;
-    sourceContext?: SourceContext;
-  }
-): Promise<IndexEntry>
-```
-
-**Location:** [src/index.ts:764-794](../src/index.ts#L764-L794)
-
-Resolves a canonical URL to an index entry.
-
-**Parameters:**
-- `canonicalUrl` - The canonical URL of the resource
-- `options` - Optional resolution options
-
-**Returns:** `IndexEntry` object
-
-```typescript
-interface IndexEntry {
-  id: string;
-  url: string;
-  type?: string;
-  resourceType?: string;
-  kind?: string;
-  version?: string;
-  package?: PackageId;
-  indexVersion?: number;
-}
-```
-
-**Example:**
-```typescript
-const entry = await manager.resolveEntry(
-  'http://hl7.org/fhir/StructureDefinition/Patient'
-);
-```
-
-#### resolve()
-
-```typescript
-async resolve(
-  canonicalUrl: string,
-  options?: {
-    package?: string;
-    version?: string;
-    sourceContext?: SourceContext;
-  }
-): Promise<Resource>
-```
-
-**Location:** [src/index.ts:796-805](../src/index.ts#L796-L805)
-
-Resolves a canonical URL directly to a resource.
-
-**Parameters:**
-- `canonicalUrl` - The canonical URL of the resource
-- `options` - Optional resolution options
-
-**Returns:** FHIR `Resource` object
-
-**Example:**
-```typescript
+// Resolve a canonical URL
 const patient = await manager.resolve(
   'http://hl7.org/fhir/StructureDefinition/Patient'
 );
-console.log(patient.resourceType); // "StructureDefinition"
-```
 
-#### read()
-
-```typescript
-async read(reference: Reference): Promise<Resource>
-```
-
-**Location:** [src/index.ts:807-831](../src/index.ts#L807-L831)
-
-Reads a resource by its reference.
-
-**Parameters:**
-- `reference` - Reference object with id and optional package
-
-```typescript
-interface Reference {
-  id: string;
-  package?: PackageId;
-}
-```
-
-**Example:**
-```typescript
-const resource = await manager.read({
-  id: 'resource-id-123',
-  package: { name: 'hl7.fhir.r4.core', version: '4.0.1' }
-});
-```
-
-#### searchEntries()
-
-```typescript
-async searchEntries(params: {
-  kind?: string;
-  url?: string;
-  type?: string;
-  version?: string;
-  package?: PackageId;
-}): Promise<IndexEntry[]>
-```
-
-**Location:** [src/index.ts:833-873](../src/index.ts#L833-L873)
-
-Searches for resources by various criteria.
-
-**Parameters:**
-- `kind` - Resource kind (e.g., 'resource', 'complex-type', 'primitive-type')
-- `url` - Partial or full canonical URL
-- `type` - Resource type (e.g., 'Patient', 'Observation')
-- `version` - Resource version
-- `package` - Specific package to search in
-
-**Example:**
-```typescript
-// Find all StructureDefinitions
-const entries = await manager.searchEntries({
-  type: 'StructureDefinition'
-});
-
-// Find resources of kind 'resource'
-const resources = await manager.searchEntries({
-  kind: 'resource'
-});
-```
-
-#### search()
-
-```typescript
-async search(params: {
-  kind?: string;
-  url?: string;
-  type?: string;
-  version?: string;
-  package?: PackageId;
-}): Promise<Resource[]>
-```
-
-**Location:** [src/index.ts:875-885](../src/index.ts#L875-L885)
-
-Searches and returns full resources.
-
-**Parameters:** Same as `searchEntries()`
-
-**Returns:** Array of FHIR `Resource` objects
-
-**Example:**
-```typescript
-const resources = await manager.search({
-  type: 'StructureDefinition',
-  kind: 'resource'
-});
-```
-
-#### smartSearch()
-
-```typescript
-async smartSearch(
-  searchTerms: string[],
-  filters?: {
-    resourceType?: string;
-    type?: string;
-    kind?: string;
-    package?: PackageId;
-  }
-): Promise<IndexEntry[]>
-```
-
-**Location:** [src/index.ts:887-973](../src/index.ts#L887-L973)
-
-Performs intelligent search with abbreviation support.
-
-**Parameters:**
-- `searchTerms` - Array of search terms (supports abbreviations)
-- `filters` - Optional filters to narrow results
-
-**Features:**
-- Prefix matching on URL parts
-- Abbreviation expansion ('str' → 'structure', 'def' → 'definition')
-- Multi-field search (URL, type, resourceType)
-- Supports all standard filters
-
-**Abbreviation Support:**
-| Abbreviation | Expands To |
-|--------------|------------|
-| `str` | structure |
-| `def` | definition |
-| `pati` | patient |
-| `obs` | observation |
-| `org` | organization |
-| `pract` | practitioner |
-| `med` | medication, medicinal |
-| `req` | request |
-| `resp` | response |
-| `ref` | reference |
-| `val` | value |
-| `code` | codesystem, code |
-| `cs` | codesystem |
-| `vs` | valueset |
-| `sd` | structuredefinition |
-
-**Example:**
-```typescript
-// Search for StructureDefinition/Patient using abbreviations
+// Search for resources
 const results = await manager.smartSearch(['str', 'def', 'pati']);
 
+// Clean up
+await manager.destroy();
+```
+
+### Smart Search
+
+```typescript
+// Search with abbreviations
+const results = await manager.smartSearch(['obs']);  // Finds Observation
+
 // Search with filters
-const extensions = await manager.smartSearch(['patient'], {
-  resourceType: 'StructureDefinition',
-  kind: 'complex-type'
+const valuesets = await manager.smartSearch(['value'], {
+  resourceType: 'ValueSet'
+});
+
+// Search by kind
+const resources = await manager.smartSearch(['patient'], {
+  kind: 'resource'
 });
 ```
 
-## Type Definitions
-
-### Resource
+### Package Management
 
 ```typescript
-interface Resource {
-  resourceType: string;
-  id?: string;
-  url?: string;
-  version?: string;
-  name?: string;
-  title?: string;
-  status?: string;
-  kind?: string;
-  [key: string]: any;
-}
-```
+// List installed packages
+const packages = await manager.packages();
 
-### PackageInfo
-
-```typescript
-interface PackageInfo {
-  id: PackageId;
-  path: string;
-  canonical?: string;
-  fhirVersions?: string[];
-}
-```
-
-### SourceContext
-
-```typescript
-interface SourceContext {
-  sourceUrl?: string;
-  sourceVersion?: string;
-}
+// Resolve from specific package
+const resource = await manager.resolve(url, {
+  package: 'hl7.fhir.us.core'
+});
 ```
 
 ## Error Handling
 
-All methods that interact with the file system or network can throw errors:
+All async methods may throw:
 
-- `Error: Not initialized` - Call `init()` before using other methods
-- `Error: Canonical URL not found` - Resource doesn't exist
-- `Error: Invalid reference` - Reference ID is invalid
-- `Error: Package not found` - Specified package not available
-- File system errors - Permission or disk space issues
-- Network errors - Registry unreachable or package download failed
+- `Error: CanonicalManager not initialized` - Call `init()` first
+- `Error: Cannot resolve canonical URL` - Resource not found
+- `Error: Invalid reference ID` - Bad reference format
+- File system errors - Permission issues
+- Network errors - Package installation failures
 
-**Best Practices:**
 ```typescript
 try {
   await manager.init();
   const resource = await manager.resolve(url);
 } catch (error) {
-  if (error.message.includes('not found')) {
-    // Handle missing resource
-  } else {
-    // Handle other errors
-  }
+  console.error('Failed:', error.message);
 } finally {
   await manager.destroy();
 }
 ```
+
+## Module Architecture
+
+```mermaid
+graph LR
+    UI[User Code] --> CM[CanonicalManager]
+    CM --> CACHE[Cache]
+    CM --> SEARCH[Search]
+    CM --> RESOLVER[Resolver]
+    
+    CACHE --> SCANNER[Scanner]
+    SCANNER --> REF[Reference]
+    RESOLVER --> REF
+    SEARCH --> CACHE
+    
+    SCANNER --> FS[FileSystem]
+    CACHE --> FS
+```
+
+## Performance Characteristics
+
+- **Resolution**: O(1) hash lookup
+- **Smart Search**: O(n) where n = total entries
+- **Cache Load**: ~50ms for 5,000 entries
+- **Memory Usage**: ~10MB for 5,000 resources
+
+## See Also
+
+- [Architecture Documentation](./architecture.md)
+- [CLI Reference](./cli-reference.md)
+- [Testing Guide](./testing.md)
+- [Implementation Details](./implementation.md)

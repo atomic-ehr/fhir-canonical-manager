@@ -4,15 +4,20 @@
 
 FHIR Canonical Manager (FCM) is a high-performance TypeScript/JavaScript library and CLI tool for managing and resolving FHIR resources by their canonical URLs. It provides efficient indexing, caching, and resolution of FHIR packages from NPM registries.
 
+## 🚀 Recent Updates
+
+- **Modular Architecture** - Refactored from monolithic to component-based architecture (ADR-003)
+- **Comprehensive Testing** - 128 tests including 88 unit tests across all modules
+- **Full TypeScript Support** - Zero TypeScript errors with strict mode
+- **Smart Search** - Enhanced search with abbreviation expansion
+
 ## Documentation Structure
 
-- **[Architecture](./architecture.md)** - System design, components, and data flow
+- **[Architecture](./architecture.md)** - Modular system design and components
 - **[Core API](./api-reference.md)** - Detailed API documentation with examples
 - **[CLI Reference](./cli-reference.md)** - Command-line interface documentation
-- **[Implementation Details](./implementation.md)** - Deep dive into core functionality
-- **[Package Management](./package-management.md)** - How packages are installed and indexed
-- **[Search System](./search-system.md)** - Smart search implementation and usage
-- **[Testing Guide](./testing.md)** - Testing approach and utilities
+- **[Implementation Details](./implementation.md)** - Deep dive into modular implementation
+- **[Testing Guide](./testing.md)** - Comprehensive testing approach with unit and integration tests
 
 ## Quick Links
 
@@ -22,11 +27,22 @@ FHIR Canonical Manager (FCM) is a high-performance TypeScript/JavaScript library
 - Efficient caching with automatic invalidation
 - Support for both Bun and npm package managers
 - TypeScript-first with full type safety
+- Modular architecture for better maintainability
 
-### Key Components
-- `CanonicalManager` - Main API interface ([src/index.ts:674-986](../src/index.ts))
-- CLI Commands - Interactive command-line tools ([src/cli/](../src/cli/))
-- Cache System - Persistent indexing and caching ([src/index.ts:260-341](../src/index.ts))
+### Module Structure
+```
+src/
+├── types/       - Type definitions and interfaces
+├── reference/   - Reference ID management
+├── cache/       - Caching layer with persistence
+├── fs/          - File system utilities
+├── scanner/     - Package scanning and indexing
+├── resolver/    - URL resolution logic
+├── search/      - Smart search functionality
+├── package/     - Package installation
+├── manager/     - Main orchestration
+└── cli/         - Command-line interface
+```
 
 ## Getting Started
 
