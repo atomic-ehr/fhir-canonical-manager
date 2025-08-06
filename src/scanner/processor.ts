@@ -4,9 +4,9 @@
 
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import type { PackageJson, IndexEntry } from '../types';
-import type { ExtendedCache } from '../cache/core';
-import { parseIndex } from './parser';
+import type { PackageJson, IndexEntry } from '../types/index.js';
+import type { ExtendedCache } from '../cache/core.js';
+import { parseIndex } from './parser.js';
 
 export const processIndex = async (
   basePath: string,

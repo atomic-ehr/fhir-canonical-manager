@@ -2,9 +2,9 @@
  * Reference management exports
  */
 
-export { generateReferenceId } from './store';
-export { createReferenceManager } from './manager';
-export type { ReferenceManager } from './manager';
+export { generateReferenceId } from './store.js';
+export { createReferenceManager } from './manager.js';
+export type { ReferenceManager } from './manager.js';
 
 // For backward compatibility - function alias (will be deprecated)
-export { createReferenceManager as ReferenceManagerFactory } from './manager';
+export { createReferenceManager as ReferenceManagerFactory } from './manager.js';

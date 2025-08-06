@@ -2,8 +2,8 @@
  * Reference manager factory
  */
 
-import type { Reference, ReferenceMetadata, ReferenceStore } from '../types';
-import { generateReferenceId } from './store';
+import type { Reference, ReferenceMetadata, ReferenceStore } from '../types/index.js';
+import { generateReferenceId } from './store.js';
 
 export interface ReferenceManager extends ReferenceStore {
   generateId: typeof generateReferenceId;

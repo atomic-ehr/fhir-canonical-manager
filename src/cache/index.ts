@@ -2,6 +2,6 @@
  * Cache module exports
  */
 
-export { createCache, type ExtendedCache } from './core';
-export { saveCacheToDisk, loadCacheFromDisk } from './persistence';
-export { computePackageLockHash } from './validation';
+export { createCache, type ExtendedCache } from './core.js';
+export { saveCacheToDisk, loadCacheFromDisk } from './persistence.js';
+export { computePackageLockHash } from './validation.js';

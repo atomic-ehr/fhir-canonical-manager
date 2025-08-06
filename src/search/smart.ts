@@ -2,8 +2,8 @@
  * Smart search functionality with abbreviation support
  */
 
-import type { IndexEntry, PackageId } from '../types';
-import { expandedTerms } from './terms';
+import type { IndexEntry, PackageId } from '../types/index.js';
+import { expandedTerms } from './terms.js';
 
 export interface SmartSearchFilters {
   resourceType?: string;

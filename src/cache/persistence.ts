@@ -4,9 +4,9 @@
 
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import type { CacheData } from '../types';
-import type { ExtendedCache } from './core';
-import { computePackageLockHash } from './validation';
+import type { CacheData } from '../types/index.js';
+import type { ExtendedCache } from './core.js';
+import { computePackageLockHash } from './validation.js';
 
 export const saveCacheToDisk = async (
   cache: ExtendedCache,

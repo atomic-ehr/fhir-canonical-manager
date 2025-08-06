@@ -2,4 +2,4 @@
  * Resolver module exports
  */
 
-export { resolveWithContext } from './context';
+export { resolveWithContext } from './context.js';

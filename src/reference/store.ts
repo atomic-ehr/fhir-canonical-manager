@@ -3,7 +3,7 @@
  */
 
 import { createHash } from 'crypto';
-import type { ReferenceMetadata, ReferenceStore } from '../types';
+import type { ReferenceMetadata, ReferenceStore } from '../types/index.js';
 
 export const generateReferenceId = (metadata: {
   packageName: string;

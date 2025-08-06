@@ -60,6 +60,25 @@ const results = await manager.smartSearch(['pat', 'obs']);
 - **Build**: `bun run build` (TypeScript compilation)
 - **Scripts**: Located in `package.json`
 
+### Import Rules for Node.js ESM Compatibility
+
+**IMPORTANT**: Always use `.js` extensions in TypeScript import statements for compatibility with Node.js ESM:
+
+```typescript
+// ✅ CORRECT - Use .js extension even for TypeScript files
+import { CanonicalManager } from './manager/canonical.js';
+import { createCache } from '../cache/index.js';
+import type { Config } from '../types/index.js';
+
+// ❌ WRONG - Don't omit extensions
+import { CanonicalManager } from './manager/canonical';
+
+// ❌ WRONG - Don't use .ts extension
+import { CanonicalManager } from './manager/canonical.ts';
+```
+
+This ensures the compiled JavaScript works correctly with both npm and Bun.
+
 ### Bun Usage
 
 Default to using Bun instead of Node.js.

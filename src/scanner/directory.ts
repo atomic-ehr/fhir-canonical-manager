@@ -4,9 +4,9 @@
 
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import type { ExtendedCache } from '../cache/core';
-import { isFhirPackage } from '../fs';
-import { scanPackage } from './package';
+import type { ExtendedCache } from '../cache/core.js';
+import { isFhirPackage } from '../fs/index.js';
+import { scanPackage } from './package.js';
 
 export const scanDirectory = async (
   dirPath: string,

@@ -13,20 +13,20 @@ import type {
   Reference,
   SourceContext,
   SearchParameter,
-} from '../types';
-import { DEFAULT_REGISTRY } from '../constants';
-import { ensureDir } from '../fs';
-import { installPackages } from '../package';
+} from '../types/index.js';
+import { DEFAULT_REGISTRY } from '../constants.js';
+import { ensureDir } from '../fs/index.js';
+import { installPackages } from '../package/index.js';
 import {
   createCache,
   saveCacheToDisk,
   loadCacheFromDisk,
   computePackageLockHash,
   type ExtendedCache,
-} from '../cache';
-import { scanDirectory } from '../scanner';
-import { resolveWithContext } from '../resolver';
-import { filterBySmartSearch } from '../search';
+} from '../cache/index.js';
+import { scanDirectory } from '../scanner/index.js';
+import { resolveWithContext } from '../resolver/index.js';
+import { filterBySmartSearch } from '../search/index.js';
 
 export const createCanonicalManager = (config: Config): CanonicalManager => {
   const { packages, workingDir } = config;

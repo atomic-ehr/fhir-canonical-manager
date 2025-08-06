@@ -2,8 +2,8 @@
  * Core cache functionality
  */
 
-import type { IndexCache } from '../types';
-import { createReferenceManager, type ReferenceManager } from '../reference';
+import type { IndexCache } from '../types/index.js';
+import { createReferenceManager, type ReferenceManager } from '../reference/index.js';
 
 export interface ExtendedCache extends IndexCache {
   referenceManager: ReferenceManager;

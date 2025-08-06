@@ -2,7 +2,7 @@
  * Index file parsing and validation
  */
 
-import type { IndexFile, IndexFileEntry } from '../types';
+import type { IndexFile, IndexFileEntry } from '../types/index.js';
 
 export const isValidFileEntry = (entry: any): boolean => {
   if (!entry || typeof entry !== "object") return false;
