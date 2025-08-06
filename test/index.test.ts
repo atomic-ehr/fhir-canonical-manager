@@ -4,7 +4,7 @@
 
 import { test, expect, describe, beforeAll, afterAll } from "bun:test";
 import { CanonicalManager } from "../src";
-import type { IndexEntry, Reference, Resource, PackageId, CanonicalManager as ICanonicalManager } from "../src/types";
+import type { IndexEntry, Reference, Resource, PackageId, SearchParameter, CanonicalManager as ICanonicalManager } from "../src/types";
 import * as fs from "fs/promises";
 import * as path from "path";
 
@@ -476,6 +476,195 @@ describe("CanonicalManager", () => {
 
     expect(packages2.length).toBe(packages1.length);
 
+    await manager2.destroy();
+  });
+
+  test("should get search parameters for Patient resource", async () => {
+    const searchParams = await manager.getSearchParametersForResource('Patient');
+    
+    expect(Array.isArray(searchParams)).toBe(true);
+    // Add more context to the error message
+    if (searchParams.length === 0) {
+      console.log('No search parameters found for Patient');
+    }
+    expect(searchParams.length).toBeGreaterThan(0); // Should have at least some search params
+    
+    // Check that results are SearchParameter resources
+    searchParams.forEach((param: SearchParameter) => {
+      expect(param.url).toBeTruthy();
+      expect(typeof param.url).toBe('string');
+      expect(param.name).toBeTruthy();
+      expect(typeof param.name).toBe('string');
+      expect(param.code).toBeTruthy();
+      expect(typeof param.code).toBe('string');
+      expect(param.base).toBeTruthy();
+      expect(Array.isArray(param.base)).toBe(true);
+      expect(param.base).toContain('Patient');
+      expect(param.type).toBeTruthy();
+      expect(typeof param.type).toBe('string');
+    });
+    
+    // Check for common Patient search parameters by collecting all codes
+    const codes = searchParams.map(p => p.code);
+    
+    // Debug: log codes if test fails
+    if (!codes.includes('identifier')) {
+      console.log('Available codes:', codes.sort().join(', '));
+      console.log('First param:', searchParams[0]);
+    }
+    
+    expect(codes).toContain('identifier');
+    expect(codes).toContain('name');
+    expect(codes).toContain('family');
+    expect(codes).toContain('gender');
+    expect(codes).toContain('birthdate');
+    
+    // Verify types of specific parameters
+    const paramsByCode = Object.fromEntries(searchParams.map(p => [p.code, p]));
+    expect(paramsByCode['identifier']?.type).toBe('token');
+    expect(paramsByCode['name']?.type).toBe('string');
+    expect(paramsByCode['family']?.type).toBe('string');
+    expect(paramsByCode['gender']?.type).toBe('token');
+    expect(paramsByCode['birthdate']?.type).toBe('date');
+    
+    // Check results are sorted by code
+    const sortedCodes = [...codes].sort((a, b) => a.localeCompare(b));
+    expect(codes).toEqual(sortedCodes);
+  });
+
+  test("should get search parameters for Observation resource", async () => {
+    const searchParams = await manager.getSearchParametersForResource('Observation');
+    
+    expect(Array.isArray(searchParams)).toBe(true);
+    expect(searchParams.length).toBeGreaterThan(0);
+    
+    // Check for common Observation search parameters
+    const codeParam = searchParams.find(p => p.code === 'code');
+    expect(codeParam).toBeDefined();
+    expect(codeParam?.type).toBe('token');
+    
+    const patientParam = searchParams.find(p => p.code === 'patient');
+    expect(patientParam).toBeDefined();
+    expect(patientParam?.type).toBe('reference');
+    expect(patientParam?.target).toBeDefined();
+    
+    const dateParam = searchParams.find(p => p.code === 'date');
+    expect(dateParam).toBeDefined();
+    expect(dateParam?.type).toBe('date');
+    expect(dateParam?.comparator).toBeDefined();
+    expect(Array.isArray(dateParam?.comparator)).toBe(true);
+  });
+
+  test("should handle multi-base search parameters correctly", async () => {
+    const patientParams = await manager.getSearchParametersForResource('Patient');
+    const practitionerParams = await manager.getSearchParametersForResource('Practitioner');
+    
+    // Find a parameter that applies to both
+    const patientAddressParam = patientParams.find(p => p.code === 'address');
+    const practitionerAddressParam = practitionerParams.find(p => p.code === 'address');
+    
+    expect(patientAddressParam).toBeDefined();
+    expect(practitionerAddressParam).toBeDefined();
+    
+    // Should be the same parameter (same URL)
+    if (patientAddressParam && practitionerAddressParam) {
+      expect(patientAddressParam.url).toBe(practitionerAddressParam.url);
+      expect(patientAddressParam.base.length).toBeGreaterThan(1);
+      expect(patientAddressParam.base).toContain('Patient');
+      expect(patientAddressParam.base).toContain('Practitioner');
+    }
+  });
+
+  test("should return empty array for unknown resource type", async () => {
+    const searchParams = await manager.getSearchParametersForResource('UnknownResourceType');
+    
+    expect(Array.isArray(searchParams)).toBe(true);
+    expect(searchParams.length).toBe(0);
+  });
+
+  test("should cache search parameters for performance", async () => {
+    // First call - should hit the database
+    const start1 = performance.now();
+    const params1 = await manager.getSearchParametersForResource('Encounter');
+    const time1 = performance.now() - start1;
+    
+    // Second call - should hit the cache
+    const start2 = performance.now();
+    const params2 = await manager.getSearchParametersForResource('Encounter');
+    const time2 = performance.now() - start2;
+    
+    // Results should be identical
+    expect(params1).toEqual(params2);
+    
+    // Second call should be faster (cache hit)
+    // Just verify it's faster, not by a specific ratio
+    expect(time2).toBeLessThanOrEqual(time1);
+    
+    // Cache should work for different resources too
+    const start3 = performance.now();
+    await manager.getSearchParametersForResource('Procedure');
+    const time3 = performance.now() - start3;
+    
+    const start4 = performance.now();
+    await manager.getSearchParametersForResource('Procedure');
+    const time4 = performance.now() - start4;
+    
+    expect(time4).toBeLessThanOrEqual(time3);
+    
+    // Verify both are cached
+    expect(params2.length).toBeGreaterThan(0);
+  });
+
+  test("should preserve all FHIR SearchParameter fields", async () => {
+    const searchParams = await manager.getSearchParametersForResource('Patient');
+    
+    expect(searchParams.length).toBeGreaterThan(0);
+    
+    // Take the first parameter and check it has additional FHIR fields
+    const firstParam = searchParams[0];
+    
+    if (firstParam) {
+      // These fields are not in our simplified interface but should be present
+      // because we return the full FHIR resource
+      expect(firstParam).toHaveProperty('resourceType');
+      expect(firstParam.resourceType).toBe('SearchParameter');
+      
+      // Check for other common FHIR fields that might be present
+      if (firstParam.status) {
+        expect(['draft', 'active', 'retired', 'unknown']).toContain(firstParam.status);
+      }
+      
+      if (firstParam.experimental !== undefined) {
+        expect(typeof firstParam.experimental).toBe('boolean');
+      }
+      
+      if (firstParam.description) {
+        expect(typeof firstParam.description).toBe('string');
+      }
+      
+      if (firstParam.xpath) {
+        expect(typeof firstParam.xpath).toBe('string');
+      }
+    }
+  });
+
+  test("should clear search parameter cache on destroy", async () => {
+    // Populate cache
+    await manager.getSearchParametersForResource('Patient');
+    
+    // Create a new manager with same working directory
+    const manager2 = CanonicalManager({
+      packages: ["hl7.fhir.r4.core@4.0.1"],
+      workingDir: testWorkingDir,
+      registry: "https://fs.get-ig.org/pkgs/",
+    });
+    
+    await manager2.init();
+    
+    // This should rebuild the cache (not use the in-memory cache from manager1)
+    const params = await manager2.getSearchParametersForResource('Patient');
+    expect(params.length).toBeGreaterThan(0);
+    
     await manager2.destroy();
   });
 

@@ -11,6 +11,7 @@ import { initCommand } from "./init.js";
 import { listCommand } from "./list.js";
 import { searchCommand } from "./search.js";
 import { resolveCommand } from "./resolve.js";
+import { searchParamCommand } from "./searchparam.js";
 
 // Get version from package.json
 const __filename = fileURLToPath(import.meta.url);
@@ -33,10 +34,11 @@ fcm - FHIR Canonical Manager CLI
 Usage: fcm <command> [options]
 
 Commands:
-  init       Initialize FHIR packages in current directory
-  list       List packages or resources
-  search     Search for resources
-  resolve    Get a resource by canonical URL
+  init         Initialize FHIR packages in current directory
+  list         List packages or resources
+  search       Search for resources
+  resolve      Get a resource by canonical URL
+  searchparam  Display search parameters for a resource type
 
 Options:
   --help     Show help
@@ -47,6 +49,7 @@ Examples:
   fcm list
   fcm search Patient
   fcm resolve http://hl7.org/fhir/StructureDefinition/Patient
+  fcm searchparam Patient
 `);
 }
 
@@ -75,6 +78,7 @@ async function main() {
     list: listCommand,
     search: searchCommand,
     resolve: resolveCommand,
+    searchparam: searchParamCommand,
   };
 
   if (!commands[command]) {

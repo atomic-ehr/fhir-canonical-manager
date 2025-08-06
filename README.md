@@ -184,6 +184,47 @@ fcm resolve http://hl7.org/fhir/ValueSet/administrative-gender > gender.json
 fcm resolve http://hl7.org/fhir/StructureDefinition/Patient --fields url,type,kind
 ```
 
+#### `fcm searchparam`
+Display search parameters for a specific FHIR resource type.
+
+```bash
+# Display search parameters for Patient resource
+fcm searchparam Patient
+
+# Output as JSON
+fcm searchparam Observation --format json
+
+# Export as CSV for spreadsheet analysis
+fcm searchparam Encounter --format csv > encounter-params.csv
+```
+
+**Output Formats:**
+- **table** (default): Displays each parameter in a multiline format with full data
+- **json**: Outputs as JSON array with code, type, expression, and url fields  
+- **csv**: Exports as CSV for spreadsheet analysis
+
+Example output (table format):
+```
+Code:       active
+Type:       token
+Expression: Patient.active
+URL:        http://hl7.org/fhir/SearchParameter/Patient-active
+---
+Code:       address
+Type:       string
+Expression: Patient.address | Person.address | Practitioner.address |
+            RelatedPerson.address
+URL:        http://hl7.org/fhir/SearchParameter/individual-address
+---
+Code:       identifier
+Type:       token
+Expression: Patient.identifier
+URL:        http://hl7.org/fhir/SearchParameter/Patient-identifier
+---
+
+Total: 29 search parameters
+```
+
 ### CLI Examples
 
 ```bash
@@ -218,7 +259,9 @@ fcm search --type ValueSet --json > valuesets.json
 | Filter by kind | `fcm search -k resource` |
 | Combine filters | `fcm search -sd -t Patient` |
 | Get resource | `fcm resolve <url>` |
+| Get search parameters | `fcm searchparam Patient` |
 | Export as JSON | `fcm search --json` |
+| Export params as CSV | `fcm searchparam Patient --format csv` |
 | Help | `fcm --help` |
 
 ## Core Concepts
@@ -390,6 +433,34 @@ const packages = await manager.packages();
 // ]
 ```
 
+### `getSearchParametersForResource(resourceType): Promise<SearchParameter[]>`
+
+Gets all search parameters applicable to a specific FHIR resource type.
+
+```typescript
+// Get search parameters for Patient resource
+const searchParams = await manager.getSearchParametersForResource('Patient');
+
+// Each parameter contains FHIR SearchParameter fields
+searchParams.forEach(param => {
+    console.log(`${param.code}: ${param.type} - ${param.expression}`);
+});
+
+// Example output:
+// identifier: token - Patient.identifier
+// name: string - Patient.name
+// birthdate: date - Patient.birthDate
+// gender: token - Patient.gender
+```
+
+Returns an array of SearchParameter resources with all FHIR fields preserved, including:
+- `url`: Canonical URL of the search parameter
+- `code`: Search parameter name used in queries
+- `type`: Parameter type (token, string, date, reference, etc.)
+- `expression`: FHIRPath expression
+- `base`: Array of resource types this parameter applies to
+- Additional FHIR SearchParameter fields
+
 ### `destroy(): Promise<void>`
 
 Cleans up resources and clears cache from memory (disk cache persists).
@@ -410,6 +481,7 @@ The `fcm` command-line interface provides comprehensive FHIR resource management
 | `fcm list [package]` | List packages or resources |
 | `fcm search [terms...]` | Search resources with advanced filtering |
 | `fcm resolve <url>` | Get a resource by canonical URL |
+| `fcm searchparam <resourceType>` | Display search parameters for a resource type |
 
 ### Global Options
 

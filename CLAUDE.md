@@ -4,6 +4,64 @@ globs: "*.ts, *.tsx, *.html, *.css, *.js, *.jsx, package.json"
 alwaysApply: false
 ---
 
+# FHIR Canonical Manager - Project Memo
+
+## Overview
+TypeScript package manager for FHIR resources with canonical URL resolution. Enables discovery, installation, and management of FHIR packages through both programmatic API and CLI.
+
+## Core Functionality
+- **Package Management**: Auto-installs FHIR packages from npm registries
+- **Canonical Resolution**: Resolves canonical URLs to specific resource versions
+- **Smart Search**: Advanced search with prefix matching and abbreviations
+- **Persistent Caching**: Disk cache for fast subsequent loads
+- **CLI Tool**: `fcm` command for package management without code
+
+## Architecture
+```
+src/
+├── manager/        # Core CanonicalManager implementation
+├── cache/          # Persistent disk caching with SQLite
+├── scanner/        # Scans packages for FHIR resources
+├── resolver/       # Canonical URL resolution
+├── search/         # Smart search with prefix matching
+├── package/        # FHIR package installation
+├── reference/      # Resource reference management
+├── fs/            # File system utilities
+└── cli/           # Command-line interface
+```
+
+## Key APIs
+```typescript
+// Initialize manager
+const manager = CanonicalManager({
+    packages: ["hl7.fhir.r4.core"],
+    workingDir: "tmp/fhir"
+});
+await manager.init();
+
+// Resolve resources
+const patient = await manager.resolve('http://hl7.org/fhir/StructureDefinition/Patient');
+
+// Search resources
+const results = await manager.smartSearch(['pat', 'obs']);
+```
+
+## CLI Commands
+- `fcm init [packages...]` - Initialize FHIR packages
+- `fcm list [package]` - List packages/resources
+- `fcm search [terms...]` - Smart search with filters
+- `fcm resolve <url>` - Get resource by canonical URL
+
+## Development
+
+### Tech Stack
+- **Runtime**: Bun (preferred) or Node.js
+- **Testing**: `bun test`
+- **Build**: `bun run build` (TypeScript compilation)
+- **Scripts**: Located in `package.json`
+
+### Bun Usage
+
 Default to using Bun instead of Node.js.
 
 - Use `bun <file>` instead of `node <file>` or `ts-node <file>`
@@ -14,7 +72,7 @@ Default to using Bun instead of Node.js.
 - Bun automatically loads .env, so don't use dotenv.
 - Use `./tmp` folder for temporary files and scripts
 
-## APIs
+### Bun APIs
 
 - `Bun.serve()` supports WebSockets, HTTPS, and routes. Don't use `express`.
 - `bun:sqlite` for SQLite. Don't use `better-sqlite3`.
@@ -24,7 +82,7 @@ Default to using Bun instead of Node.js.
 - Prefer `Bun.file` over `node:fs`'s readFile/writeFile
 - Bun.$`ls` instead of execa.
 
-## Testing
+### Testing
 
 Use `bun test` to run tests.
 
@@ -36,80 +94,27 @@ test("hello world", () => {
 });
 ```
 
-## Frontend
+## Project Structure
+- **Single source of truth**: Core logic in modular architecture
+- **No external dependencies**: Only Node.js built-ins
+- **Functional style**: Immutable data, pure functions
+- **TypeScript first**: Comprehensive type definitions
+- **ADRs**: Architecture decisions in `adr/` directory
+- **Specs**: Detailed specifications in `spec/` directory
 
-Use HTML imports with `Bun.serve()`. Don't use `vite`. HTML imports fully support React, CSS, Tailwind.
+## Package Info
+- **Name**: @atomic-ehr/fhir-canonical-manager
+- **Version**: 0.0.8
+- **License**: MIT
+- **Registry**: npm (default: https://fs.get-ig.org/pkgs/)
 
-Server:
-
-```ts#index.ts
-import index from "./index.html"
-
-Bun.serve({
-  routes: {
-    "/": index,
-    "/api/users/:id": {
-      GET: (req) => {
-        return new Response(JSON.stringify({ id: req.params.id }));
-      },
-    },
-  },
-  // optional websocket support
-  websocket: {
-    open: (ws) => {
-      ws.send("Hello, world!");
-    },
-    message: (ws, message) => {
-      ws.send(message);
-    },
-    close: (ws) => {
-      // handle close
-    }
-  },
-  development: {
-    hmr: true,
-    console: true,
-  }
-})
-```
-
-HTML files can import .tsx, .jsx or .js files directly and Bun's bundler will transpile & bundle automatically. `<link>` tags can point to stylesheets and Bun's CSS bundler will bundle.
-
-```html#index.html
-<html>
-  <body>
-    <h1>Hello, world!</h1>
-    <script type="module" src="./frontend.tsx"></script>
-  </body>
-</html>
-```
-
-With the following `frontend.tsx`:
-
-```tsx#frontend.tsx
-import React from "react";
-
-// import .css files directly and it works
-import './index.css';
-
-import { createRoot } from "react-dom/client";
-
-const root = createRoot(document.body);
-
-export default function Frontend() {
-  return <h1>Hello, world!</h1>;
-}
-
-root.render(<Frontend />);
-```
-
-Then, run index.ts
-
-```sh
-bun --hot ./index.ts
-```
-
-For more information, read the Bun API docs in `node_modules/bun-types/docs/**.md`.
+## Key Files
+- `src/index.ts` - Main exports
+- `src/manager/canonical.ts` - Core manager implementation
+- `src/cli/index.ts` - CLI entry point
+- `test/index.test.ts` - Core tests
+- `spec.md` - Full specification
+- `README.md` - User documentation
 
 ## FHIR Canonical Search Tool
 

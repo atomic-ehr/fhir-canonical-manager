@@ -27,6 +27,28 @@ export interface Resource extends Reference {
   [key: string]: any;
 }
 
+export interface SearchParameter {
+  // Required fields
+  url: string;
+  name: string;
+  code: string;
+  base: string[];
+  type: string;
+  expression: string;
+  
+  // Optional commonly-used fields
+  version?: string;
+  target?: string[];
+  multipleOr?: boolean;
+  multipleAnd?: boolean;
+  comparator?: Array<'eq' | 'ne' | 'gt' | 'lt' | 'ge' | 'le' | 'sa' | 'eb' | 'ap'>;
+  modifier?: Array<'missing' | 'exact' | 'contains' | 'not' | 'text' |
+                   'in' | 'not-in' | 'below' | 'above' | 'type' | 'identifier' | 'ofType'>;
+  
+  // Open for all other FHIR SearchParameter fields
+  [key: string]: any;
+}
+
 export interface SourceContext {
   id?: string;
   package?: PackageId;
@@ -91,4 +113,5 @@ export interface CanonicalManager {
       package?: PackageId;
     },
   ): Promise<IndexEntry[]>;
+  getSearchParametersForResource(resourceType: string): Promise<SearchParameter[]>;
 }

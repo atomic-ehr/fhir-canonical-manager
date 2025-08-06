@@ -12,6 +12,7 @@ import type {
   Resource,
   Reference,
   SourceContext,
+  SearchParameter,
 } from '../types';
 import { DEFAULT_REGISTRY } from '../constants';
 import { ensureDir } from '../fs';
@@ -40,6 +41,7 @@ export const createCanonicalManager = (config: Config): CanonicalManager => {
 
   let cache = createCache();
   let initialized = false;
+  const searchParamsCache = new Map<string, SearchParameter[]>();
 
   const ensureInitialized = (): void => {
     if (!initialized) {
@@ -99,6 +101,7 @@ export const createCanonicalManager = (config: Config): CanonicalManager => {
     cache.entries = {};
     cache.packages = {};
     cache.referenceManager.clear();
+    searchParamsCache.clear();
     initialized = false;
   };
 
@@ -275,6 +278,51 @@ export const createCanonicalManager = (config: Config): CanonicalManager => {
     return filterBySmartSearch(results, searchTerms);
   };
 
+  const getSearchParametersForResource = async (
+    resourceType: string
+  ): Promise<SearchParameter[]> => {
+    ensureInitialized();
+    
+    // Check cache first
+    if (searchParamsCache.has(resourceType)) {
+      return searchParamsCache.get(resourceType)!;
+    }
+    
+    // Query all SearchParameter resources
+    // Note: We search by resourceType, not type, because for SearchParameter resources,
+    // 'type' refers to the search parameter type (token, string, etc.)
+    const allEntries = await searchEntries({});
+    const searchParamEntries = allEntries.filter(
+      entry => entry.resourceType === 'SearchParameter'
+    );
+    
+    const results: SearchParameter[] = [];
+    
+    for (const entry of searchParamEntries) {
+      const resource = await read(entry);
+      
+      // Check if this parameter applies to the requested resource
+      const bases = resource.base || [];
+      if (Array.isArray(bases) && bases.includes(resourceType)) {
+        // Return the full original resource - it already contains all fields
+        // Cast through unknown to satisfy TypeScript
+        results.push(resource as unknown as SearchParameter);
+      }
+    }
+    
+    // Sort by code for consistent output
+    results.sort((a, b) => {
+      const codeA = a.code || '';
+      const codeB = b.code || '';
+      return codeA.localeCompare(codeB);
+    });
+    
+    // Cache the results
+    searchParamsCache.set(resourceType, results);
+    
+    return results;
+  };
+
   return {
     init,
     destroy,
@@ -285,5 +333,6 @@ export const createCanonicalManager = (config: Config): CanonicalManager => {
     searchEntries,
     search,
     smartSearch,
+    getSearchParametersForResource,
   };
 };
