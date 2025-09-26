@@ -341,6 +341,27 @@ describe("CanonicalManager", () => {
     console.log(`Installed ${packages.length} packages:`, packageNames);
   });
 
+  test("should install package at runtime", async () => {
+
+    await manager.addPackages("de.medizininformatikinitiative.kerndatensatz.person@2025.0.0");
+
+    const packages = await manager.packages();
+
+    // Should have at least the core package
+    expect(packages.length).toBeGreaterThanOrEqual(2);
+
+    // Check for expected packages
+    const packageNames = packages.map((p) => p.name);
+
+    // Core package that should be installed
+    expect(packageNames).toContain("de.medizininformatikinitiative.kerndatensatz.person");
+    // Dependent package that should be installed automatically
+    expect(packageNames).toContain("de.basisprofil.r4");
+
+    // Log for debugging
+    console.log(`Installed ${packages.length} packages:`, packageNames);
+  });
+
   test("should find Patient resources from multiple packages", async () => {
     // First, let's see what StructureDefinitions we have
     const allEntries = await manager.searchEntries({});
