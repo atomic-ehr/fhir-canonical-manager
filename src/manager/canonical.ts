@@ -29,7 +29,7 @@ import { resolveWithContext } from '../resolver/index.js';
 import { filterBySmartSearch } from '../search/index.js';
 
 export const createCanonicalManager = (config: Config): CanonicalManager => {
-  const { packages, workingDir } = config;
+  const { packages = [], workingDir } = config;
   // Ensure registry URL ends with /
   const registry = config.registry
     ? config.registry.endsWith("/")
@@ -108,6 +108,37 @@ export const createCanonicalManager = (config: Config): CanonicalManager => {
   const getPackages = async (): Promise<PackageId[]> => {
     ensureInitialized();
     return Object.values(cache.packages).map((p) => p.id);
+  };
+
+  const addPackages = async (...newPackages: string[]): Promise<void> => {
+    if (newPackages.length === 0) return;
+    
+    // Check if packages already exists in packages
+    const packagesToAdd = newPackages.filter((pkg) => !packages.includes(pkg));
+    if (packagesToAdd.length !== 0) {
+      // Update config packages
+      packages.push(...packagesToAdd);
+    }
+
+    // If not initialized yet, init will handle installation
+    if(!initialized) {
+      await init();
+      return;
+    }
+
+    // If it is initialized and there are no new packages, do nothing
+    if (packagesToAdd.length === 0) {
+      return;
+    }
+
+    // Install new packages
+    await installPackages(packages, workingDir, registry);
+
+    // Re-scan node_modules to update cache
+    await scanDirectory(nodeModulesPath, cache);
+
+    // Update cache on disk
+    await saveCacheToDisk(cache, cacheDir, workingDir);
   };
 
   const resolveEntry = async (
@@ -327,6 +358,7 @@ export const createCanonicalManager = (config: Config): CanonicalManager => {
     init,
     destroy,
     packages: getPackages,
+    addPackages,
     resolveEntry,
     resolve,
     read,

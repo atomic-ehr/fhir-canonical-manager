@@ -433,6 +433,25 @@ const packages = await manager.packages();
 // ]
 ```
 
+### `addPackages(packages: string[]): Promise<void>`
+
+Add (and install if needed) extra FHIR packages at runtime.
+
+```typescript
+await manager.addPackages(
+    "hl7.fhir.us.core@5.0.1",
+    "hl7.fhir.us.davinci-drug-formulary"
+);
+```
+
+- Accepts one or more package specifiers: name or name@version
+- If manager not yet initialised, they are appended and normal `init()` flow handles install
+- Already present packages are skipped (idempotent)
+- New ones are installed, `node_modules` re‑scanned, cache persisted
+- Resources become immediately available to `resolve`, `search`, CLI commands
+
+Returns: `Promise<void>` (resolves when indexing is updated)
+
 ### `getSearchParametersForResource(resourceType): Promise<SearchParameter[]>`
 
 Gets all search parameters applicable to a specific FHIR resource type.

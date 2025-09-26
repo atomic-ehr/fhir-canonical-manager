@@ -73,6 +73,7 @@ export interface CanonicalManager {
   init(): Promise<void>;
   destroy(): Promise<void>;
   packages(): Promise<PackageId[]>;
+  addPackages(...packageNames: string[]): Promise<void>;
   resolveEntry(
     canonicalUrl: string,
     options?: {
