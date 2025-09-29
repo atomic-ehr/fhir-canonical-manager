@@ -10,11 +10,11 @@ export * from './types/index.js';
 export { createReferenceManager, ReferenceManagerFactory as ReferenceManager } from './reference/index.js';
 export type { ReferenceManager as ReferenceManagerType } from './reference/index.js';
 
-// Re-export main CanonicalManager
+// Re-export main CanonicalManager factory and class
 export { CanonicalManager, createCanonicalManager } from './manager/index.js';
 
-// Type export for CanonicalManager (the interface is already exported from types)
-// CanonicalManager function is exported from manager as a factory function
+// Re-export CanonicalManager type interface with T prefix
+export type { CanonicalManager as TCanonicalManager } from './types/core.js';
 
 // Default export for backward compatibility
 import { createCanonicalManager } from './manager/index.js';
