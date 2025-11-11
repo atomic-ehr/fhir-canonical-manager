@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import * as fs from "fs/promises";
-import * as os from "os";
-import * as path from "path";
+import * as fs from "node:fs/promises";
+import * as os from "node:os";
+import * as path from "node:path";
 import { computePackageLockHash, createCache, loadCacheFromDisk, saveCacheToDisk } from "../../../src/cache";
 import type { CacheData, ReferenceMetadata } from "../../../src/types";
 
@@ -35,9 +35,9 @@ describe("Cache Module", () => {
             const cache1 = createCache();
             const cache2 = createCache();
 
-            cache1.entries["test"] = [];
+            cache1.entries.test = [];
 
-            expect(cache2.entries["test"]).toBeUndefined();
+            expect(cache2.entries.test).toBeUndefined();
         });
     });
 
@@ -55,7 +55,7 @@ describe("Cache Module", () => {
 
             expect(hash).toBeDefined();
             expect(typeof hash).toBe("string");
-            expect(hash!.length).toBe(64); // SHA256 hex string length
+            expect(hash?.length).toBe(64); // SHA256 hex string length
         });
 
         test("should compute hash for bun.lock", async () => {
@@ -79,7 +79,7 @@ describe("Cache Module", () => {
             const hash = await computePackageLockHash(tempDir);
 
             // Hash should be of package-lock.json content
-            const expectedHash = require("crypto").createHash("sha256").update(packageLockContent).digest("hex");
+            const expectedHash = require("node:crypto").createHash("sha256").update(packageLockContent).digest("hex");
 
             expect(hash).toBe(expectedHash);
         });
@@ -291,9 +291,9 @@ describe("Cache Module", () => {
             const loaded = await loadCacheFromDisk(cacheDir);
 
             expect(loaded).not.toBeNull();
-            expect(loaded!.entries).toEqual(cache.entries);
-            expect(loaded!.references["id1"]).toEqual(metadata1);
-            expect(loaded!.references["id2"]).toEqual(metadata2);
+            expect(loaded?.entries).toEqual(cache.entries);
+            expect(loaded?.references.id1).toEqual(metadata1);
+            expect(loaded?.references.id2).toEqual(metadata2);
         });
     });
 });

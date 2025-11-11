@@ -2,8 +2,8 @@
  * Package scanning functionality
  */
 
-import * as fs from "fs/promises";
-import * as path from "path";
+import * as fs from "node:fs/promises";
+import * as path from "node:path";
 import type { ExtendedCache } from "../cache/core.js";
 import { fileExists } from "../fs/index.js";
 import type { PackageInfo, PackageJson } from "../types/index.js";

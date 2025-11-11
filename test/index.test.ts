@@ -3,15 +3,14 @@
  */
 
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import * as fs from "fs/promises";
-import * as path from "path";
+import * as fs from "node:fs/promises";
+import * as path from "node:path";
 import { CanonicalManager } from "../src";
 import type {
     CanonicalManager as ICanonicalManager,
     IndexEntry,
     PackageId,
     Reference,
-    Resource,
     SearchParameter,
 } from "../src/types";
 
@@ -301,10 +300,10 @@ describe("CanonicalManager", () => {
 
         const firstResource = results.find((r) => r.url);
         expect(firstResource).toBeDefined();
-        expect(firstResource!.url).toBeDefined();
+        expect(firstResource?.url).toBeDefined();
 
         // Resolve with package constraint (without version since it might not match)
-        const entry = await manager.resolveEntry(firstResource!.url!, {
+        const entry = await manager.resolveEntry(firstResource?.url!, {
             package: firstPackage.name,
         });
 
@@ -505,11 +504,11 @@ describe("CanonicalManager", () => {
 
         // Verify types of specific parameters
         const paramsByCode = Object.fromEntries(searchParams.map((p) => [p.code, p]));
-        expect(paramsByCode["identifier"]?.type).toBe("token");
-        expect(paramsByCode["name"]?.type).toBe("string");
-        expect(paramsByCode["family"]?.type).toBe("string");
-        expect(paramsByCode["gender"]?.type).toBe("token");
-        expect(paramsByCode["birthdate"]?.type).toBe("date");
+        expect(paramsByCode.identifier?.type).toBe("token");
+        expect(paramsByCode.name?.type).toBe("string");
+        expect(paramsByCode.family?.type).toBe("string");
+        expect(paramsByCode.gender?.type).toBe("token");
+        expect(paramsByCode.birthdate?.type).toBe("date");
 
         // Check results are sorted by code
         const sortedCodes = [...codes].sort((a, b) => a.localeCompare(b));
@@ -692,7 +691,7 @@ describe("CanonicalManager", () => {
                 await fs.writeFile(lockFilePath, JSON.stringify(lockFileContent, null, 2));
             } else {
                 // For bun.lock, just append a comment
-                await fs.writeFile(lockFilePath, lockFileContent + "\n# Modified: " + new Date().toISOString());
+                await fs.writeFile(lockFilePath, `${lockFileContent}\n# Modified: ${new Date().toISOString()}`);
             }
 
             // Clear console output

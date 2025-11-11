@@ -64,7 +64,6 @@ Examples:
             case "csv":
                 outputCsv(searchParams);
                 break;
-            case "table":
             default:
                 outputTable(searchParams);
                 break;
@@ -124,7 +123,7 @@ function wrapText(text: string, width: number, indent: string): string {
         lines.push(currentLine);
     }
 
-    return lines.join("\n" + indent);
+    return lines.join(`\n${indent}`);
 }
 
 function outputJson(searchParams: SearchParameter[]): void {
@@ -154,7 +153,7 @@ function outputCsv(searchParams: SearchParameter[]): void {
 function escapeCsv(value: string): string {
     // Escape CSV values that contain commas, quotes, or newlines
     if (value.includes(",") || value.includes('"') || value.includes("\n")) {
-        return '"' + value.replace(/"/g, '""') + '"';
+        return `"${value.replace(/"/g, '""')}"`;
     }
     return value;
 }

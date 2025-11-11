@@ -2,9 +2,9 @@
  * Cache validation utilities
  */
 
-import { createHash } from "crypto";
-import * as fs from "fs/promises";
-import * as path from "path";
+import { createHash } from "node:crypto";
+import * as fs from "node:fs/promises";
+import * as path from "node:path";
 
 export const computePackageLockHash = async (workingDir: string): Promise<string | null> => {
     try {

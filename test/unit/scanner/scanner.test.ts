@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import * as fs from "fs/promises";
-import * as os from "os";
-import * as path from "path";
+import * as fs from "node:fs/promises";
+import * as os from "node:os";
+import * as path from "node:path";
 import { createCache } from "../../../src/cache";
 import {
     isValidFileEntry,
@@ -144,8 +144,8 @@ describe("Scanner Module", () => {
             const result = parseIndex(indexContent, "test.json");
 
             expect(result).not.toBeNull();
-            expect(result!["index-version"]).toBe(1);
-            expect(result!.files).toHaveLength(1);
+            expect(result?.["index-version"]).toBe(1);
+            expect(result?.files).toHaveLength(1);
         });
 
         test("should return null for invalid JSON", () => {

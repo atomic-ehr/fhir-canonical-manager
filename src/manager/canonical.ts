@@ -2,15 +2,9 @@
  * Main CanonicalManager implementation
  */
 
-import * as fs from "fs/promises";
-import * as path from "path";
-import {
-    computePackageLockHash,
-    createCache,
-    type ExtendedCache,
-    loadCacheFromDisk,
-    saveCacheToDisk,
-} from "../cache/index.js";
+import * as fs from "node:fs/promises";
+import * as path from "node:path";
+import { computePackageLockHash, createCache, loadCacheFromDisk, saveCacheToDisk } from "../cache/index.js";
 import { DEFAULT_REGISTRY } from "../constants.js";
 import { ensureDir } from "../fs/index.js";
 import { installPackages } from "../package/index.js";

@@ -2,8 +2,7 @@
  * Reference store implementation
  */
 
-import { createHash } from "crypto";
-import type { ReferenceMetadata, ReferenceStore } from "../types/index.js";
+import { createHash } from "node:crypto";
 
 export const generateReferenceId = (metadata: {
     packageName: string;

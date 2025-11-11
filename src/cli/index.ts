@@ -1,10 +1,9 @@
 #!/usr/bin/env node
 
-import * as fs from "fs";
-import * as path from "path";
-import { fileURLToPath } from "url";
-import type { Config, IndexEntry, PackageInfo } from "../index.js";
-import { CanonicalManager } from "../index.js";
+import * as fs from "node:fs";
+import * as path from "node:path";
+import { fileURLToPath } from "node:url";
+import type { Config } from "../index.js";
 
 // Command handlers
 import { initCommand } from "./init.js";
@@ -22,7 +21,7 @@ let VERSION = "unknown";
 try {
     const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf-8"));
     VERSION = packageJson.version;
-} catch (error) {
+} catch (_error) {
     // Fallback version if package.json can't be read
     VERSION = "0.0.3";
 }
@@ -111,7 +110,7 @@ export function parseArgs(args: string[]): {
 
     for (let i = 0; i < args.length; i++) {
         const arg = args[i];
-        if (arg && arg.startsWith("--")) {
+        if (arg?.startsWith("--")) {
             const key = arg.slice(2);
             const nextArg = args[i + 1];
             if (nextArg && !nextArg.startsWith("--")) {
@@ -120,7 +119,7 @@ export function parseArgs(args: string[]): {
             } else {
                 options[key] = true;
             }
-        } else if (arg && arg.startsWith("-")) {
+        } else if (arg?.startsWith("-")) {
             // Handle short aliases
             switch (arg) {
                 case "-sd":
@@ -159,7 +158,7 @@ export async function loadPackageJson(): Promise<any> {
             const content = fs.readFileSync(packagePath, "utf-8");
             return JSON.parse(content);
         }
-    } catch (error) {
+    } catch (_error) {
         // Ignore parse errors
     }
     return null;
@@ -167,7 +166,7 @@ export async function loadPackageJson(): Promise<any> {
 
 export async function savePackageJson(data: any): Promise<void> {
     const packagePath = path.join(process.cwd(), "package.json");
-    fs.writeFileSync(packagePath, JSON.stringify(data, null, 2) + "\n");
+    fs.writeFileSync(packagePath, `${JSON.stringify(data, null, 2)}\n`);
 }
 
 export function getConfigFromPackageJson(packageJson: any): Partial<Config> {

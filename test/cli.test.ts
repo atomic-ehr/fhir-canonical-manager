@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import { createHash } from "crypto";
-import * as fs from "fs";
-import * as path from "path";
+import { createHash } from "node:crypto";
+import * as fs from "node:fs";
+import * as path from "node:path";
 import { parseArgs } from "../src/cli/index";
 import { searchCommand } from "../src/cli/search";
 
@@ -61,7 +61,7 @@ describe("CLI parseArgs", () => {
 describe("CLI search output format", () => {
     test("should output results in single-line format", async () => {
         // Create a mock environment
-        const testDir = path.join(process.cwd(), "tmp", "test-search-format-" + Date.now());
+        const testDir = path.join(process.cwd(), "tmp", `test-search-format-${Date.now()}`);
         const originalCwd = process.cwd();
         const consoleOutput: string[] = [];
         const originalLog = console.log;
@@ -69,7 +69,7 @@ describe("CLI search output format", () => {
 
         // Mock console
         console.log = (...args) => consoleOutput.push(args.join(" "));
-        console.error = (...args) => consoleOutput.push("ERROR: " + args.join(" "));
+        console.error = (...args) => consoleOutput.push(`ERROR: ${args.join(" ")}`);
 
         try {
             // Setup test directory with package.json
@@ -183,14 +183,14 @@ describe("CLI search output format", () => {
     });
 
     test("should handle empty results gracefully", async () => {
-        const testDir = path.join(process.cwd(), "tmp", "test-empty-search-" + Date.now());
+        const testDir = path.join(process.cwd(), "tmp", `test-empty-search-${Date.now()}`);
         const originalCwd = process.cwd();
         const consoleOutput: string[] = [];
         const originalLog = console.log;
         const originalError = console.error;
 
         console.log = (...args) => consoleOutput.push(args.join(" "));
-        console.error = (...args) => consoleOutput.push("ERROR: " + args.join(" "));
+        console.error = (...args) => consoleOutput.push(`ERROR: ${args.join(" ")}`);
 
         try {
             fs.mkdirSync(testDir, { recursive: true });
@@ -246,14 +246,14 @@ describe("CLI search output format", () => {
     });
 
     test("should filter by type using -t option", async () => {
-        const testDir = path.join(process.cwd(), "tmp", "test-type-filter-" + Date.now());
+        const testDir = path.join(process.cwd(), "tmp", `test-type-filter-${Date.now()}`);
         const originalCwd = process.cwd();
         const consoleOutput: string[] = [];
         const originalLog = console.log;
         const originalError = console.error;
 
         console.log = (...args) => consoleOutput.push(args.join(" "));
-        console.error = (...args) => consoleOutput.push("ERROR: " + args.join(" "));
+        console.error = (...args) => consoleOutput.push(`ERROR: ${args.join(" ")}`);
 
         try {
             fs.mkdirSync(testDir, { recursive: true });
@@ -357,14 +357,14 @@ describe("CLI search output format", () => {
     });
 
     test("should filter by kind using -k option", async () => {
-        const testDir = path.join(process.cwd(), "tmp", "test-kind-filter-" + Date.now());
+        const testDir = path.join(process.cwd(), "tmp", `test-kind-filter-${Date.now()}`);
         const originalCwd = process.cwd();
         const consoleOutput: string[] = [];
         const originalLog = console.log;
         const originalError = console.error;
 
         console.log = (...args) => consoleOutput.push(args.join(" "));
-        console.error = (...args) => consoleOutput.push("ERROR: " + args.join(" "));
+        console.error = (...args) => consoleOutput.push(`ERROR: ${args.join(" ")}`);
 
         try {
             fs.mkdirSync(testDir, { recursive: true });

@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
+import * as fs from "node:fs";
+import * as path from "node:path";
 import { $ } from "bun";
-import * as fs from "fs";
-import * as path from "path";
 
 describe("CLI Integration Tests", () => {
     const cliPath = path.join(process.cwd(), "dist/cli/index.js");
@@ -135,7 +135,7 @@ describe("CLI Integration Tests", () => {
         const packages = new Set<string>();
         resourceLines.forEach((line) => {
             const match = line.match(/"package":"([^"]+)"/);
-            if (match && match[1]) {
+            if (match?.[1]) {
                 packages.add(match[1]);
             }
         });

@@ -2,8 +2,8 @@
  * Cache persistence functionality
  */
 
-import * as fs from "fs/promises";
-import * as path from "path";
+import * as fs from "node:fs/promises";
+import * as path from "node:path";
 import type { CacheData } from "../types/index.js";
 import type { ExtendedCache } from "./core.js";
 import { computePackageLockHash } from "./validation.js";

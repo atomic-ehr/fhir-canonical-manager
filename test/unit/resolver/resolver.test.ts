@@ -33,8 +33,8 @@ describe("Resolver Module", () => {
             const result = await resolveWithContext("http://example.com/Patient", context, cache, mockResolveEntry);
 
             expect(result).not.toBeNull();
-            expect(result!.id).toBe("context-resolved");
-            expect(result!.package?.name).toBe("test.package");
+            expect(result?.id).toBe("context-resolved");
+            expect(result?.package?.name).toBe("test.package");
         });
 
         test("should return null when context resolution fails", async () => {
@@ -81,7 +81,7 @@ describe("Resolver Module", () => {
             };
 
             let capturedOptions: any;
-            const capturingResolveEntry = async (url: string, options?: any): Promise<IndexEntry> => {
+            const capturingResolveEntry = async (_url: string, options?: any): Promise<IndexEntry> => {
                 capturedOptions = options;
                 throw new Error("Expected error");
             };

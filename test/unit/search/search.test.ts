@@ -5,19 +5,19 @@ import type { IndexEntry } from "../../../src/types";
 describe("Search Module", () => {
     describe("expandedTerms", () => {
         test("should contain common FHIR abbreviations", () => {
-            expect(expandedTerms["str"]).toContain("structure");
-            expect(expandedTerms["pati"]).toContain("patient");
-            expect(expandedTerms["obs"]).toContain("observation");
-            expect(expandedTerms["org"]).toContain("organization");
-            expect(expandedTerms["pract"]).toContain("practitioner");
-            expect(expandedTerms["med"]).toContain("medication");
-            expect(expandedTerms["cs"]).toContain("codesystem");
-            expect(expandedTerms["vs"]).toContain("valueset");
-            expect(expandedTerms["sd"]).toContain("structuredefinition");
+            expect(expandedTerms.str).toContain("structure");
+            expect(expandedTerms.pati).toContain("patient");
+            expect(expandedTerms.obs).toContain("observation");
+            expect(expandedTerms.org).toContain("organization");
+            expect(expandedTerms.pract).toContain("practitioner");
+            expect(expandedTerms.med).toContain("medication");
+            expect(expandedTerms.cs).toContain("codesystem");
+            expect(expandedTerms.vs).toContain("valueset");
+            expect(expandedTerms.sd).toContain("structuredefinition");
         });
 
         test("should have array values for all terms", () => {
-            Object.entries(expandedTerms).forEach(([key, value]) => {
+            Object.entries(expandedTerms).forEach(([_key, value]) => {
                 expect(Array.isArray(value)).toBe(true);
                 expect(value.length).toBeGreaterThan(0);
             });

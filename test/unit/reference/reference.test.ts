@@ -191,8 +191,8 @@ describe("Reference Module", () => {
             const allRefs = manager.getAllReferences();
 
             expect(Object.keys(allRefs)).toHaveLength(2);
-            expect(allRefs["id1"]).toEqual(metadata1);
-            expect(allRefs["id2"]).toEqual(metadata2);
+            expect(allRefs.id1).toEqual(metadata1);
+            expect(allRefs.id2).toEqual(metadata2);
         });
 
         test("should not add duplicate IDs to URL mapping", () => {

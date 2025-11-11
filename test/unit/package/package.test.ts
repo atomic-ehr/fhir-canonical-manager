@@ -1,8 +1,7 @@
 import { beforeEach, describe, expect, mock, test } from "bun:test";
-import * as child_process from "child_process";
-import * as fs from "fs/promises";
-import * as os from "os";
-import * as path from "path";
+import * as fs from "node:fs/promises";
+import * as os from "node:os";
+import * as path from "node:path";
 import { detectPackageManager, installPackages } from "../../../src/package";
 
 // Mock child_process.exec
@@ -39,8 +38,8 @@ describe("Package Module", () => {
     describe("installPackages", () => {
         test("should create package.json if not exists", async () => {
             // Mock detect to return npm
-            const originalDetect = detectPackageManager;
-            const mockDetect = mock(() => Promise.resolve("npm" as "npm"));
+            const _originalDetect = detectPackageManager;
+            const _mockDetect = mock(() => Promise.resolve("npm" as "npm"));
 
             // We can't easily mock the actual exec in Bun test
             // So we'll just test the package.json creation

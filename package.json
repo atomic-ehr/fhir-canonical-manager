@@ -26,6 +26,7 @@
     "prepublishOnly": "bun run build",
     "format": "biome format --write",
     "lint": "biome check --write",
+    "lint:unsafe": "biome check --write --unsafe",
     "test": "bun test"
   },
   "devDependencies": {

@@ -1,7 +1,6 @@
-import { exec } from "child_process";
-import * as fs from "fs";
-import * as path from "path";
-import { promisify } from "util";
+import { exec } from "node:child_process";
+import * as path from "node:path";
+import { promisify } from "node:util";
 import { CanonicalManager } from "../index.js";
 import { loadPackageJson, parseArgs, savePackageJson } from "./index.js";
 

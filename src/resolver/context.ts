@@ -8,7 +8,7 @@ import type { IndexEntry, SourceContext } from "../types/index.js";
 export const resolveWithContext = async (
     url: string,
     context: SourceContext,
-    cache: ExtendedCache,
+    _cache: ExtendedCache,
     resolveEntry: (url: string, options?: any) => Promise<IndexEntry>,
 ): Promise<IndexEntry | null> => {
     if (context.package) {
