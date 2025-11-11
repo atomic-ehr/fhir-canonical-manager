@@ -4,9 +4,9 @@
 
 import * as fs from "fs/promises";
 import * as path from "path";
-import type { PackageJson, PackageInfo } from "../types/index.js";
 import type { ExtendedCache } from "../cache/core.js";
 import { fileExists } from "../fs/index.js";
+import type { PackageInfo, PackageJson } from "../types/index.js";
 import { processIndex } from "./processor.js";
 
 export const scanPackage = async (packagePath: string, cache: ExtendedCache): Promise<void> => {

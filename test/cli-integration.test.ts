@@ -1,7 +1,7 @@
-import { test, expect, describe } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import { $ } from "bun";
-import * as path from "path";
 import * as fs from "fs";
+import * as path from "path";
 
 describe("CLI Integration Tests", () => {
     const cliPath = path.join(process.cwd(), "dist/cli/index.js");

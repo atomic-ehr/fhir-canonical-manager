@@ -2,8 +2,8 @@
  * Context-aware resolution functionality
  */
 
-import type { SourceContext, IndexEntry } from "../types/index.js";
 import type { ExtendedCache } from "../cache/core.js";
+import type { IndexEntry, SourceContext } from "../types/index.js";
 
 export const resolveWithContext = async (
     url: string,

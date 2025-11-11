@@ -29,7 +29,7 @@ export const filterBySmartSearch = (results: IndexEntry[], searchTerms: string[]
         // Check if all search terms match
         return terms.every((term) => {
             // Split the text into parts (by /, -, _, ., spaces)
-            const allParts = fullText.split(/[\/\-_\.\s]+/);
+            const allParts = fullText.split(/[/\-_.\s]+/);
 
             // Check if any part starts with the search term
             const directMatch = allParts.some((part) => part.startsWith(term));

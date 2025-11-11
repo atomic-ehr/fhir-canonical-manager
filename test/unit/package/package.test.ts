@@ -1,8 +1,8 @@
-import { describe, test, expect, mock, beforeEach } from "bun:test";
+import { beforeEach, describe, expect, mock, test } from "bun:test";
 import * as child_process from "child_process";
 import * as fs from "fs/promises";
-import * as path from "path";
 import * as os from "os";
+import * as path from "path";
 import { detectPackageManager, installPackages } from "../../../src/package";
 
 // Mock child_process.exec

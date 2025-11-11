@@ -1,5 +1,5 @@
-import { parseArgs, loadPackageJson, getConfigFromPackageJson } from "./index.js";
 import { CanonicalManager } from "../index.js";
+import { getConfigFromPackageJson, loadPackageJson, parseArgs } from "./index.js";
 
 export async function resolveCommand(args: string[]): Promise<void> {
     const { positional, options } = parseArgs(args);

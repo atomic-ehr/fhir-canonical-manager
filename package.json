@@ -25,6 +25,7 @@
     "typecheck:watch": "bunx tsc --noEmit --watch",
     "prepublishOnly": "bun run build",
     "format": "biome format --write",
+    "lint": "biome check --write",
     "test": "bun test"
   },
   "devDependencies": {

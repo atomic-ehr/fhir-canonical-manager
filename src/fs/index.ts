@@ -2,4 +2,4 @@
  * File system utilities exports
  */
 
-export { fileExists, ensureDir, isFhirPackage } from "./utils.js";
+export { ensureDir, fileExists, isFhirPackage } from "./utils.js";

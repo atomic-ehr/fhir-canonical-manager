@@ -1,8 +1,8 @@
-import { describe, test, expect, beforeEach, afterEach } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "fs/promises";
-import * as path from "path";
 import * as os from "os";
-import { createCache, saveCacheToDisk, loadCacheFromDisk, computePackageLockHash } from "../../../src/cache";
+import * as path from "path";
+import { computePackageLockHash, createCache, loadCacheFromDisk, saveCacheToDisk } from "../../../src/cache";
 import type { CacheData, ReferenceMetadata } from "../../../src/types";
 
 describe("Cache Module", () => {

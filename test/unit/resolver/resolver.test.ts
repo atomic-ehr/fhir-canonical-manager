@@ -1,7 +1,7 @@
-import { describe, test, expect } from "bun:test";
-import { resolveWithContext } from "../../../src/resolver";
+import { describe, expect, test } from "bun:test";
 import { createCache } from "../../../src/cache";
-import type { SourceContext, IndexEntry } from "../../../src/types";
+import { resolveWithContext } from "../../../src/resolver";
+import type { IndexEntry, SourceContext } from "../../../src/types";
 
 describe("Resolver Module", () => {
     describe("resolveWithContext", () => {

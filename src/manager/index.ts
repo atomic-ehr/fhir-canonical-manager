@@ -2,7 +2,5 @@
  * Manager module exports
  */
 
-export { createCanonicalManager } from "./canonical.js";
-
 // For backward compatibility
-export { createCanonicalManager as CanonicalManager } from "./canonical.js";
+export { createCanonicalManager, createCanonicalManager as CanonicalManager } from "./canonical.js";

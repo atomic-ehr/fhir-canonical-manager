@@ -1,9 +1,9 @@
+import { exec } from "child_process";
 import * as fs from "fs";
 import * as path from "path";
-import { exec } from "child_process";
 import { promisify } from "util";
-import { parseArgs, loadPackageJson, savePackageJson } from "./index.js";
 import { CanonicalManager } from "../index.js";
+import { loadPackageJson, parseArgs, savePackageJson } from "./index.js";
 
 const execAsync = promisify(exec);
 

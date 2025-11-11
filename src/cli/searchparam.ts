@@ -3,8 +3,8 @@
  */
 
 import { CanonicalManager } from "../index.js";
-import { parseArgs, loadPackageJson, getConfigFromPackageJson } from "./index.js";
 import type { SearchParameter } from "../types/index.js";
+import { getConfigFromPackageJson, loadPackageJson, parseArgs } from "./index.js";
 
 export async function searchParamCommand(args: string[]): Promise<void> {
     const { positional, options } = parseArgs(args);

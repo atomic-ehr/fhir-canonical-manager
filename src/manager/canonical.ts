@@ -2,31 +2,31 @@
  * Main CanonicalManager implementation
  */
 
-import * as path from "path";
 import * as fs from "fs/promises";
-import type {
-    Config,
-    CanonicalManager,
-    PackageId,
-    IndexEntry,
-    Resource,
-    Reference,
-    SourceContext,
-    SearchParameter,
-} from "../types/index.js";
+import * as path from "path";
+import {
+    computePackageLockHash,
+    createCache,
+    type ExtendedCache,
+    loadCacheFromDisk,
+    saveCacheToDisk,
+} from "../cache/index.js";
 import { DEFAULT_REGISTRY } from "../constants.js";
 import { ensureDir } from "../fs/index.js";
 import { installPackages } from "../package/index.js";
-import {
-    createCache,
-    saveCacheToDisk,
-    loadCacheFromDisk,
-    computePackageLockHash,
-    type ExtendedCache,
-} from "../cache/index.js";
-import { scanDirectory } from "../scanner/index.js";
 import { resolveWithContext } from "../resolver/index.js";
+import { scanDirectory } from "../scanner/index.js";
 import { filterBySmartSearch } from "../search/index.js";
+import type {
+    CanonicalManager,
+    Config,
+    IndexEntry,
+    PackageId,
+    Reference,
+    Resource,
+    SearchParameter,
+    SourceContext,
+} from "../types/index.js";
 
 export const createCanonicalManager = (config: Config): CanonicalManager => {
     const { packages = [], workingDir } = config;

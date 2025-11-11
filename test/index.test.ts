@@ -2,18 +2,18 @@
  * FHIR Canonical Manager Tests
  */
 
-import { test, expect, describe, beforeAll, afterAll } from "bun:test";
-import { CanonicalManager } from "../src";
-import type {
-    IndexEntry,
-    Reference,
-    Resource,
-    PackageId,
-    SearchParameter,
-    CanonicalManager as ICanonicalManager,
-} from "../src/types";
+import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import * as fs from "fs/promises";
 import * as path from "path";
+import { CanonicalManager } from "../src";
+import type {
+    CanonicalManager as ICanonicalManager,
+    IndexEntry,
+    PackageId,
+    Reference,
+    Resource,
+    SearchParameter,
+} from "../src/types";
 
 describe("CanonicalManager", () => {
     let manager: ICanonicalManager;

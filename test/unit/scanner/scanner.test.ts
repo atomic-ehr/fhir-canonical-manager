@@ -1,16 +1,16 @@
-import { describe, test, expect, beforeEach, afterEach } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "fs/promises";
-import * as path from "path";
 import * as os from "os";
+import * as path from "path";
+import { createCache } from "../../../src/cache";
 import {
-    parseIndex,
     isValidFileEntry,
     isValidIndexFile,
+    parseIndex,
     processIndex,
-    scanPackage,
     scanDirectory,
+    scanPackage,
 } from "../../../src/scanner";
-import { createCache } from "../../../src/cache";
 import type { PackageJson } from "../../../src/types";
 
 describe("Scanner Module", () => {

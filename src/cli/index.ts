@@ -3,14 +3,14 @@
 import * as fs from "fs";
 import * as path from "path";
 import { fileURLToPath } from "url";
-import { CanonicalManager } from "../index.js";
 import type { Config, IndexEntry, PackageInfo } from "../index.js";
+import { CanonicalManager } from "../index.js";
 
 // Command handlers
 import { initCommand } from "./init.js";
 import { listCommand } from "./list.js";
-import { searchCommand } from "./search.js";
 import { resolveCommand } from "./resolve.js";
+import { searchCommand } from "./search.js";
 import { searchParamCommand } from "./searchparam.js";
 
 // Get version from package.json
@@ -132,7 +132,7 @@ export function parseArgs(args: string[]): {
                 case "-vs":
                     options.resourceType = "ValueSet";
                     break;
-                default:
+                default: {
                     // Handle other single-letter flags
                     const key = arg.slice(1);
                     const nextArg = args[i + 1];
@@ -142,6 +142,7 @@ export function parseArgs(args: string[]): {
                     } else {
                         options[key] = true;
                     }
+                }
             }
         } else if (arg) {
             positional.push(arg);

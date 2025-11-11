@@ -1,5 +1,5 @@
-import { describe, test, expect, beforeEach } from "bun:test";
-import { generateReferenceId, createReferenceManager } from "../../../src/reference";
+import { beforeEach, describe, expect, test } from "bun:test";
+import { createReferenceManager, generateReferenceId } from "../../../src/reference";
 import type { ReferenceMetadata } from "../../../src/types";
 
 describe("Reference Module", () => {

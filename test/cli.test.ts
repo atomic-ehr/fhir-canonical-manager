@@ -1,9 +1,9 @@
-import { test, expect, describe } from "bun:test";
-import { parseArgs } from "../src/cli/index";
-import { searchCommand } from "../src/cli/search";
+import { describe, expect, test } from "bun:test";
+import { createHash } from "crypto";
 import * as fs from "fs";
 import * as path from "path";
-import { createHash } from "crypto";
+import { parseArgs } from "../src/cli/index";
+import { searchCommand } from "../src/cli/search";
 
 // Helper to create mock package-lock.json and calculate its hash
 const createMockPackageLock = (testDir: string): string => {
