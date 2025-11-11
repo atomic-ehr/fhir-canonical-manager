@@ -1,0 +1,63 @@
+{
+  "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
+  "vcs": {
+    "enabled": false,
+    "clientKind": "git",
+    "useIgnoreFile": false
+  },
+  "files": {
+    "ignoreUnknown": false,
+    "includes": ["src/**/*.ts", "test/**/*.ts", "package.json", "biome.json"]
+  },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "lineWidth": 120
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "suspicious": {
+        "noImplicitAnyLet": "off",
+        "noExplicitAny": "off",
+        "noAssignInExpressions": "off",
+        "noVar": "error"
+      },
+      "correctness": {
+        "noUnusedPrivateClassMembers": "error",
+        "noUnusedImports": { "level": "error" }
+      },
+      "nursery": {
+        "noUnresolvedImports": "off"
+      },
+      "complexity": {
+        "noExcessiveCognitiveComplexity": {
+          "level": "warn",
+          "options": {
+            "maxAllowedComplexity": 50
+          }
+        }
+      },
+      "style": {
+        "useConsistentArrayType": "error",
+        "useArrayLiterals": "error",
+        "noNestedTernary": "error"
+      },
+      "recommended": true
+    }
+  },
+  "javascript": {
+    "formatter": {
+      "indentWidth": 4,
+      "quoteStyle": "double"
+    }
+  },
+  "assist": {
+    "enabled": true,
+    "actions": {
+      "source": {
+        "organizeImports": "on"
+      }
+    }
+  }
+}

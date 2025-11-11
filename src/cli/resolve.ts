@@ -1,63 +1,63 @@
-import { parseArgs, loadPackageJson, getConfigFromPackageJson } from './index.js';
-import { CanonicalManager } from '../index.js';
+import { parseArgs, loadPackageJson, getConfigFromPackageJson } from "./index.js";
+import { CanonicalManager } from "../index.js";
 
 export async function resolveCommand(args: string[]): Promise<void> {
-  const { positional, options } = parseArgs(args);
-  const url = positional[0];
-  const fields = options.fields as string | undefined;
+    const { positional, options } = parseArgs(args);
+    const url = positional[0];
+    const fields = options.fields as string | undefined;
 
-  if (!url) {
-    console.error("Error: Canonical URL required");
-    console.error("Usage: fcm resolve <canonical-url> [--fields field1,field2]");
-    console.error("Example: fcm resolve http://hl7.org/fhir/StructureDefinition/Patient");
-    if (process.env.NODE_ENV === 'test') {
-      throw new Error("Canonical URL required");
-    }
-    process.exit(1);
-  }
-
-  // Load config from package.json
-  const packageJson = await loadPackageJson();
-  if (!packageJson?.fcm?.packages || packageJson.fcm.packages.length === 0) {
-    console.error("Error: No FHIR packages configured");
-    console.error("Run 'fcm init' first to initialize packages");
-    if (process.env.NODE_ENV === 'test') {
-      throw new Error("No FHIR packages configured");
-    }
-    process.exit(1);
-  }
-
-  const config = getConfigFromPackageJson(packageJson);
-  const manager = CanonicalManager(config as any);
-  await manager.init();
-
-  try {
-    // Resolve the resource
-    const resource = await manager.resolve(url);
-
-    if (fields) {
-      // Extract only specified fields
-      const fieldList = fields.split(',').map(f => f.trim());
-      const filtered: any = {};
-      
-      fieldList.forEach(field => {
-        if (field in resource) {
-          filtered[field] = resource[field];
+    if (!url) {
+        console.error("Error: Canonical URL required");
+        console.error("Usage: fcm resolve <canonical-url> [--fields field1,field2]");
+        console.error("Example: fcm resolve http://hl7.org/fhir/StructureDefinition/Patient");
+        if (process.env.NODE_ENV === "test") {
+            throw new Error("Canonical URL required");
         }
-      });
-      
-      console.log(JSON.stringify(filtered, null, 2));
-    } else {
-      // Output full resource
-      console.log(JSON.stringify(resource, null, 2));
+        process.exit(1);
     }
-  } catch (error) {
-    console.error(`Error: Resource not found: ${url}`);
-    if (process.env.NODE_ENV === 'test') {
-      throw error;
+
+    // Load config from package.json
+    const packageJson = await loadPackageJson();
+    if (!packageJson?.fcm?.packages || packageJson.fcm.packages.length === 0) {
+        console.error("Error: No FHIR packages configured");
+        console.error("Run 'fcm init' first to initialize packages");
+        if (process.env.NODE_ENV === "test") {
+            throw new Error("No FHIR packages configured");
+        }
+        process.exit(1);
     }
-    process.exit(1);
-  } finally {
-    await manager.destroy();
-  }
+
+    const config = getConfigFromPackageJson(packageJson);
+    const manager = CanonicalManager(config as any);
+    await manager.init();
+
+    try {
+        // Resolve the resource
+        const resource = await manager.resolve(url);
+
+        if (fields) {
+            // Extract only specified fields
+            const fieldList = fields.split(",").map((f) => f.trim());
+            const filtered: any = {};
+
+            fieldList.forEach((field) => {
+                if (field in resource) {
+                    filtered[field] = resource[field];
+                }
+            });
+
+            console.log(JSON.stringify(filtered, null, 2));
+        } else {
+            // Output full resource
+            console.log(JSON.stringify(resource, null, 2));
+        }
+    } catch (error) {
+        console.error(`Error: Resource not found: ${url}`);
+        if (process.env.NODE_ENV === "test") {
+            throw error;
+        }
+        process.exit(1);
+    } finally {
+        await manager.destroy();
+    }
 }

@@ -24,10 +24,12 @@
     "typecheck": "bunx tsc --noEmit",
     "typecheck:watch": "bunx tsc --noEmit --watch",
     "prepublishOnly": "bun run build",
+    "format": "biome format --write",
     "test": "bun test"
   },
   "devDependencies": {
     "@atomic-ehr/hl7.fhir.r4.core": "^0.0.1",
+    "@biomejs/biome": "^2.3.4",
     "@types/bun": "latest",
     "typescript": "^5"
   },
