@@ -30,8 +30,12 @@ export const createReferenceManager = (): ReferenceManager => {
     };
 
     const clear = (): void => {
-        Object.keys(references).forEach((key) => delete references[key]);
-        Object.keys(urlToIds).forEach((key) => delete urlToIds[key]);
+        Object.keys(references).forEach((key) => {
+            delete references[key];
+        });
+        Object.keys(urlToIds).forEach((key) => {
+            delete urlToIds[key];
+        });
     };
 
     return {

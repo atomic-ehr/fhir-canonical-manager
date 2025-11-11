@@ -31,6 +31,10 @@ Examples:
     }
 
     const resourceType = positional[0];
+    if (!resourceType) {
+        console.error("Error: Resource type is required");
+        process.exit(1);
+    }
     const format = (options.format as string) || "table";
 
     // Load config from package.json
@@ -49,7 +53,7 @@ Examples:
     await manager.init();
 
     try {
-        const searchParams = await manager.getSearchParametersForResource(resourceType!);
+        const searchParams = await manager.getSearchParametersForResource(resourceType);
 
         if (searchParams.length === 0) {
             console.log(`No search parameters found for resource type '${resourceType}'`);

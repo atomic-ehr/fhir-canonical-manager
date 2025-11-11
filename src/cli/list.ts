@@ -43,7 +43,9 @@ export async function listCommand(args: string[]): Promise<void> {
             if (!pkg) {
                 console.error(`Error: Package '${packageName}' not found`);
                 console.error("Available packages:");
-                packages.forEach((p) => console.error(`  - ${p.name}`));
+                packages.forEach((p) => {
+                    console.error(`  - ${p.name}`);
+                });
                 if (process.env.NODE_ENV === "test") {
                     throw new Error(`Package '${packageName}' not found`);
                 }

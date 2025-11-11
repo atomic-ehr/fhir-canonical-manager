@@ -155,7 +155,10 @@ describe("CanonicalManager", () => {
         const packages = await manager.packages();
         expect(packages.length).toBeGreaterThan(0);
 
-        const firstPackage = packages[0]!;
+        const firstPackage = packages[0];
+        if (!firstPackage) {
+            throw new Error("No packages found");
+        }
 
         const results = await manager.searchEntries({
             package: firstPackage,
@@ -292,7 +295,10 @@ describe("CanonicalManager", () => {
         const packages = await manager.packages();
         expect(packages.length).toBeGreaterThan(0);
 
-        const firstPackage = packages[0]!;
+        const firstPackage = packages[0];
+        if (!firstPackage) {
+            throw new Error("No packages found");
+        }
 
         // Find any resource URL from the first package
         const results = await manager.searchEntries({ package: firstPackage });
@@ -303,7 +309,10 @@ describe("CanonicalManager", () => {
         expect(firstResource?.url).toBeDefined();
 
         // Resolve with package constraint (without version since it might not match)
-        const entry = await manager.resolveEntry(firstResource?.url!, {
+        if (!firstResource?.url) {
+            throw new Error("First resource URL is undefined");
+        }
+        const entry = await manager.resolveEntry(firstResource.url, {
             package: firstPackage.name,
         });
 

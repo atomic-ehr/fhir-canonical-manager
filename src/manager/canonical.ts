@@ -25,11 +25,10 @@ import type {
 export const createCanonicalManager = (config: Config): CanonicalManager => {
     const { packages = [], workingDir } = config;
     // Ensure registry URL ends with /
-    const registry = config.registry
-        ? config.registry.endsWith("/")
-            ? config.registry
-            : `${config.registry}/`
-        : DEFAULT_REGISTRY;
+    let registry = DEFAULT_REGISTRY;
+    if (config.registry) {
+        registry = config.registry.endsWith("/") ? config.registry : `${config.registry}/`;
+    }
     const nodeModulesPath = path.join(workingDir, "node_modules");
     const cacheDir = path.join(workingDir, ".fcm", "cache");
 
@@ -170,7 +169,11 @@ export const createCanonicalManager = (config: Config): CanonicalManager => {
             throw new Error(`No matching resource found for ${canonicalUrl} with given options`);
         }
 
-        return filtered[0]!;
+        const result = filtered[0];
+        if (!result) {
+            throw new Error(`No matching resource found for ${canonicalUrl}`);
+        }
+        return result;
     };
 
     const resolve = async (
@@ -294,7 +297,10 @@ export const createCanonicalManager = (config: Config): CanonicalManager => {
 
         // Check cache first
         if (searchParamsCache.has(resourceType)) {
-            return searchParamsCache.get(resourceType)!;
+            const cached = searchParamsCache.get(resourceType);
+            if (cached) {
+                return cached;
+            }
         }
 
         // Query all SearchParameter resources
