@@ -2,7 +2,7 @@
  * Context-aware resolution functionality
  */
 
-import type { ExtendedCache } from "../cache/core.js";
+import type { ExtendedCache } from "../cache.js";
 import type { IndexEntry, SourceContext } from "../types/index.js";
 
 export const resolveWithContext = async (

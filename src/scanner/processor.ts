@@ -4,7 +4,7 @@
 
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import type { ExtendedCache } from "../cache/core.js";
+import type { ExtendedCache } from "../cache.js";
 import type { IndexEntry, PackageJson } from "../types/index.js";
 import { parseIndex } from "./parser.js";
 

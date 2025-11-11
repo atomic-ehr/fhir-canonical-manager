@@ -4,7 +4,13 @@
 
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { computePackageLockHash, createCache, loadCacheFromDisk, saveCacheToDisk } from "../cache/index.js";
+import {
+    computePackageLockHash,
+    createCache,
+    loadCacheFromDisk,
+    saveCacheToDisk,
+    type ExtendedCache,
+} from "../cache.js";
 import { DEFAULT_REGISTRY } from "../constants.js";
 import { ensureDir } from "../fs/index.js";
 import { installPackages } from "../package/index.js";
@@ -16,6 +22,7 @@ import type {
     Config,
     IndexEntry,
     PackageId,
+    PackageInfo,
     Reference,
     Resource,
     SearchParameter,
@@ -98,7 +105,7 @@ export const createCanonicalManager = (config: Config): CanonicalManager => {
 
     const getPackages = async (): Promise<PackageId[]> => {
         ensureInitialized();
-        return Object.values(cache.packages).map((p) => p.id);
+        return Object.values(cache.packages).map((p: PackageInfo) => p.id);
     };
 
     const addPackages = async (...newPackages: string[]): Promise<void> => {
