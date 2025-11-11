@@ -355,5 +355,12 @@ export const createCanonicalManager = (config: Config): CanonicalManager => {
         search,
         smartSearch,
         getSearchParametersForResource,
+        packageJson: async (packageName: string) => {
+            ensureInitialized();
+            const fn = cache.packages[packageName]?.path;
+            if (!fn) throw new Error(`Package ${packageName} not found`);
+            const packageJSON = JSON.parse(await fs.readFile(path.join(fn, "package.json"), "utf8"));
+            return packageJSON;
+        },
     };
 };

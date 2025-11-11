@@ -2,6 +2,8 @@
  * Core public API types for FHIR Canonical Manager
  */
 
+import type { ReferenceManager } from "../reference";
+
 export interface Reference {
     id: string;
     resourceType: string;
@@ -127,4 +129,5 @@ export interface CanonicalManager {
         },
     ): Promise<IndexEntry[]>;
     getSearchParametersForResource(resourceType: string): Promise<SearchParameter[]>;
+    packageJson(packageName: string): Promise<unknown>;
 }
