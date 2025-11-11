@@ -7,6 +7,10 @@
   "bin": {
     "fcm": "./dist/cli/index.js"
   },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/atomic-ehr/fhir-canonical-manager"
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
