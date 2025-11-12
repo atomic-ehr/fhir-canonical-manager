@@ -4,7 +4,6 @@
 
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
-import * as path from "node:path";
 import { CanonicalManager } from "../src";
 import type {
     CanonicalManager as ICanonicalManager,

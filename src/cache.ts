@@ -33,8 +33,8 @@ export const createCache = (): ExtendedCache => {
 
 export const loadCacheFromDisk = async (pwd: string, cacheKey: CacheKey): Promise<CacheData | undefined> => {
     try {
-        const cachePath = Path.join(pwd, cacheKey, "index.json");
-        const content = await afs.readFile(cachePath, "utf-8");
+        const cacheIndexFile = Path.join(pwd, cacheKey, "index.json");
+        const content = await afs.readFile(cacheIndexFile, "utf-8");
         return JSON.parse(content) as CacheData;
     } catch {
         return;
