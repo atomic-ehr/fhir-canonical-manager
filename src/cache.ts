@@ -14,6 +14,13 @@ export const computeCacheKey = (packages: string[]): CacheKey => {
     return hash as CacheKey;
 };
 
+export const cachePaths = (pwd: string, packages: string[]) => {
+    const cacheKey = computeCacheKey(packages);
+    const cacheRecordPath = Path.join(pwd, cacheKey);
+    const npmPackagePath = Path.join(process.cwd(), cacheRecordPath, "node");
+    return { cacheKey, cacheRecordPath, npmPackagePath };
+};
+
 export const createCache = (): ExtendedCache => {
     return {
         entries: {},

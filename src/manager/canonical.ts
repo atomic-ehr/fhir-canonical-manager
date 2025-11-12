@@ -2,9 +2,9 @@
  * Main CanonicalManager implementation
  */
 
-import * as fs from "node:fs/promises";
-import * as path from "node:path";
-import { computeCacheKey, createCache, loadCacheFromDisk, saveCacheToDisk } from "../cache.js";
+import * as afs from "node:fs/promises";
+import * as Path from "node:path";
+import { cachePaths, createCache, loadCacheFromDisk, saveCacheToDisk } from "../cache.js";
 import { DEFAULT_REGISTRY } from "../constants.js";
 import { ensureDir } from "../fs/index.js";
 import { installPackages } from "../package.js";
@@ -31,10 +31,6 @@ export const createCanonicalManager = (config: Config): CanonicalManager => {
         registry = config.registry.endsWith("/") ? config.registry : `${config.registry}/`;
     }
 
-    const cacheKey = computeCacheKey(packages);
-    const cacheRecordPath = path.join(workingDir, cacheKey);
-    const absNodePackagePath = path.join(process.cwd(), cacheRecordPath, "node");
-
     const cache = createCache();
     let initialized = false;
     const searchParamsCache = new Map<string, SearchParameter[]>();
@@ -47,7 +43,9 @@ export const createCanonicalManager = (config: Config): CanonicalManager => {
 
     const init = async (): Promise<void> => {
         if (initialized) return;
+
         await ensureDir(workingDir);
+        const { cacheKey, npmPackagePath } = cachePaths(workingDir, packages);
 
         const cachedData = await loadCacheFromDisk(workingDir, cacheKey);
         const isCacheValid = cachedData && cachedData.packageLockHash === cacheKey;
@@ -59,8 +57,8 @@ export const createCanonicalManager = (config: Config): CanonicalManager => {
                 cache.referenceManager.set(id, metadata);
             });
         } else {
-            await installPackages(packages, absNodePackagePath, registry);
-            await scanDirectory(cache, absNodePackagePath);
+            await installPackages(packages, npmPackagePath, registry);
+            await scanDirectory(cache, npmPackagePath);
             await saveCacheToDisk(cache, workingDir, cacheKey);
         }
 
@@ -86,29 +84,20 @@ export const createCanonicalManager = (config: Config): CanonicalManager => {
         // Check if packages already exists in packages
         const packagesToAdd = newPackages.filter((pkg) => !packages.includes(pkg));
         if (packagesToAdd.length !== 0) {
-            // Update config packages
             packages.push(...packagesToAdd);
         }
 
-        // If not initialized yet, init will handle installation
         if (!initialized) {
             await init();
             return;
         }
 
-        // If it is initialized and there are no new packages, do nothing
-        if (packagesToAdd.length === 0) {
-            return;
+        if (packagesToAdd.length > 0) {
+            // TODO: very expensive, we can just copy/paste old cache to avoid reinstalling packages
+            await destroy();
+            await init();
         }
-
-        // Install new packages
-        await installPackages(packages, workingDir, registry);
-
-        // Re-scan node_modules to update cache
-        await scanDirectory(cache, absNodePackagePath);
-
-        // Update cache on disk
-        await saveCacheToDisk(cache, workingDir, cacheKey);
+        return;
     };
 
     const resolveEntry = async (
@@ -176,7 +165,7 @@ export const createCanonicalManager = (config: Config): CanonicalManager => {
         }
 
         try {
-            const content = await fs.readFile(metadata.filePath, "utf-8");
+            const content = await afs.readFile(metadata.filePath, "utf-8");
             const resource = JSON.parse(content);
 
             return {
@@ -331,7 +320,7 @@ export const createCanonicalManager = (config: Config): CanonicalManager => {
             ensureInitialized();
             const fn = cache.packages[packageName]?.path;
             if (!fn) throw new Error(`Package ${packageName} not found`);
-            const packageJSON = JSON.parse(await fs.readFile(path.join(fn, "package.json"), "utf8"));
+            const packageJSON = JSON.parse(await afs.readFile(Path.join(fn, "package.json"), "utf8"));
             return packageJSON;
         },
     };
