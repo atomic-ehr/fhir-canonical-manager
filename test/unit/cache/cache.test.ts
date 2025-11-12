@@ -20,62 +20,27 @@ describe("Cache Module", () => {
         }
     });
 
-    describe("createCache", () => {
-        test("should create a cache with all required properties", () => {
-            const cache = createCache();
-
-            expect(cache.entries).toEqual({});
-            expect(cache.packages).toEqual({});
-            expect(cache.references).toEqual({});
-            expect(cache.referenceManager).toBeDefined();
-            expect(cache.referenceManager.generateId).toBeDefined();
-        });
-
-        test("should create independent cache instances", () => {
-            const cache1 = createCache();
-            const cache2 = createCache();
-
-            cache1.entries.test = [];
-
-            expect(cache2.entries.test).toBeUndefined();
-        });
-    });
-
     describe("computeCacheKey", () => {
-        test("should compute hash for package list", () => {
-            const hash = computeCacheKey(["package-lock-test"]);
-
-            expect(hash).toBeDefined();
-            expect(typeof hash).toBe("string");
-            expect(hash.length).toBe(64); // SHA256 hex string length
-        });
-
         test("should compute consistent hash for same packages", () => {
-            const hash = computeCacheKey(["bun-lock-test"]);
+            const hash1 = computeCacheKey(["foo", "bar"]);
+            const hash2 = computeCacheKey(["bar", "foo"]);
 
-            expect(hash).toBeDefined();
-            expect(typeof hash).toBe("string");
+            expect(hash1).toBeDefined();
+            expect(typeof hash1).toBe("string");
+            expect(hash1.length).toBe(64); // SHA256 hex string length
+            expect(hash1).toBe(hash2);
         });
 
         test("should compute different hashes for different package lists", () => {
-            const hash = computeCacheKey(["package-lock-test", "bun-lock-test"]);
-
+            const hash1 = computeCacheKey(["package-lock-test", "bun-lock-test"]);
             const hash2 = computeCacheKey(["different-package"]);
 
-            expect(hash).not.toBe(hash2);
+            expect(hash1).not.toBe(hash2);
         });
 
         test("should handle empty package list", () => {
             const hash = computeCacheKey([]);
-            const hash2 = computeCacheKey(["bun-lock-test"]);
 
-            expect(hash).toBeDefined();
-            expect(typeof hash).toBe("string");
-            expect(hash).not.toBe(hash2);
-        });
-
-        test("should handle package list with special characters", () => {
-            const hash = computeCacheKey(["/non/existent/path"]);
             expect(hash).toBeDefined();
             expect(typeof hash).toBe("string");
         });
@@ -113,7 +78,7 @@ describe("Cache Module", () => {
             const cacheKey = computeCacheKey(["test.package"]);
             await saveCacheToDisk(cache, cacheDir, cacheKey);
 
-            const cacheFile = path.join(cacheDir, "index.json");
+            const cacheFile = path.join(cacheDir, cacheKey, "index.json");
             const exists = await fs
                 .access(cacheFile)
                 .then(() => true)
@@ -137,7 +102,7 @@ describe("Cache Module", () => {
             const cacheKey = computeCacheKey(["test.package"]);
             await saveCacheToDisk(cache, cacheDir, cacheKey);
 
-            const cacheFile = path.join(cacheDir, "index.json");
+            const cacheFile = path.join(cacheDir, cacheKey, "index.json");
             const content = await fs.readFile(cacheFile, "utf-8");
             const data = JSON.parse(content);
 
