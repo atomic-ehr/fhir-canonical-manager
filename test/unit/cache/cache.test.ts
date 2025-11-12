@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { computePackageLockHash, createCache, loadCacheFromDisk, saveCacheToDisk } from "../../../src/cache";
+import { computeCacheKey, createCache, loadCacheFromDisk, saveCacheToDisk } from "../../../src/cache";
 import type { CacheData, ReferenceMetadata } from "../../../src/types";
 
 describe("Cache Module", () => {
@@ -41,57 +41,43 @@ describe("Cache Module", () => {
         });
     });
 
-    describe("computePackageLockHash", () => {
-        test("should compute hash for package-lock.json", async () => {
-            const packageLockContent = JSON.stringify({
-                name: "test",
-                version: "1.0.0",
-                lockfileVersion: 2,
-            });
-
-            await fs.writeFile(path.join(tempDir, "package-lock.json"), packageLockContent);
-
-            const hash = await computePackageLockHash(tempDir);
+    describe("computeCacheKey", () => {
+        test("should compute hash for package list", () => {
+            const hash = computeCacheKey(["package-lock-test"]);
 
             expect(hash).toBeDefined();
             expect(typeof hash).toBe("string");
-            expect(hash?.length).toBe(64); // SHA256 hex string length
+            expect(hash.length).toBe(64); // SHA256 hex string length
         });
 
-        test("should compute hash for bun.lock", async () => {
-            const bunLockContent = "lockfileVersion: 5.2\n";
-
-            await fs.writeFile(path.join(tempDir, "bun.lock"), bunLockContent);
-
-            const hash = await computePackageLockHash(tempDir);
+        test("should compute consistent hash for same packages", () => {
+            const hash = computeCacheKey(["bun-lock-test"]);
 
             expect(hash).toBeDefined();
             expect(typeof hash).toBe("string");
         });
 
-        test("should prefer package-lock.json over bun.lock", async () => {
-            const packageLockContent = "package-lock content";
-            const bunLockContent = "bun.lock content";
+        test("should compute different hashes for different package lists", () => {
+            const hash = computeCacheKey(["package-lock-test", "bun-lock-test"]);
 
-            await fs.writeFile(path.join(tempDir, "package-lock.json"), packageLockContent);
-            await fs.writeFile(path.join(tempDir, "bun.lock"), bunLockContent);
+            const hash2 = computeCacheKey(["different-package"]);
 
-            const hash = await computePackageLockHash(tempDir);
-
-            // Hash should be of package-lock.json content
-            const expectedHash = require("node:crypto").createHash("sha256").update(packageLockContent).digest("hex");
-
-            expect(hash).toBe(expectedHash);
+            expect(hash).not.toBe(hash2);
         });
 
-        test("should return null when no lock file exists", async () => {
-            const hash = await computePackageLockHash(tempDir);
-            expect(hash).toBeNull();
+        test("should handle empty package list", () => {
+            const hash = computeCacheKey([]);
+            const hash2 = computeCacheKey(["bun-lock-test"]);
+
+            expect(hash).toBeDefined();
+            expect(typeof hash).toBe("string");
+            expect(hash).not.toBe(hash2);
         });
 
-        test("should return null for non-existent directory", async () => {
-            const hash = await computePackageLockHash("/non/existent/path");
-            expect(hash).toBeNull();
+        test("should handle package list with special characters", () => {
+            const hash = computeCacheKey(["/non/existent/path"]);
+            expect(hash).toBeDefined();
+            expect(typeof hash).toBe("string");
         });
     });
 
@@ -124,7 +110,8 @@ describe("Cache Module", () => {
             };
             cache.referenceManager.set("ref-id", metadata);
 
-            await saveCacheToDisk(cache, cacheDir, tempDir);
+            const cacheKey = computeCacheKey(["test.package"]);
+            await saveCacheToDisk(cache, cacheDir, cacheKey);
 
             const cacheFile = path.join(cacheDir, "index.json");
             const exists = await fs
@@ -142,22 +129,19 @@ describe("Cache Module", () => {
             expect(data.references["ref-id"]).toEqual(metadata);
         });
 
-        test("should include package lock hash when available", async () => {
+        test("should include cache key in saved data", async () => {
             const cache = createCache();
             const cacheDir = path.join(tempDir, "cache");
             await fs.mkdir(cacheDir, { recursive: true });
 
-            // Create a package-lock.json
-            await fs.writeFile(path.join(tempDir, "package-lock.json"), JSON.stringify({ version: "1.0.0" }));
-
-            await saveCacheToDisk(cache, cacheDir, tempDir);
+            const cacheKey = computeCacheKey(["test.package"]);
+            await saveCacheToDisk(cache, cacheDir, cacheKey);
 
             const cacheFile = path.join(cacheDir, "index.json");
             const content = await fs.readFile(cacheFile, "utf-8");
             const data = JSON.parse(content);
 
-            expect(data.packageLockHash).toBeDefined();
-            expect(typeof data.packageLockHash).toBe("string");
+            expect(data.packageLockHash).toBe(cacheKey);
         });
     });
 
@@ -194,36 +178,44 @@ describe("Cache Module", () => {
                 packageLockHash: "abc123",
             };
 
-            await fs.writeFile(path.join(cacheDir, "index.json"), JSON.stringify(cacheData, null, 2));
+            const cacheKey = computeCacheKey(["test-package"]);
+            const cacheSubdir = path.join(cacheDir, cacheKey);
+            await fs.mkdir(cacheSubdir, { recursive: true });
+            await fs.writeFile(path.join(cacheSubdir, "index.json"), JSON.stringify(cacheData, null, 2));
 
-            const loaded = await loadCacheFromDisk(cacheDir);
+            const loaded = await loadCacheFromDisk(cacheDir, cacheKey);
 
             expect(loaded).toEqual(cacheData);
         });
 
-        test("should return null when cache file does not exist", async () => {
+        test("should return undefined when cache file does not exist", async () => {
             const cacheDir = path.join(tempDir, "cache");
             await fs.mkdir(cacheDir, { recursive: true });
 
-            const loaded = await loadCacheFromDisk(cacheDir);
+            const cacheKey = computeCacheKey(["test-package"]);
+            const loaded = await loadCacheFromDisk(cacheDir, cacheKey);
 
-            expect(loaded).toBeNull();
+            expect(loaded).toBeUndefined();
         });
 
-        test("should return null for invalid JSON", async () => {
+        test("should return undefined for invalid JSON", async () => {
             const cacheDir = path.join(tempDir, "cache");
             await fs.mkdir(cacheDir, { recursive: true });
 
-            await fs.writeFile(path.join(cacheDir, "index.json"), "invalid json content");
+            const cacheKey = computeCacheKey(["test-package"]);
+            const cacheSubdir = path.join(cacheDir, cacheKey);
+            await fs.mkdir(cacheSubdir, { recursive: true });
+            await fs.writeFile(path.join(cacheSubdir, "index.json"), "invalid json content");
 
-            const loaded = await loadCacheFromDisk(cacheDir);
+            const loaded = await loadCacheFromDisk(cacheDir, cacheKey);
 
-            expect(loaded).toBeNull();
+            expect(loaded).toBeUndefined();
         });
 
-        test("should return null when directory does not exist", async () => {
-            const loaded = await loadCacheFromDisk("/non/existent/path");
-            expect(loaded).toBeNull();
+        test("should return undefined when directory does not exist", async () => {
+            const cacheKey = computeCacheKey(["test-package"]);
+            const loaded = await loadCacheFromDisk("/non/existent/path", cacheKey);
+            expect(loaded).toBeUndefined();
         });
     });
 
@@ -285,12 +277,13 @@ describe("Cache Module", () => {
             cache.referenceManager.set("id2", metadata2);
 
             // Save
-            await saveCacheToDisk(cache, cacheDir, tempDir);
+            const cacheKey = computeCacheKey(["test.package"]);
+            await saveCacheToDisk(cache, cacheDir, cacheKey);
 
             // Load
-            const loaded = await loadCacheFromDisk(cacheDir);
+            const loaded = await loadCacheFromDisk(cacheDir, cacheKey);
 
-            expect(loaded).not.toBeNull();
+            expect(loaded).not.toBeUndefined();
             expect(loaded?.entries).toEqual(cache.entries);
             expect(loaded?.references.id1).toEqual(metadata1);
             expect(loaded?.references.id2).toEqual(metadata2);

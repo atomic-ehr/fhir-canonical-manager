@@ -4,13 +4,7 @@
 
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import {
-    computePackageLockHash,
-    createCache,
-    loadCacheFromDisk,
-    saveCacheToDisk,
-    type ExtendedCache,
-} from "../cache.js";
+import { computeCacheKey, createCache, loadCacheFromDisk, saveCacheToDisk } from "../cache.js";
 import { DEFAULT_REGISTRY } from "../constants.js";
 import { ensureDir } from "../fs/index.js";
 import { installPackages } from "../package/index.js";
@@ -36,10 +30,12 @@ export const createCanonicalManager = (config: Config): CanonicalManager => {
     if (config.registry) {
         registry = config.registry.endsWith("/") ? config.registry : `${config.registry}/`;
     }
-    const nodeModulesPath = path.join(workingDir, "node_modules");
-    const cacheDir = path.join(workingDir, ".fcm", "cache");
 
-    let cache = createCache();
+    const cacheKey = computeCacheKey(packages);
+    const cacheRecordPath = path.join(workingDir, cacheKey);
+    const absNodePackagePath = path.join(process.cwd(), cacheRecordPath, "node");
+
+    const cache = createCache();
     let initialized = false;
     const searchParamsCache = new Map<string, SearchParameter[]>();
 
@@ -51,22 +47,11 @@ export const createCanonicalManager = (config: Config): CanonicalManager => {
 
     const init = async (): Promise<void> => {
         if (initialized) return;
-
-        // Ensure directories exist
         await ensureDir(workingDir);
-        await ensureDir(cacheDir);
 
-        // Get current package-lock.json hash
-        const currentPackageLockHash = await computePackageLockHash(workingDir);
-
-        // Try to load cache from disk
-        const cachedData = await loadCacheFromDisk(cacheDir);
-
-        // Check if cache is valid (exists and package-lock.json hasn't changed)
-        const cacheValid =
-            cachedData && cachedData.packageLockHash === currentPackageLockHash && currentPackageLockHash !== null;
-
-        if (cacheValid) {
+        const cachedData = await loadCacheFromDisk(workingDir, cacheKey);
+        const isCacheValid = cachedData && cachedData.packageLockHash === cacheKey;
+        if (isCacheValid) {
             // Restore cache from disk
             cache.entries = cachedData.entries;
             cache.packages = cachedData.packages;
@@ -74,22 +59,9 @@ export const createCanonicalManager = (config: Config): CanonicalManager => {
                 cache.referenceManager.set(id, metadata);
             });
         } else {
-            // Cache is invalid or doesn't exist - rebuild it
-            if (cachedData && cachedData.packageLockHash !== currentPackageLockHash) {
-                console.log("Package dependencies have changed, rebuilding index...");
-            }
-
-            // Install packages if needed
-            await installPackages(packages, workingDir, registry);
-
-            // Clear cache before scanning
-            cache = createCache();
-
-            // Scan installed packages
-            await scanDirectory(nodeModulesPath, cache);
-
-            // Save cache to disk with current package-lock hash
-            await saveCacheToDisk(cache, cacheDir, workingDir);
+            await installPackages(packages, absNodePackagePath, registry);
+            await scanDirectory(cache, absNodePackagePath);
+            await saveCacheToDisk(cache, workingDir, cacheKey);
         }
 
         initialized = true;
@@ -133,10 +105,10 @@ export const createCanonicalManager = (config: Config): CanonicalManager => {
         await installPackages(packages, workingDir, registry);
 
         // Re-scan node_modules to update cache
-        await scanDirectory(nodeModulesPath, cache);
+        await scanDirectory(cache, absNodePackagePath);
 
         // Update cache on disk
-        await saveCacheToDisk(cache, cacheDir, workingDir);
+        await saveCacheToDisk(cache, workingDir, cacheKey);
     };
 
     const resolveEntry = async (

@@ -7,18 +7,18 @@ import { promisify } from "node:util";
 
 const execAsync = promisify(exec);
 
-export async function detectPackageManager(): Promise<"bun" | "npm" | null> {
+export type PackageManager = "bun" | "npm";
+
+export async function detectPackageManager(): Promise<PackageManager | undefined> {
     try {
-        // Check for bun first
         await execAsync("bun --version");
         return "bun";
     } catch {
         try {
-            // Fall back to npm
             await execAsync("npm --version");
             return "npm";
         } catch {
-            return null;
+            return;
         }
     }
 }

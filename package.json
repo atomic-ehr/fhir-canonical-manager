@@ -31,7 +31,8 @@
     "format": "biome format --write",
     "lint": "biome check --write",
     "lint:unsafe": "biome check --write --unsafe",
-    "test": "bun test"
+    "test": "bun test",
+    "fix": "bun run typecheck && bun run lint:unsafe && bun run format"
   },
   "devDependencies": {
     "@atomic-ehr/hl7.fhir.r4.core": "^0.0.1",

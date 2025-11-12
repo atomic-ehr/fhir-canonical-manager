@@ -2,8 +2,6 @@
  * Core public API types for FHIR Canonical Manager
  */
 
-import type { ReferenceManager } from "../reference";
-
 export interface Reference {
     id: string;
     resourceType: string;

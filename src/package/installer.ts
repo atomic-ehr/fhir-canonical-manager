@@ -11,13 +11,11 @@ import { detectPackageManager } from "./detector.js";
 
 const execAsync = promisify(exec);
 
-export const installPackages = async (packages: string[], workingDir: string, registry?: string): Promise<void> => {
-    await ensureDir(workingDir);
+export const installPackages = async (packages: string[], pwd: string, registry?: string): Promise<void> => {
+    await ensureDir(pwd);
 
-    // Check if package.json exists
-    const packageJsonPath = path.join(workingDir, "package.json");
+    const packageJsonPath = path.join(pwd, "package.json");
     if (!(await fileExists(packageJsonPath))) {
-        // Create minimal package.json
         const minimalPackageJson = {
             name: "fhir-canonical-manager-workspace",
             version: "1.0.0",
@@ -30,7 +28,7 @@ export const installPackages = async (packages: string[], workingDir: string, re
     // Detect available package manager
     const packageManager = await detectPackageManager();
     if (!packageManager) {
-        throw new Error("No package manager found. Please install npm or bun.");
+        throw new Error("No package manager found. Please install bun or npm.");
     }
 
     // Install packages
@@ -40,24 +38,20 @@ export const installPackages = async (packages: string[], workingDir: string, re
                 // Use bun with auth bypass trick for FHIR registry
                 const env = {
                     ...process.env,
-                    HOME: workingDir, // Prevent reading user's .npmrc
+                    HOME: pwd, // Prevent reading user's .npmrc
                     NPM_CONFIG_USERCONFIG: "/dev/null", // Extra safety
                 };
 
                 const cmd = registry
-                    ? `cd ${workingDir} && bun add ${pkg} --registry ${registry}`
-                    : `cd ${workingDir} && bun add ${pkg}`;
-
+                    ? `bun add ${pkg} --cwd='${pwd}' --registry='${registry}'`
+                    : `bun add --cwd='${pwd}' ${pkg}`;
                 await execAsync(cmd, {
                     env,
                     maxBuffer: 10 * 1024 * 1024, // 10MB buffer
                 });
             } else {
                 // Use npm (handles auth correctly)
-                const cmd = registry
-                    ? `cd ${workingDir} && npm add ${pkg} --registry ${registry}`
-                    : `cd ${workingDir} && npm add ${pkg}`;
-
+                const cmd = registry ? `cd ${pwd} && npm add ${pkg} --registry=${registry}` : `npm add ${pkg}`;
                 await execAsync(cmd, {
                     maxBuffer: 10 * 1024 * 1024, // 10MB buffer
                 });

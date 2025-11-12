@@ -398,7 +398,7 @@ describe("Scanner Module", () => {
                 JSON.stringify({ name: "regular.package", version: "1.0.0" }),
             );
 
-            await scanDirectory(nodeModules, cache);
+            await scanDirectory(cache, nodeModules);
 
             expect(cache.packages["fhir.package1"]).toBeDefined();
             expect(cache.packages["regular.package"]).toBeUndefined();
@@ -432,7 +432,7 @@ describe("Scanner Module", () => {
                 }),
             );
 
-            await scanDirectory(nodeModules, cache);
+            await scanDirectory(cache, nodeModules);
 
             expect(cache.packages["@scope/package"]).toBeDefined();
             expect(cache.entries["http://example.com/Scoped"]).toHaveLength(1);
@@ -444,7 +444,7 @@ describe("Scanner Module", () => {
             await fs.mkdir(emptyDir, { recursive: true });
 
             // Should not throw
-            await scanDirectory(emptyDir, cache);
+            await scanDirectory(cache, emptyDir);
 
             expect(Object.keys(cache.packages)).toHaveLength(0);
         });
@@ -453,7 +453,7 @@ describe("Scanner Module", () => {
             const cache = createCache();
 
             // Should not throw
-            await scanDirectory("/non/existent/directory", cache);
+            await scanDirectory(cache, "/non/existent/directory");
 
             expect(Object.keys(cache.packages)).toHaveLength(0);
         });

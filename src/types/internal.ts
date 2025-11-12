@@ -35,6 +35,8 @@ export interface ReferenceMetadata {
     version?: string;
 }
 
+export type CacheKey = string & { readonly __brand: unique symbol };
+
 export interface IndexCache {
     entries: Record<string, import("./core").IndexEntry[]>;
     packages: Record<string, import("./core").PackageInfo>;
