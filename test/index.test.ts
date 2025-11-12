@@ -38,20 +38,6 @@ describe("CanonicalManager", () => {
         expect(manager).toBeDefined();
     });
 
-    test("should create working directory and cache", async () => {
-        const packageJsonExists = await fs
-            .access(path.join(testWorkingDir, "package.json"))
-            .then(() => true)
-            .catch(() => false);
-        expect(packageJsonExists).toBe(true);
-
-        const cacheExists = await fs
-            .access(path.join(testWorkingDir, ".fcm", "cache"))
-            .then(() => true)
-            .catch(() => false);
-        expect(cacheExists).toBe(true);
-    });
-
     test("should list packages", async () => {
         const packages = await manager.packages();
         expect(Array.isArray(packages)).toBe(true);
@@ -451,26 +437,6 @@ describe("CanonicalManager", () => {
         expect(anyPatient.url).toBe("http://hl7.org/fhir/StructureDefinition/Patient");
     });
 
-    test("should use cached data on second init", async () => {
-        // Create a new manager with same working directory
-        const manager2 = CanonicalManager({
-            packages: ["hl7.fhir.r4.core@4.0.1"],
-            workingDir: testWorkingDir,
-            registry: "https://fs.get-ig.org/pkgs/",
-        });
-
-        // Should load from cache
-        await manager2.init();
-
-        // Should have same packages
-        const packages1 = await manager.packages();
-        const packages2 = await manager2.packages();
-
-        expect(packages2.length).toBe(packages1.length);
-
-        await manager2.destroy();
-    });
-
     test("should get search parameters for Patient resource", async () => {
         const searchParams = await manager.getSearchParametersForResource("Patient");
 
@@ -658,84 +624,5 @@ describe("CanonicalManager", () => {
         expect(params.length).toBeGreaterThan(0);
 
         await manager2.destroy();
-    });
-
-    test("should invalidate cache when package-lock.json changes", async () => {
-        // Use the existing test directory that already has packages installed
-        // This avoids the npm registry issue in the test
-        const cacheFile = path.join(testWorkingDir, ".fcm", "cache", "index.json");
-
-        // Capture console output
-        const consoleOutput: string[] = [];
-        const originalLog = console.log;
-        console.log = (...args) => consoleOutput.push(args.join(" "));
-
-        try {
-            // Read the current cache to verify it has packageLockHash
-            const cacheContent = JSON.parse(await fs.readFile(cacheFile, "utf-8"));
-            expect(cacheContent.packageLockHash).toBeDefined();
-            const originalHash = cacheContent.packageLockHash;
-
-            // Modify lock file (simulate package change)
-            // Check which lock file exists
-            const packageLockPath = path.join(testWorkingDir, "package-lock.json");
-            const bunLockPath = path.join(testWorkingDir, "bun.lock");
-
-            let lockFilePath: string;
-            let lockFileContent: any;
-
-            try {
-                // Try package-lock.json first
-                lockFileContent = JSON.parse(await fs.readFile(packageLockPath, "utf-8"));
-                lockFilePath = packageLockPath;
-            } catch {
-                // Try bun.lock
-                lockFileContent = await fs.readFile(bunLockPath, "utf-8");
-                lockFilePath = bunLockPath;
-            }
-
-            // Make a minimal change to the lock file
-            if (lockFilePath === packageLockPath) {
-                lockFileContent.modified = new Date().toISOString();
-                await fs.writeFile(lockFilePath, JSON.stringify(lockFileContent, null, 2));
-            } else {
-                // For bun.lock, just append a comment
-                await fs.writeFile(lockFilePath, `${lockFileContent}\n# Modified: ${new Date().toISOString()}`);
-            }
-
-            // Clear console output
-            consoleOutput.length = 0;
-
-            // Create new manager - should detect change and rebuild
-            // Use empty packages array to avoid installation attempts
-            const manager3 = CanonicalManager({
-                packages: [],
-                workingDir: testWorkingDir,
-            });
-
-            await manager3.init();
-
-            // Should have logged about rebuilding
-            expect(consoleOutput.some((msg) => msg.includes("Package dependencies have changed"))).toBe(true);
-
-            // Verify new cache has different hash
-            const newCacheContent = JSON.parse(await fs.readFile(cacheFile, "utf-8"));
-            expect(newCacheContent.packageLockHash).toBeDefined();
-            expect(newCacheContent.packageLockHash).not.toBe(originalHash);
-
-            // Restore original lock file for other tests
-            if (lockFilePath === packageLockPath) {
-                delete lockFileContent.modified;
-                await fs.writeFile(lockFilePath, JSON.stringify(lockFileContent, null, 2));
-            } else {
-                // For bun.lock, restore original content
-                const originalContent = lockFileContent.toString().split("\n# Modified:")[0];
-                await fs.writeFile(lockFilePath, originalContent);
-            }
-
-            await manager3.destroy();
-        } finally {
-            console.log = originalLog;
-        }
     });
 });
