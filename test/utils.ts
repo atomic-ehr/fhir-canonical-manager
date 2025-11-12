@@ -16,18 +16,17 @@ export const catchConsole = async (action: () => Promise<void>): Promise<string[
     return consoleOutput;
 };
 
-export const changeWorkDir = async (dir: string, action: () => Promise<void>) => {
+export const changeWorkDir = async (dir: string, action: () => Promise<void>, removeDir: boolean = true) => {
     const originalCwd = process.cwd();
     try {
         afs.mkdirSync(dir, { recursive: true });
         process.chdir(dir);
         await action();
     } finally {
-        // if (afs.existsSync(testDir)) {
-        //     afs.rmSync(testDir, { recursive: true, force: true });
-        // }
-
         process.chdir(originalCwd);
+        if (removeDir && afs.existsSync(dir)) {
+            afs.rmSync(dir, { recursive: true, force: true });
+        }
     }
 };
 
