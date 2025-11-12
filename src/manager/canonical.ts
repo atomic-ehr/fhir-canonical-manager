@@ -7,7 +7,7 @@ import * as path from "node:path";
 import { computeCacheKey, createCache, loadCacheFromDisk, saveCacheToDisk } from "../cache.js";
 import { DEFAULT_REGISTRY } from "../constants.js";
 import { ensureDir } from "../fs/index.js";
-import { installPackages } from "../package/index.js";
+import { installPackages } from "../package.js";
 import { resolveWithContext } from "../resolver/index.js";
 import { scanDirectory } from "../scanner/index.js";
 import { filterBySmartSearch } from "../search/index.js";

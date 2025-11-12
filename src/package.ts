@@ -1,20 +1,34 @@
 /**
- * Package installation functionality
+ * Package management functionality
+ * Merged from package/detector.ts, package/installer.ts, and package/index.ts
  */
 
 import { exec } from "node:child_process";
-import * as fs from "node:fs/promises";
-import * as path from "node:path";
+import * as afs from "node:fs/promises";
+import * as Path from "node:path";
 import { promisify } from "node:util";
-import { ensureDir, fileExists } from "../fs/index.js";
-import { detectPackageManager } from "./detector.js";
+import { ensureDir, fileExists } from "./fs/index.js";
 
 const execAsync = promisify(exec);
 
-export const installPackages = async (packages: string[], pwd: string, registry?: string): Promise<void> => {
-    await ensureDir(pwd);
+export type PackageManager = "bun" | "npm";
 
-    const packageJsonPath = path.join(pwd, "package.json");
+export const detectPackageManager = async (): Promise<PackageManager | undefined> => {
+    try {
+        await execAsync("bun --version");
+        return "bun";
+    } catch {
+        try {
+            await execAsync("npm --version");
+            return "npm";
+        } catch {
+            return;
+        }
+    }
+};
+
+const ensurePackageJson = async (pwd: string) => {
+    const packageJsonPath = Path.join(pwd, "package.json");
     if (!(await fileExists(packageJsonPath))) {
         const minimalPackageJson = {
             name: "fhir-canonical-manager-workspace",
@@ -22,16 +36,17 @@ export const installPackages = async (packages: string[], pwd: string, registry?
             private: true,
             dependencies: {},
         };
-        await fs.writeFile(packageJsonPath, JSON.stringify(minimalPackageJson, null, 2));
+        await afs.writeFile(packageJsonPath, JSON.stringify(minimalPackageJson, null, 2));
     }
+};
 
-    // Detect available package manager
+export const installPackages = async (packages: string[], pwd: string, registry?: string): Promise<void> => {
+    await ensureDir(pwd);
+    ensurePackageJson(pwd);
+
     const packageManager = await detectPackageManager();
-    if (!packageManager) {
-        throw new Error("No package manager found. Please install bun or npm.");
-    }
+    if (!packageManager) throw new Error("No package manager found. Please install bun or npm.");
 
-    // Install packages
     for (const pkg of packages) {
         try {
             if (packageManager === "bun") {
