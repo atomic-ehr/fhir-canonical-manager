@@ -1,14 +1,14 @@
 import { describe, expect, test } from "bun:test";
 import { createHash } from "node:crypto";
-import * as fs from "node:fs";
-import * as path from "node:path";
+import * as afs from "node:fs";
+import * as Path from "node:path";
 import { parseArgs } from "../src/cli/index";
 import { searchCommand } from "../src/cli/search";
 
 // Helper to create mock package-lock.json and calculate its hash
 const createMockPackageLock = (testDir: string): string => {
     const packageLockContent = JSON.stringify({ lockfileVersion: 2, mockData: "test" }, null, 2);
-    fs.writeFileSync(path.join(testDir, "package-lock.json"), packageLockContent);
+    afs.writeFileSync(Path.join(testDir, "package-lock.json"), packageLockContent);
     return createHash("sha256").update(packageLockContent).digest("hex");
 };
 
@@ -61,7 +61,7 @@ describe("CLI parseArgs", () => {
 describe("CLI search output format", () => {
     test("should output results in single-line format", async () => {
         // Create a mock environment
-        const testDir = path.join(process.cwd(), "tmp", `test-search-format-${Date.now()}`);
+        const testDir = Path.join(process.cwd(), "tmp", `test-search-format-${Date.now()}`);
         const originalCwd = process.cwd();
         const consoleOutput: string[] = [];
         const originalLog = console.log;
@@ -73,9 +73,9 @@ describe("CLI search output format", () => {
 
         try {
             // Setup test directory with package.json
-            fs.mkdirSync(testDir, { recursive: true });
-            fs.writeFileSync(
-                path.join(testDir, "package.json"),
+            afs.mkdirSync(testDir, { recursive: true });
+            afs.writeFileSync(
+                Path.join(testDir, "package.json"),
                 JSON.stringify(
                     {
                         name: "test-project",
@@ -92,8 +92,8 @@ describe("CLI search output format", () => {
             const packageLockHash = createMockPackageLock(testDir);
 
             // Create mock .fcm cache directory with test data
-            const fcmDir = path.join(testDir, ".fcm", "cache");
-            fs.mkdirSync(fcmDir, { recursive: true });
+            const fcmDir = Path.join(testDir, ".fcm", "cache");
+            afs.mkdirSync(fcmDir, { recursive: true });
 
             // Create a minimal index.json with test data
             const mockIndex = {
@@ -138,7 +138,7 @@ describe("CLI search output format", () => {
                 },
             };
 
-            fs.writeFileSync(path.join(fcmDir, "index.json"), JSON.stringify(mockIndex, null, 2));
+            afs.writeFileSync(Path.join(fcmDir, "index.json"), JSON.stringify(mockIndex, null, 2));
 
             // Change to test directory
             process.chdir(testDir);
@@ -176,14 +176,14 @@ describe("CLI search output format", () => {
             console.log = originalLog;
             console.error = originalError;
             process.chdir(originalCwd);
-            if (fs.existsSync(testDir)) {
-                fs.rmSync(testDir, { recursive: true, force: true });
+            if (afs.existsSync(testDir)) {
+                afs.rmSync(testDir, { recursive: true, force: true });
             }
         }
     });
 
     test("should handle empty results gracefully", async () => {
-        const testDir = path.join(process.cwd(), "tmp", `test-empty-search-${Date.now()}`);
+        const testDir = Path.join(process.cwd(), "tmp", `test-empty-search-${Date.now()}`);
         const originalCwd = process.cwd();
         const consoleOutput: string[] = [];
         const originalLog = console.log;
@@ -193,9 +193,9 @@ describe("CLI search output format", () => {
         console.error = (...args) => consoleOutput.push(`ERROR: ${args.join(" ")}`);
 
         try {
-            fs.mkdirSync(testDir, { recursive: true });
-            fs.writeFileSync(
-                path.join(testDir, "package.json"),
+            afs.mkdirSync(testDir, { recursive: true });
+            afs.writeFileSync(
+                Path.join(testDir, "package.json"),
                 JSON.stringify(
                     {
                         name: "test-project",
@@ -212,10 +212,10 @@ describe("CLI search output format", () => {
             const packageLockHash = createMockPackageLock(testDir);
 
             // Create empty index
-            const fcmDir = path.join(testDir, ".fcm", "cache");
-            fs.mkdirSync(fcmDir, { recursive: true });
-            fs.writeFileSync(
-                path.join(fcmDir, "index.json"),
+            const fcmDir = Path.join(testDir, ".fcm", "cache");
+            afs.mkdirSync(fcmDir, { recursive: true });
+            afs.writeFileSync(
+                Path.join(fcmDir, "index.json"),
                 JSON.stringify(
                     {
                         packageLockHash,
@@ -239,14 +239,14 @@ describe("CLI search output format", () => {
             console.log = originalLog;
             console.error = originalError;
             process.chdir(originalCwd);
-            if (fs.existsSync(testDir)) {
-                fs.rmSync(testDir, { recursive: true, force: true });
+            if (afs.existsSync(testDir)) {
+                afs.rmSync(testDir, { recursive: true, force: true });
             }
         }
     });
 
     test("should filter by type using -t option", async () => {
-        const testDir = path.join(process.cwd(), "tmp", `test-type-filter-${Date.now()}`);
+        const testDir = Path.join(process.cwd(), "tmp", `test-type-filter-${Date.now()}`);
         const originalCwd = process.cwd();
         const consoleOutput: string[] = [];
         const originalLog = console.log;
@@ -256,9 +256,9 @@ describe("CLI search output format", () => {
         console.error = (...args) => consoleOutput.push(`ERROR: ${args.join(" ")}`);
 
         try {
-            fs.mkdirSync(testDir, { recursive: true });
-            fs.writeFileSync(
-                path.join(testDir, "package.json"),
+            afs.mkdirSync(testDir, { recursive: true });
+            afs.writeFileSync(
+                Path.join(testDir, "package.json"),
                 JSON.stringify(
                     {
                         name: "test-project",
@@ -275,8 +275,8 @@ describe("CLI search output format", () => {
             const packageLockHash = createMockPackageLock(testDir);
 
             // Create index with mixed types
-            const fcmDir = path.join(testDir, ".fcm", "cache");
-            fs.mkdirSync(fcmDir, { recursive: true });
+            const fcmDir = Path.join(testDir, ".fcm", "cache");
+            afs.mkdirSync(fcmDir, { recursive: true });
 
             const mockIndex = {
                 packageLockHash,
@@ -334,7 +334,7 @@ describe("CLI search output format", () => {
                 },
             };
 
-            fs.writeFileSync(path.join(fcmDir, "index.json"), JSON.stringify(mockIndex, null, 2));
+            afs.writeFileSync(Path.join(fcmDir, "index.json"), JSON.stringify(mockIndex, null, 2));
 
             process.chdir(testDir);
 
@@ -350,14 +350,14 @@ describe("CLI search output format", () => {
             console.log = originalLog;
             console.error = originalError;
             process.chdir(originalCwd);
-            if (fs.existsSync(testDir)) {
-                fs.rmSync(testDir, { recursive: true, force: true });
+            if (afs.existsSync(testDir)) {
+                afs.rmSync(testDir, { recursive: true, force: true });
             }
         }
     });
 
     test("should filter by kind using -k option", async () => {
-        const testDir = path.join(process.cwd(), "tmp", `test-kind-filter-${Date.now()}`);
+        const testDir = Path.join(process.cwd(), "tmp", `test-kind-filter-${Date.now()}`);
         const originalCwd = process.cwd();
         const consoleOutput: string[] = [];
         const originalLog = console.log;
@@ -367,9 +367,9 @@ describe("CLI search output format", () => {
         console.error = (...args) => consoleOutput.push(`ERROR: ${args.join(" ")}`);
 
         try {
-            fs.mkdirSync(testDir, { recursive: true });
-            fs.writeFileSync(
-                path.join(testDir, "package.json"),
+            afs.mkdirSync(testDir, { recursive: true });
+            afs.writeFileSync(
+                Path.join(testDir, "package.json"),
                 JSON.stringify(
                     {
                         name: "test-project",
@@ -386,8 +386,8 @@ describe("CLI search output format", () => {
             const packageLockHash = createMockPackageLock(testDir);
 
             // Create index with mixed kinds
-            const fcmDir = path.join(testDir, ".fcm", "cache");
-            fs.mkdirSync(fcmDir, { recursive: true });
+            const fcmDir = Path.join(testDir, ".fcm", "cache");
+            afs.mkdirSync(fcmDir, { recursive: true });
 
             const mockIndex = {
                 packageLockHash,
@@ -445,7 +445,7 @@ describe("CLI search output format", () => {
                 },
             };
 
-            fs.writeFileSync(path.join(fcmDir, "index.json"), JSON.stringify(mockIndex, null, 2));
+            afs.writeFileSync(Path.join(fcmDir, "index.json"), JSON.stringify(mockIndex, null, 2));
 
             process.chdir(testDir);
 
@@ -461,8 +461,8 @@ describe("CLI search output format", () => {
             console.log = originalLog;
             console.error = originalError;
             process.chdir(originalCwd);
-            if (fs.existsSync(testDir)) {
-                fs.rmSync(testDir, { recursive: true, force: true });
+            if (afs.existsSync(testDir)) {
+                afs.rmSync(testDir, { recursive: true, force: true });
             }
         }
     });
