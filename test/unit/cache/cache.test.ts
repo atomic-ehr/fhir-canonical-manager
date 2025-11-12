@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { computeCacheKey, createCache, loadCacheFromDisk, saveCacheToDisk } from "../../../src/cache";
+import { computeCacheKey, createCacheRecord, loadCacheRecordFromDisk, saveCacheRecordToDisk } from "../../../src/cache";
 import type { CacheData, ReferenceMetadata } from "../../../src/types";
 
 describe("Cache Module", () => {
@@ -48,7 +48,7 @@ describe("Cache Module", () => {
 
     describe("saveCacheToDisk", () => {
         test("should save cache to disk", async () => {
-            const cache = createCache();
+            const cache = createCacheRecord();
             const cacheDir = path.join(tempDir, "cache");
             await fs.mkdir(cacheDir, { recursive: true });
 
@@ -76,7 +76,7 @@ describe("Cache Module", () => {
             cache.referenceManager.set("ref-id", metadata);
 
             const cacheKey = computeCacheKey(["test.package"]);
-            await saveCacheToDisk(cache, cacheDir, cacheKey);
+            await saveCacheRecordToDisk(cache, cacheDir, cacheKey);
 
             const cacheFile = path.join(cacheDir, cacheKey, "index.json");
             const exists = await fs
@@ -95,12 +95,12 @@ describe("Cache Module", () => {
         });
 
         test("should include cache key in saved data", async () => {
-            const cache = createCache();
+            const cache = createCacheRecord();
             const cacheDir = path.join(tempDir, "cache");
             await fs.mkdir(cacheDir, { recursive: true });
 
             const cacheKey = computeCacheKey(["test.package"]);
-            await saveCacheToDisk(cache, cacheDir, cacheKey);
+            await saveCacheRecordToDisk(cache, cacheDir, cacheKey);
 
             const cacheFile = path.join(cacheDir, cacheKey, "index.json");
             const content = await fs.readFile(cacheFile, "utf-8");
@@ -148,7 +148,7 @@ describe("Cache Module", () => {
             await fs.mkdir(cacheSubdir, { recursive: true });
             await fs.writeFile(path.join(cacheSubdir, "index.json"), JSON.stringify(cacheData, null, 2));
 
-            const loaded = await loadCacheFromDisk(cacheDir, cacheKey);
+            const loaded = await loadCacheRecordFromDisk(cacheDir, cacheKey);
 
             expect(loaded).toEqual(cacheData);
         });
@@ -158,7 +158,7 @@ describe("Cache Module", () => {
             await fs.mkdir(cacheDir, { recursive: true });
 
             const cacheKey = computeCacheKey(["test-package"]);
-            const loaded = await loadCacheFromDisk(cacheDir, cacheKey);
+            const loaded = await loadCacheRecordFromDisk(cacheDir, cacheKey);
 
             expect(loaded).toBeUndefined();
         });
@@ -172,21 +172,21 @@ describe("Cache Module", () => {
             await fs.mkdir(cacheSubdir, { recursive: true });
             await fs.writeFile(path.join(cacheSubdir, "index.json"), "invalid json content");
 
-            const loaded = await loadCacheFromDisk(cacheDir, cacheKey);
+            const loaded = await loadCacheRecordFromDisk(cacheDir, cacheKey);
 
             expect(loaded).toBeUndefined();
         });
 
         test("should return undefined when directory does not exist", async () => {
             const cacheKey = computeCacheKey(["test-package"]);
-            const loaded = await loadCacheFromDisk("/non/existent/path", cacheKey);
+            const loaded = await loadCacheRecordFromDisk("/non/existent/path", cacheKey);
             expect(loaded).toBeUndefined();
         });
     });
 
     describe("Cache integration", () => {
         test("should round-trip cache data", async () => {
-            const cache = createCache();
+            const cache = createCacheRecord();
             const cacheDir = path.join(tempDir, "cache");
             await fs.mkdir(cacheDir, { recursive: true });
 
@@ -243,10 +243,10 @@ describe("Cache Module", () => {
 
             // Save
             const cacheKey = computeCacheKey(["test.package"]);
-            await saveCacheToDisk(cache, cacheDir, cacheKey);
+            await saveCacheRecordToDisk(cache, cacheDir, cacheKey);
 
             // Load
-            const loaded = await loadCacheFromDisk(cacheDir, cacheKey);
+            const loaded = await loadCacheRecordFromDisk(cacheDir, cacheKey);
 
             expect(loaded).not.toBeUndefined();
             expect(loaded?.entries).toEqual(cache.entries);

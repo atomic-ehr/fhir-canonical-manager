@@ -4,7 +4,7 @@
 
 import * as afs from "node:fs/promises";
 import * as Path from "node:path";
-import { cachePaths, createCache, loadCacheFromDisk, saveCacheToDisk } from "../cache.js";
+import { cacheRecordPaths, createCacheRecord, loadCacheRecordFromDisk, saveCacheRecordToDisk } from "../cache.js";
 import { DEFAULT_REGISTRY } from "../constants.js";
 import { ensureDir } from "../fs/index.js";
 import { installPackages } from "../package.js";
@@ -31,7 +31,7 @@ export const createCanonicalManager = (config: Config): CanonicalManager => {
         registry = config.registry.endsWith("/") ? config.registry : `${config.registry}/`;
     }
 
-    const cache = createCache();
+    const cache = createCacheRecord();
     let initialized = false;
     const searchParamsCache = new Map<string, SearchParameter[]>();
 
@@ -45,9 +45,9 @@ export const createCanonicalManager = (config: Config): CanonicalManager => {
         if (initialized) return;
 
         await ensureDir(workingDir);
-        const { cacheKey, npmPackagePath } = cachePaths(workingDir, packages);
+        const { cacheKey, npmPackagePath } = cacheRecordPaths(workingDir, packages);
 
-        const cachedData = await loadCacheFromDisk(workingDir, cacheKey);
+        const cachedData = await loadCacheRecordFromDisk(workingDir, cacheKey);
         const isCacheValid = cachedData && cachedData.packageLockHash === cacheKey;
         if (isCacheValid) {
             // Restore cache from disk
@@ -59,7 +59,7 @@ export const createCanonicalManager = (config: Config): CanonicalManager => {
         } else {
             await installPackages(packages, npmPackagePath, registry);
             await scanDirectory(cache, npmPackagePath);
-            await saveCacheToDisk(cache, workingDir, cacheKey);
+            await saveCacheRecordToDisk(cache, workingDir, cacheKey);
         }
 
         initialized = true;

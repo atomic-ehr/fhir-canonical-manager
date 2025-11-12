@@ -1,5 +1,5 @@
 import * as afs from "node:fs";
-import { cachePaths } from "../src/cache";
+import { cacheRecordPaths } from "../src/cache";
 
 export const catchConsole = async (action: () => Promise<void>): Promise<string[]> => {
     const consoleOutput: string[] = [];
@@ -36,7 +36,7 @@ export const writePackage = async (content: any) => {
 };
 
 export const writeCacheIndex = async (packages: string[], content: any) => {
-    const { cacheIndex, cacheRecordPath, cacheKey } = cachePaths(process.cwd(), packages);
+    const { cacheIndexFile: cacheIndex, cacheRecordPath, cacheKey } = cacheRecordPaths(process.cwd(), packages);
     content.packageLockHash = cacheKey;
     afs.mkdirSync(cacheRecordPath, { recursive: true });
     afs.writeFileSync(cacheIndex, JSON.stringify(content, null, 2));

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { createCache } from "../../../src/cache";
+import { createCacheRecord } from "../../../src/cache";
 import { resolveWithContext } from "../../../src/resolver";
 import type { IndexEntry, SourceContext } from "../../../src/types";
 
@@ -22,7 +22,7 @@ describe("Resolver Module", () => {
         };
 
         test("should resolve with package context", async () => {
-            const cache = createCache();
+            const cache = createCacheRecord();
             const context: SourceContext = {
                 package: {
                     name: "test.package",
@@ -38,7 +38,7 @@ describe("Resolver Module", () => {
         });
 
         test("should return null when context resolution fails", async () => {
-            const cache = createCache();
+            const cache = createCacheRecord();
             const context: SourceContext = {
                 package: {
                     name: "unknown.package",
@@ -52,7 +52,7 @@ describe("Resolver Module", () => {
         });
 
         test("should return null when no package in context", async () => {
-            const cache = createCache();
+            const cache = createCacheRecord();
             const context: SourceContext = {
                 url: "http://example.com/context",
             };
@@ -63,7 +63,7 @@ describe("Resolver Module", () => {
         });
 
         test("should handle empty context", async () => {
-            const cache = createCache();
+            const cache = createCacheRecord();
             const context: SourceContext = {};
 
             const result = await resolveWithContext("http://example.com/Patient", context, cache, mockResolveEntry);
@@ -72,7 +72,7 @@ describe("Resolver Module", () => {
         });
 
         test("should pass correct options to resolveEntry", async () => {
-            const cache = createCache();
+            const cache = createCacheRecord();
             const context: SourceContext = {
                 package: {
                     name: "my.package",

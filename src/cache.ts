@@ -14,15 +14,19 @@ export const computeCacheKey = (packages: string[]): CacheKey => {
     return hash as CacheKey;
 };
 
-export const cachePaths = (pwd: string, packages: string[]) => {
-    const cacheKey = computeCacheKey(packages);
+const cacheRecordPathsFromKey = (pwd: string, cacheKey: CacheKey) => {
     const cacheRecordPath = Path.join(pwd, cacheKey);
     const npmPackagePath = Path.join(process.cwd(), cacheRecordPath, "node");
-    const cacheIndex = Path.join(cacheRecordPath, "index.json");
-    return { cacheKey, cacheRecordPath, cacheIndex, npmPackagePath };
+    const cacheIndexFile = Path.join(cacheRecordPath, "index.json");
+    return { cacheKey, cacheRecordPath, cacheIndexFile, npmPackagePath };
 };
 
-export const createCache = (): ExtendedCache => {
+export const cacheRecordPaths = (pwd: string, packages: string[]) => {
+    const cacheKey = computeCacheKey(packages);
+    return cacheRecordPathsFromKey(pwd, cacheKey);
+};
+
+export const createCacheRecord = (): ExtendedCache => {
     return {
         entries: {},
         packages: {},
@@ -31,9 +35,9 @@ export const createCache = (): ExtendedCache => {
     };
 };
 
-export const loadCacheFromDisk = async (pwd: string, cacheKey: CacheKey): Promise<CacheData | undefined> => {
+export const loadCacheRecordFromDisk = async (pwd: string, cacheKey: CacheKey): Promise<CacheData | undefined> => {
     try {
-        const cacheIndexFile = Path.join(pwd, cacheKey, "index.json");
+        const { cacheIndexFile } = cacheRecordPathsFromKey(pwd, cacheKey);
         const content = await afs.readFile(cacheIndexFile, "utf-8");
         return JSON.parse(content) as CacheData;
     } catch {
@@ -41,14 +45,14 @@ export const loadCacheFromDisk = async (pwd: string, cacheKey: CacheKey): Promis
     }
 };
 
-export const saveCacheToDisk = async (cache: ExtendedCache, pwd: string, cacheKey: CacheKey): Promise<void> => {
+export const saveCacheRecordToDisk = async (cache: ExtendedCache, pwd: string, cacheKey: CacheKey): Promise<void> => {
     const cacheData: CacheData = {
         entries: cache.entries,
         packages: cache.packages,
         references: cache.referenceManager.getAllReferences(),
         packageLockHash: cacheKey,
     };
-    const cachePath = Path.join(pwd, cacheKey, "index.json");
-    await afs.mkdir(Path.dirname(cachePath), { recursive: true });
-    await afs.writeFile(cachePath, JSON.stringify(cacheData, null, 2));
+    const { cacheIndexFile, cacheRecordPath } = cacheRecordPathsFromKey(pwd, cacheKey);
+    await afs.mkdir(Path.dirname(cacheRecordPath), { recursive: true });
+    await afs.writeFile(cacheIndexFile, JSON.stringify(cacheData, null, 2));
 };

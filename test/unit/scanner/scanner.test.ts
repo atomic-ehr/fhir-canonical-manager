@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { createCache } from "../../../src/cache";
+import { createCacheRecord } from "../../../src/cache";
 import {
     isValidFileEntry,
     isValidIndexFile,
@@ -166,7 +166,7 @@ describe("Scanner Module", () => {
 
     describe("processIndex", () => {
         test("should process index file and populate cache", async () => {
-            const cache = createCache();
+            const cache = createCacheRecord();
             const packagePath = path.join(tempDir, "package");
             await fs.mkdir(packagePath, { recursive: true });
 
@@ -212,7 +212,7 @@ describe("Scanner Module", () => {
         });
 
         test("should skip entries without URLs", async () => {
-            const cache = createCache();
+            const cache = createCacheRecord();
             const packagePath = path.join(tempDir, "package");
             await fs.mkdir(packagePath, { recursive: true });
 
@@ -242,7 +242,7 @@ describe("Scanner Module", () => {
         });
 
         test("should handle missing index file gracefully", async () => {
-            const cache = createCache();
+            const cache = createCacheRecord();
             const packagePath = path.join(tempDir, "package");
             await fs.mkdir(packagePath, { recursive: true });
 
@@ -260,7 +260,7 @@ describe("Scanner Module", () => {
 
     describe("scanPackage", () => {
         test("should scan a complete FHIR package", async () => {
-            const cache = createCache();
+            const cache = createCacheRecord();
             const packagePath = path.join(tempDir, "test-package");
             await fs.mkdir(packagePath, { recursive: true });
 
@@ -301,7 +301,7 @@ describe("Scanner Module", () => {
         });
 
         test("should scan examples directory if present", async () => {
-            const cache = createCache();
+            const cache = createCacheRecord();
             const packagePath = path.join(tempDir, "test-package");
             const examplesPath = path.join(packagePath, "examples");
 
@@ -352,7 +352,7 @@ describe("Scanner Module", () => {
         });
 
         test("should handle invalid package gracefully", async () => {
-            const cache = createCache();
+            const cache = createCacheRecord();
             const packagePath = path.join(tempDir, "invalid-package");
 
             // Should not throw
@@ -364,7 +364,7 @@ describe("Scanner Module", () => {
 
     describe("scanDirectory", () => {
         test("should scan directory with FHIR packages", async () => {
-            const cache = createCache();
+            const cache = createCacheRecord();
             const nodeModules = path.join(tempDir, "node_modules");
             const package1 = path.join(nodeModules, "package1");
             const package2 = path.join(nodeModules, "package2");
@@ -406,7 +406,7 @@ describe("Scanner Module", () => {
         });
 
         test("should scan scoped packages", async () => {
-            const cache = createCache();
+            const cache = createCacheRecord();
             const nodeModules = path.join(tempDir, "node_modules");
             const scopeDir = path.join(nodeModules, "@scope");
             const packageDir = path.join(scopeDir, "package");
