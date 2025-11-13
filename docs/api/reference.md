@@ -201,7 +201,7 @@ resources.forEach(resource => {
 
 ## Implementation Details
 
-- **Location**: `src/reference/`
+- **Location**: `src/reference.ts`
 - **Hash Algorithm**: SHA256 with base64url encoding
 - **Storage**: In-memory Maps for O(1) lookups
 - **Thread Safety**: Not thread-safe

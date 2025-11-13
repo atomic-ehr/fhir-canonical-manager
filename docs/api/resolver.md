@@ -265,7 +265,7 @@ const resolved = resolveWithDependencies(url, {
 
 ## Implementation Details
 
-- **Location**: `src/resolver/`
+- **Location**: `src/resolver.ts`
 - **Pure Function**: No side effects
 - **Synchronous**: No async operations
 - **Deterministic**: Same input → same output

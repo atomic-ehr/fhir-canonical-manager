@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import * as afs from "node:fs/promises";
 import * as Path from "node:path";
-import { createReferenceManager, type ReferenceManager } from "./reference/index.js";
+import { createReferenceManager, type ReferenceManager } from "./reference.js";
 import type { CacheData, CacheKey, IndexCache } from "./types/index.js";
 
 export interface ExtendedCache extends IndexCache {

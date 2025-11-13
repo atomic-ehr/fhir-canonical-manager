@@ -54,7 +54,7 @@ graph TB
 
 **Dependencies**: None
 
-### 2. Reference Manager (`src/reference/`)
+### 2. Reference Manager (`src/reference.ts`)
 **Purpose**: Manage unique resource identifiers and URL mappings
 
 **Components**:
@@ -105,7 +105,7 @@ graph TB
 - Index validation
 - Scoped package support
 
-### 6. Resolution Engine (`src/resolver/`)
+### 6. Resolution Engine (`src/resolver.ts`)
 **Purpose**: Resolve canonical URLs to resources
 
 **Components**:

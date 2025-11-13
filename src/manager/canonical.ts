@@ -8,7 +8,7 @@ import { cacheRecordPaths, createCacheRecord, loadCacheRecordFromDisk, saveCache
 import { DEFAULT_REGISTRY } from "../constants.js";
 import { ensureDir } from "../fs/index.js";
 import { installPackages } from "../package.js";
-import { resolveWithContext } from "../resolver/index.js";
+import { resolveWithContext } from "../resolver.js";
 import { scanDirectory } from "../scanner/index.js";
 import { filterBySmartSearch } from "../search/index.js";
 import type {

@@ -1,10 +1,26 @@
 /**
- * Reference manager factory
+ * Reference management module
+ * Merged from reference/index.ts, reference/manager.ts, and reference/store.ts
  */
 
-import type { Reference, ReferenceMetadata, ReferenceStore } from "../types/index.js";
-import { generateReferenceId } from "./store.js";
+import { createHash } from "node:crypto";
+import type { Reference, ReferenceMetadata, ReferenceStore } from "./types/index.js";
 
+/**
+ * Generate a unique reference ID from metadata
+ */
+export const generateReferenceId = (metadata: {
+    packageName: string;
+    packageVersion: string;
+    filePath: string;
+}): string => {
+    const input = `${metadata.packageName}@${metadata.packageVersion}:${metadata.filePath}`;
+    return createHash("sha256").update(input).digest("base64url");
+};
+
+/**
+ * Reference manager interface
+ */
 export interface ReferenceManager extends ReferenceStore {
     generateId: typeof generateReferenceId;
     getIdsByUrl: (url: string) => string[];
@@ -12,6 +28,9 @@ export interface ReferenceManager extends ReferenceStore {
     getAllReferences: () => Record<string, ReferenceMetadata>;
 }
 
+/**
+ * Create a reference manager instance
+ */
 export const createReferenceManager = (): ReferenceManager => {
     const references: Record<string, ReferenceMetadata> = {};
     const urlToIds: Record<string, string[]> = {};
@@ -53,3 +72,6 @@ export const createReferenceManager = (): ReferenceManager => {
         getAllReferences: () => references,
     };
 };
+
+// For backward compatibility - function alias (will be deprecated)
+export { createReferenceManager as ReferenceManagerFactory };

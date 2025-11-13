@@ -5,9 +5,9 @@
 
 // Re-export main CanonicalManager factory and class
 export { CanonicalManager, createCanonicalManager } from "./manager/index.js";
-export type { ReferenceManager as ReferenceManagerType } from "./reference/index.js";
+export type { ReferenceManager as ReferenceManagerType } from "./reference.js";
 // Re-export reference management
-export { createReferenceManager, ReferenceManagerFactory as ReferenceManager } from "./reference/index.js";
+export { createReferenceManager, ReferenceManagerFactory as ReferenceManager } from "./reference.js";
 // Re-export CanonicalManager type interface with T prefix
 export type { CanonicalManager as TCanonicalManager } from "./types/core.js";
 // Re-export all public types
