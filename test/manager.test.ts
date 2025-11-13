@@ -15,6 +15,7 @@ import type {
 
 describe("CanonicalManager", () => {
     let manager: ICanonicalManager;
+    let packageRef2meta: Record<string, PackageId>;
     const testWorkingDir = "./tmp/test-fhir";
 
     beforeAll(async () => {
@@ -26,7 +27,7 @@ describe("CanonicalManager", () => {
             workingDir: testWorkingDir,
             registry: "https://fs.get-ig.org/pkgs/",
         });
-        await manager.init();
+        packageRef2meta = await manager.init();
     });
 
     afterAll(async () => {
@@ -38,6 +39,12 @@ describe("CanonicalManager", () => {
     });
 
     test("should list packages", async () => {
+        expect(packageRef2meta).toMatchObject({
+            "hl7.fhir.r4.core@4.0.1": {
+                name: "hl7.fhir.r4.core",
+                version: "4.0.1",
+            },
+        });
         const packages = await manager.packages();
         expect(Array.isArray(packages)).toBe(true);
         // Should have at least one package if any FHIR packages are installed

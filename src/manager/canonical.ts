@@ -41,8 +41,37 @@ export const createCanonicalManager = (config: Config): CanonicalManager => {
         }
     };
 
-    const init = async (): Promise<void> => {
-        if (initialized) return;
+    const packageRefToPackageMeta = async () => {
+        ensureInitialized();
+        const { npmRootPackageJsonFile } = cacheRecordPaths(workingDir, packages);
+        const rootPackageDeps =
+            (
+                JSON.parse(await afs.readFile(npmRootPackageJsonFile, "utf8")) as {
+                    dependencies?: Record<string, string>;
+                }
+            ).dependencies ?? {};
+        const res: Record<string, PackageId> = {};
+        for (const pkgRef of packages) {
+            if (pkgRef.startsWith("http://") || pkgRef.startsWith("https://")) {
+                for (const [depName, depVersion] of Object.entries(rootPackageDeps)) {
+                    if (depVersion === pkgRef) {
+                        const packageInfo = cache.packages[depName];
+                        if (!packageInfo) throw new Error(`Package not found: ${depName}`);
+                        res[pkgRef] = { name: packageInfo.id.name, version: packageInfo.id.version };
+                        break;
+                    }
+                }
+            } else {
+                const [name, version] = pkgRef.split("@");
+                if (!name) throw new Error(`Invalid FHIR package meta: ${pkgRef}`);
+                res[pkgRef] = { name, version: version ?? "latest" };
+            }
+        }
+        return res;
+    };
+
+    const init = async (): Promise<Record<string, PackageId>> => {
+        if (initialized) return packageRefToPackageMeta();
 
         await ensureDir(workingDir);
         const { cacheKey, npmPackagePath } = cacheRecordPaths(workingDir, packages);
@@ -63,6 +92,7 @@ export const createCanonicalManager = (config: Config): CanonicalManager => {
         }
 
         initialized = true;
+        return packageRefToPackageMeta();
     };
 
     const destroy = async (): Promise<void> => {
@@ -78,8 +108,8 @@ export const createCanonicalManager = (config: Config): CanonicalManager => {
         return Object.values(cache.packages).map((p: PackageInfo) => p.id);
     };
 
-    const addPackages = async (...newPackages: string[]): Promise<void> => {
-        if (newPackages.length === 0) return;
+    const addPackages = async (...newPackages: string[]): Promise<Record<string, PackageId>> => {
+        if (newPackages.length === 0) return packageRefToPackageMeta();
 
         // Check if packages already exists in packages
         const packagesToAdd = newPackages.filter((pkg) => !packages.includes(pkg));
@@ -89,7 +119,7 @@ export const createCanonicalManager = (config: Config): CanonicalManager => {
 
         if (!initialized) {
             await init();
-            return;
+            return packageRefToPackageMeta();
         }
 
         if (packagesToAdd.length > 0) {
@@ -97,7 +127,7 @@ export const createCanonicalManager = (config: Config): CanonicalManager => {
             await destroy();
             await init();
         }
-        return;
+        return packageRefToPackageMeta();
     };
 
     const resolveEntry = async (
@@ -304,6 +334,14 @@ export const createCanonicalManager = (config: Config): CanonicalManager => {
         return results;
     };
 
+    const packageJson = async (packageName: string) => {
+        ensureInitialized();
+        const fn = cache.packages[packageName]?.path;
+        if (!fn) throw new Error(`Package ${packageName} not found`);
+        const packageJSON = JSON.parse(await afs.readFile(Path.join(fn, "package.json"), "utf8"));
+        return packageJSON;
+    };
+
     return {
         init,
         destroy,
@@ -316,12 +354,6 @@ export const createCanonicalManager = (config: Config): CanonicalManager => {
         search,
         smartSearch,
         getSearchParametersForResource,
-        packageJson: async (packageName: string) => {
-            ensureInitialized();
-            const fn = cache.packages[packageName]?.path;
-            if (!fn) throw new Error(`Package ${packageName} not found`);
-            const packageJSON = JSON.parse(await afs.readFile(Path.join(fn, "package.json"), "utf8"));
-            return packageJSON;
-        },
+        packageJson,
     };
 };

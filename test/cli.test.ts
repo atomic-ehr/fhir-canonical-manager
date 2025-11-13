@@ -4,7 +4,7 @@ import * as afs from "node:fs";
 import * as Path from "node:path";
 import { parseArgs } from "../src/cli/index";
 import { searchCommand } from "../src/cli/search";
-import { catchConsole, changeWorkDir, writeCacheIndex, writePackage } from "./utils";
+import { catchConsole, changeWorkDir, writeCacheIndex, writeNpmPackageJson, writePackage } from "./utils";
 
 // Helper to create mock package-lock.json and calculate its hash
 const _createMockPackageLock = (testDir: string): string => {
@@ -71,6 +71,7 @@ describe("CLI search output format", () => {
                         packages: ["hl7.fhir.r4.core@4.0.1"],
                     },
                 });
+                writeNpmPackageJson(["hl7.fhir.r4.core@4.0.1"], {});
                 writeCacheIndex(["hl7.fhir.r4.core@4.0.1"], {
                     packages: [
                         {
@@ -149,6 +150,7 @@ describe("CLI search output format", () => {
                         packages: ["hl7.fhir.r4.core@4.0.1"],
                     },
                 });
+                writeNpmPackageJson(["hl7.fhir.r4.core@4.0.1"], {});
                 writeCacheIndex(["hl7.fhir.r4.core@4.0.1"], {
                     packages: [{ name: "hl7.fhir.r4.core", version: "4.0.1" }],
                     entries: {},
@@ -172,6 +174,7 @@ describe("CLI search output format", () => {
                         packages: ["hl7.fhir.r4.core@4.0.1"],
                     },
                 });
+                writeNpmPackageJson(["hl7.fhir.r4.core@4.0.1"], {});
                 writeCacheIndex(["hl7.fhir.r4.core@4.0.1"], {
                     packages: [
                         {
@@ -246,6 +249,7 @@ describe("CLI search output format", () => {
                         packages: ["hl7.fhir.r4.core@4.0.1"],
                     },
                 });
+                writeNpmPackageJson(["hl7.fhir.r4.core@4.0.1"], {});
                 writeCacheIndex(["hl7.fhir.r4.core@4.0.1"], {
                     packages: [
                         {

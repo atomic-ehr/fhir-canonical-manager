@@ -82,10 +82,10 @@ export interface PackageInfo {
 }
 
 export interface CanonicalManager {
-    init(): Promise<void>;
+    init(): Promise<Record<string, PackageId>>;
     destroy(): Promise<void>;
     packages(): Promise<PackageId[]>;
-    addPackages(...packageNames: string[]): Promise<void>;
+    addPackages(...packageNames: string[]): Promise<Record<string, PackageId>>;
     resolveEntry(
         canonicalUrl: string,
         options?: {

@@ -34,6 +34,12 @@ export const writePackage = async (content: any) => {
     afs.writeFileSync("package.json", JSON.stringify(content, null, 2));
 };
 
+export const writeNpmPackageJson = async (packages: string[], content: any) => {
+    const { npmPackagePath, npmRootPackageJsonFile } = cacheRecordPaths(process.cwd(), packages);
+    afs.mkdirSync(npmPackagePath, { recursive: true });
+    afs.writeFileSync(npmRootPackageJsonFile, JSON.stringify(content, null, 2));
+};
+
 export const writeCacheIndex = async (packages: string[], content: any) => {
     const { cacheIndexFile: cacheIndex, cacheRecordPath, cacheKey } = cacheRecordPaths(process.cwd(), packages);
     content.packageLockHash = cacheKey;

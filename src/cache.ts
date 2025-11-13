@@ -17,8 +17,9 @@ export const computeCacheKey = (packages: string[]): CacheKey => {
 const cacheRecordPathsFromKey = (pwd: string, cacheKey: CacheKey) => {
     const cacheRecordPath = Path.join(pwd, cacheKey);
     const npmPackagePath = Path.join(process.cwd(), cacheRecordPath, "node");
+    const npmRootPackageJsonFile = Path.join(npmPackagePath, "package.json");
     const cacheIndexFile = Path.join(cacheRecordPath, "index.json");
-    return { cacheKey, cacheRecordPath, cacheIndexFile, npmPackagePath };
+    return { cacheKey, cacheRecordPath, cacheIndexFile, npmPackagePath, npmRootPackageJsonFile };
 };
 
 export const cacheRecordPaths = (pwd: string, packages: string[]) => {
