@@ -57,3 +57,14 @@ export const saveCacheRecordToDisk = async (cache: ExtendedCache, pwd: string, c
     await afs.mkdir(cacheRecordPath, { recursive: true });
     await afs.writeFile(cacheIndexFile, JSON.stringify(cacheData, null, 2));
 };
+
+export const flushCache = async (workingDir: string): Promise<void> => {
+    try {
+        const entries = await afs.readdir(workingDir, { withFileTypes: true });
+        for (const entry of entries) {
+            if (entry.isDirectory() && /^[a-f0-9]{64}$/i.test(entry.name)) {
+                await afs.rm(Path.join(workingDir, entry.name), { recursive: true, force: true });
+            }
+        }
+    } catch {}
+};

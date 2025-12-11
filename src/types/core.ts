@@ -74,6 +74,22 @@ export interface Config {
     registry?: string;
 }
 
+export interface TgzPackageConfig {
+    /** Absolute path to the .tgz archive file */
+    archivePath: string;
+}
+
+export interface LocalPackageConfig {
+    /** Package name for the local package */
+    name: string;
+    /** Package version for the local package */
+    version: string;
+    /** Absolute path to the local package folder */
+    path: string;
+    /** Dependencies to install from registry */
+    dependencies?: string[];
+}
+
 export interface PackageInfo {
     id: PackageId;
     path: string;
@@ -86,6 +102,9 @@ export interface CanonicalManager {
     destroy(): Promise<void>;
     packages(): Promise<PackageId[]>;
     addPackages(...packageNames: string[]): Promise<Record<string, PackageId>>;
+    addTgzPackage(config: TgzPackageConfig): Promise<PackageId>;
+    addLocalPackage(config: LocalPackageConfig): Promise<PackageId>;
+    flushCache(): Promise<void>;
     resolveEntry(
         canonicalUrl: string,
         options?: {

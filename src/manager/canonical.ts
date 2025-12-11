@@ -4,9 +4,10 @@
 
 import * as afs from "node:fs/promises";
 import * as Path from "node:path";
-import { cacheRecordPaths, createCacheRecord, loadCacheRecordFromDisk, saveCacheRecordToDisk } from "../cache.js";
+import { cacheRecordPaths, createCacheRecord, flushCache as flushCacheFromDisk, loadCacheRecordFromDisk, saveCacheRecordToDisk } from "../cache.js";
 import { DEFAULT_REGISTRY } from "../constants.js";
 import { ensureDir } from "../fs/index.js";
+import { installLocalFolder, installTgzPackage } from "../local.js";
 import { installPackages } from "../package.js";
 import { resolveWithContext } from "../resolver.js";
 import { scanDirectory } from "../scanner/index.js";
@@ -15,12 +16,14 @@ import type {
     CanonicalManager,
     Config,
     IndexEntry,
+    LocalPackageConfig,
     PackageId,
     PackageInfo,
     Reference,
     Resource,
     SearchParameter,
     SourceContext,
+    TgzPackageConfig,
 } from "../types/index.js";
 
 export const createCanonicalManager = (config: Config): CanonicalManager => {
@@ -101,6 +104,20 @@ export const createCanonicalManager = (config: Config): CanonicalManager => {
         cache.referenceManager.clear();
         searchParamsCache.clear();
         initialized = false;
+    };
+
+    const rescan = async (): Promise<void> => {
+        const { cacheKey, npmPackagePath } = cacheRecordPaths(workingDir, packages);
+
+        cache.entries = {};
+        cache.packages = {};
+        cache.referenceManager.clear();
+        searchParamsCache.clear();
+
+        await scanDirectory(cache, npmPackagePath);
+        await saveCacheRecordToDisk(cache, workingDir, cacheKey);
+
+        initialized = true;
     };
 
     const getPackages = async (): Promise<PackageId[]> => {
@@ -342,11 +359,61 @@ export const createCanonicalManager = (config: Config): CanonicalManager => {
         return packageJSON;
     };
 
+    const addTgzPackage = async (config: TgzPackageConfig): Promise<PackageId> => {
+        const { npmPackagePath } = cacheRecordPaths(workingDir, packages);
+        await ensureDir(npmPackagePath);
+
+        const { name, version } = await installTgzPackage(config.archivePath, npmPackagePath, registry);
+
+        const pkgRef = `${name}@${version}`;
+        if (!packages.includes(pkgRef)) {
+            packages.push(pkgRef);
+        }
+
+        if (initialized) {
+            await rescan();
+        }
+
+        return { name, version };
+    };
+
+    const addLocalPackage = async (config: LocalPackageConfig): Promise<PackageId> => {
+        const { npmPackagePath } = cacheRecordPaths(workingDir, packages);
+        await ensureDir(npmPackagePath);
+
+        const { name, version } = await installLocalFolder(config, npmPackagePath);
+
+        if (config.dependencies && config.dependencies.length > 0) {
+            await installPackages(config.dependencies, npmPackagePath, registry);
+        }
+
+        const pkgRef = `${name}@${version}`;
+        if (!packages.includes(pkgRef)) {
+            packages.push(pkgRef);
+        }
+
+        if (initialized) {
+            await rescan();
+        }
+
+        return { name, version };
+    };
+
+    const flushCache = async (): Promise<void> => {
+        await flushCacheFromDisk(workingDir);
+        if (initialized) {
+            await destroy();
+        }
+    };
+
     return {
         init,
         destroy,
         packages: getPackages,
         addPackages,
+        addTgzPackage,
+        addLocalPackage,
+        flushCache,
         resolveEntry,
         resolve,
         read,
