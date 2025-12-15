@@ -20,6 +20,7 @@ import { installPackages } from "../package.js";
 import { resolveWithContext } from "../resolver.js";
 import { scanDirectory } from "../scanner/index.js";
 import { filterBySmartSearch } from "../search/index.js";
+import { isPathSpec, normalizePackageSpec, parsePackageRef } from "./package-spec.js";
 import type {
     CanonicalManager,
     Config,
@@ -38,17 +39,6 @@ interface LocalPackageEntry {
     config: LocalPackageConfig & { path: string };
     cacheKeyPart: string;
 }
-
-const isPathSpec = (spec: string): boolean => {
-    return spec.startsWith("./") || spec.startsWith("../") || Path.isAbsolute(spec);
-};
-
-const normalizePackageSpec = (spec: string): string => {
-    if (isPathSpec(spec)) {
-        return Path.resolve(spec);
-    }
-    return spec;
-};
 
 const hashLocalPackageSource = async (dirPath: string): Promise<string> => {
     const hash = createHash("sha256");
@@ -143,9 +133,10 @@ export const createCanonicalManager = (config: Config): CanonicalManager => {
     const searchParamsCache = new Map<string, SearchParameter[]>();
 
     const installConfiguredLocalPackages = async (npmPackagePath: string): Promise<void> => {
+        const skipDependencyInstall = process.env.FCM_SKIP_LOCAL_DEP_INSTALL === "1";
         for (const entry of localPackages.values()) {
             await installLocalFolder(entry.config, npmPackagePath);
-            if (entry.config.dependencies && entry.config.dependencies.length > 0) {
+            if (!skipDependencyInstall && entry.config.dependencies && entry.config.dependencies.length > 0) {
                 await installPackages(entry.config.dependencies, npmPackagePath, registry);
             }
         }
@@ -176,55 +167,44 @@ export const createCanonicalManager = (config: Config): CanonicalManager => {
 
         const res: Record<string, PackageId> = {};
 
-        const parsePackageRef = (pkgRef: string): PackageId => {
-            const trimmed = pkgRef.trim();
-            if (!trimmed) {
-                throw new Error(`Invalid FHIR package meta: ${pkgRef}`);
+        const resolveHttpSpec = (pkgRef: string): PackageId | undefined => {
+            for (const [depName, depVersion] of Object.entries(rootPackageDeps)) {
+                if (depVersion === pkgRef) {
+                    const packageInfo = cache.packages[depName];
+                    if (!packageInfo) throw new Error(`Package not found: ${depName}`);
+                    return { name: packageInfo.id.name, version: packageInfo.id.version };
+                }
             }
-            const atIndex = trimmed.lastIndexOf("@");
-            if (atIndex > 0) {
-                return {
-                    name: trimmed.slice(0, atIndex),
-                    version: trimmed.slice(atIndex + 1) || "latest",
-                };
-            }
-            return {
-                name: trimmed,
-                version: "latest",
-            };
+            return undefined;
         };
 
-        for (const pkgRef of packageSpecs) {
+        const getMetaForRef = (pkgRef: string): PackageId | undefined => {
             if (pathPackageMeta.has(pkgRef)) {
-                const meta = pathPackageMeta.get(pkgRef);
-                if (meta) {
-                    res[pkgRef] = meta;
-                }
-                continue;
+                return pathPackageMeta.get(pkgRef);
             }
 
             if (pkgRef.startsWith("http://") || pkgRef.startsWith("https://")) {
-                for (const [depName, depVersion] of Object.entries(rootPackageDeps)) {
-                    if (depVersion === pkgRef) {
-                        const packageInfo = cache.packages[depName];
-                        if (!packageInfo) throw new Error(`Package not found: ${depName}`);
-                        res[pkgRef] = { name: packageInfo.id.name, version: packageInfo.id.version };
-                        break;
-                    }
-                }
-                continue;
+                return resolveHttpSpec(pkgRef);
             }
 
             if (isPathSpec(pkgRef)) {
                 const meta = pathPackageMeta.get(pkgRef);
-                if (meta) {
-                    res[pkgRef] = meta;
-                    continue;
-                }
+                if (meta) return meta;
             }
 
-            const meta = parsePackageRef(pkgRef);
-            res[pkgRef] = meta;
+            const parsed = parsePackageRef(pkgRef);
+            const packageInfo = cache.packages[parsed.name];
+            if (packageInfo) {
+                return { name: packageInfo.id.name, version: packageInfo.id.version };
+            }
+            return parsed;
+        };
+
+        for (const pkgRef of packageSpecs) {
+            const meta = getMetaForRef(pkgRef);
+            if (meta) {
+                res[pkgRef] = meta;
+            }
         }
 
         for (const entry of localPackages.values()) {
@@ -232,6 +212,16 @@ export const createCanonicalManager = (config: Config): CanonicalManager => {
                 name: entry.config.name,
                 version: entry.config.version,
             };
+
+            if (entry.config.dependencies) {
+                for (const dependencyRef of entry.config.dependencies) {
+                    if (res[dependencyRef]) continue;
+                    const dependencyMeta = getMetaForRef(dependencyRef);
+                    if (dependencyMeta) {
+                        res[dependencyRef] = dependencyMeta;
+                    }
+                }
+            }
         }
 
         return res;
@@ -555,7 +545,7 @@ export const createCanonicalManager = (config: Config): CanonicalManager => {
     };
 
     const addLocalPackage = async (config: LocalPackageConfig): Promise<PackageId> => {
-        const normalizedConfig: LocalPackageConfig & { path: string } = {
+        const normalizedConfig = {
             ...config,
             path: Path.resolve(config.path),
         };

@@ -2,7 +2,21 @@ import * as afs from "node:fs/promises";
 import * as Path from "node:path";
 import { ensureDir, fileExists } from "./fs/index.js";
 import { installPackages } from "./package.js";
+import { isPathSpec, parsePackageRef } from "./manager/package-spec.js";
 import type { LocalPackageConfig, PackageId } from "./types/index.js";
+
+const parseDependencySpec = (spec: string): { name: string; version: string } | undefined => {
+    const trimmed = spec.trim();
+    if (!trimmed || isPathSpec(trimmed) || trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+        return undefined;
+    }
+
+    try {
+        return parsePackageRef(trimmed);
+    } catch {
+        return undefined;
+    }
+};
 
 interface IndexFileEntry {
     filename: string;
@@ -145,14 +159,36 @@ export const installLocalFolder = async (config: LocalPackageConfig, destPath: s
     await afs.cp(sourcePath, targetPath, { recursive: true });
 
     const packageJsonPath = Path.join(targetPath, "package.json");
-    if (!(await fileExists(packageJsonPath))) {
-        const packageJson = {
+    let packageJson: Record<string, unknown>;
+    if (await fileExists(packageJsonPath)) {
+        packageJson = JSON.parse(await afs.readFile(packageJsonPath, "utf-8"));
+        packageJson.name = packageJson.name ?? name;
+        packageJson.version = packageJson.version ?? version;
+        packageJson.private = true;
+    } else {
+        packageJson = {
             name,
             version,
             private: true,
         };
-        await afs.writeFile(packageJsonPath, JSON.stringify(packageJson, null, 2));
     }
+
+    if (!packageJson.dependencies) {
+        packageJson.dependencies = {};
+    }
+
+    const dependencyMap = packageJson.dependencies as Record<string, string>;
+    if (config.dependencies) {
+        for (const dep of config.dependencies) {
+            const parsed = parseDependencySpec(dep);
+            if (!parsed) continue;
+            if (!dependencyMap[parsed.name]) {
+                dependencyMap[parsed.name] = parsed.version;
+            }
+        }
+    }
+
+    await afs.writeFile(packageJsonPath, JSON.stringify(packageJson, null, 2));
 
     const indexJsonPath = Path.join(targetPath, ".index.json");
     if (!(await fileExists(indexJsonPath))) {
