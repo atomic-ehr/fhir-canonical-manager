@@ -109,7 +109,8 @@ export const generateIndexJson = async (targetPath: string): Promise<void> => {
             }
 
             files.push(indexEntry);
-        } catch {
+        } catch (e){
+            console.error("Error while creating index.json", e);
         }
     }
 

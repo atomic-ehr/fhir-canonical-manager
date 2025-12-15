@@ -2,6 +2,7 @@
  * Main CanonicalManager implementation
  */
 
+import { createHash } from "node:crypto";
 import * as afs from "node:fs/promises";
 import * as Path from "node:path";
 import { cacheRecordPaths, createCacheRecord, flushCache as flushCacheFromDisk, loadCacheRecordFromDisk, saveCacheRecordToDisk } from "../cache.js";
@@ -26,8 +27,71 @@ import type {
     TgzPackageConfig,
 } from "../types/index.js";
 
+interface LocalPackageEntry {
+    config: LocalPackageConfig & { path: string };
+    cacheKeyPart: string;
+}
+
+const isPathSpec = (spec: string): boolean => {
+    return spec.startsWith("./") || spec.startsWith("../") || Path.isAbsolute(spec);
+};
+
+const normalizePackageSpec = (spec: string): string => {
+    if (isPathSpec(spec)) {
+        return Path.resolve(spec);
+    }
+    return spec;
+};
+
+const hashLocalPackageSource = async (dirPath: string): Promise<string> => {
+    const hash = createHash("sha256");
+
+    const walk = async (currentPath: string) => {
+        const entries = await afs.readdir(currentPath, { withFileTypes: true });
+        entries.sort((a, b) => a.name.localeCompare(b.name));
+        for (const entry of entries) {
+            if (entry.name === "node_modules" || entry.name === ".git") {
+                continue;
+            }
+            const fullPath = Path.join(currentPath, entry.name);
+            if (entry.isDirectory()) {
+                hash.update(`dir:${fullPath}`);
+                await walk(fullPath);
+            } else if (entry.isFile()) {
+                hash.update(`file:${fullPath}`);
+                const content = await afs.readFile(fullPath);
+                hash.update(content);
+            }
+        }
+    };
+
+    await walk(dirPath);
+    return hash.digest("hex");
+};
+
+const createLocalCacheKeyPart = async (config: LocalPackageConfig & { path: string }): Promise<string> => {
+    const dependencies = config.dependencies ? [...config.dependencies].sort() : [];
+    const sourceHash = await hashLocalPackageSource(config.path);
+    return JSON.stringify({
+        type: "local",
+        name: config.name,
+        version: config.version,
+        path: config.path,
+        dependencies,
+        sourceHash,
+    });
+};
+
 export const createCanonicalManager = (config: Config): CanonicalManager => {
-    const { packages = [], workingDir } = config;
+    const workingDir = config.workingDir;
+    const packageSpecs = [...(config.packages ?? [])].map(normalizePackageSpec);
+    const localPackages = new Map<string, LocalPackageEntry>();
+    const pathPackageMeta = new Map<string, PackageId>();
+    const getCacheKeyPackages = () => {
+        const localParts = Array.from(localPackages.values()).map((entry) => entry.cacheKeyPart);
+        return [...packageSpecs, ...localParts];
+    };
+
     // Ensure registry URL ends with /
     let registry = DEFAULT_REGISTRY;
     if (config.registry) {
@@ -38,23 +102,67 @@ export const createCanonicalManager = (config: Config): CanonicalManager => {
     let initialized = false;
     const searchParamsCache = new Map<string, SearchParameter[]>();
 
+    const installConfiguredLocalPackages = async (npmPackagePath: string): Promise<void> => {
+        for (const entry of localPackages.values()) {
+            await installLocalFolder(entry.config, npmPackagePath);
+            if (entry.config.dependencies && entry.config.dependencies.length > 0) {
+                await installPackages(entry.config.dependencies, npmPackagePath, registry);
+            }
+        }
+    };
+
     const ensureInitialized = (): void => {
         if (!initialized) {
             throw new Error("CanonicalManager not initialized. Call init() first.");
         }
     };
 
+    const rebuildWithCurrentConfig = async (): Promise<void> => {
+        if (initialized) {
+            await destroy();
+        }
+        await init();
+    };
+
     const packageRefToPackageMeta = async () => {
         ensureInitialized();
-        const { npmRootPackageJsonFile } = cacheRecordPaths(workingDir, packages);
+        const { npmRootPackageJsonFile } = cacheRecordPaths(workingDir, getCacheKeyPackages());
         const rootPackageDeps =
             (
                 JSON.parse(await afs.readFile(npmRootPackageJsonFile, "utf8")) as {
                     dependencies?: Record<string, string>;
                 }
             ).dependencies ?? {};
+
         const res: Record<string, PackageId> = {};
-        for (const pkgRef of packages) {
+
+        const parsePackageRef = (pkgRef: string): PackageId => {
+            const trimmed = pkgRef.trim();
+            if (!trimmed) {
+                throw new Error(`Invalid FHIR package meta: ${pkgRef}`);
+            }
+            const atIndex = trimmed.lastIndexOf("@");
+            if (atIndex > 0) {
+                return {
+                    name: trimmed.slice(0, atIndex),
+                    version: trimmed.slice(atIndex + 1) || "latest",
+                };
+            }
+            return {
+                name: trimmed,
+                version: "latest",
+            };
+        };
+
+        for (const pkgRef of packageSpecs) {
+            if (pathPackageMeta.has(pkgRef)) {
+                const meta = pathPackageMeta.get(pkgRef);
+                if (meta) {
+                    res[pkgRef] = meta;
+                }
+                continue;
+            }
+
             if (pkgRef.startsWith("http://") || pkgRef.startsWith("https://")) {
                 for (const [depName, depVersion] of Object.entries(rootPackageDeps)) {
                     if (depVersion === pkgRef) {
@@ -64,12 +172,28 @@ export const createCanonicalManager = (config: Config): CanonicalManager => {
                         break;
                     }
                 }
-            } else {
-                const [name, version] = pkgRef.split("@");
-                if (!name) throw new Error(`Invalid FHIR package meta: ${pkgRef}`);
-                res[pkgRef] = { name, version: version ?? "latest" };
+                continue;
             }
+
+            if (isPathSpec(pkgRef)) {
+                const meta = pathPackageMeta.get(pkgRef);
+                if (meta) {
+                    res[pkgRef] = meta;
+                    continue;
+                }
+            }
+
+            const meta = parsePackageRef(pkgRef);
+            res[pkgRef] = meta;
         }
+
+        for (const entry of localPackages.values()) {
+            res[entry.config.path] = {
+                name: entry.config.name,
+                version: entry.config.version,
+            };
+        }
+
         return res;
     };
 
@@ -77,7 +201,7 @@ export const createCanonicalManager = (config: Config): CanonicalManager => {
         if (initialized) return packageRefToPackageMeta();
 
         await ensureDir(workingDir);
-        const { cacheKey, npmPackagePath } = cacheRecordPaths(workingDir, packages);
+        const { cacheKey, npmPackagePath } = cacheRecordPaths(workingDir, getCacheKeyPackages());
 
         const cachedData = await loadCacheRecordFromDisk(workingDir, cacheKey);
         const isCacheValid = cachedData && cachedData.packageLockHash === cacheKey;
@@ -89,7 +213,8 @@ export const createCanonicalManager = (config: Config): CanonicalManager => {
                 cache.referenceManager.set(id, metadata);
             });
         } else {
-            await installPackages(packages, npmPackagePath, registry);
+            await installPackages(packageSpecs, npmPackagePath, registry);
+            await installConfiguredLocalPackages(npmPackagePath);
             await scanDirectory(cache, npmPackagePath);
             await saveCacheRecordToDisk(cache, workingDir, cacheKey);
         }
@@ -107,13 +232,14 @@ export const createCanonicalManager = (config: Config): CanonicalManager => {
     };
 
     const rescan = async (): Promise<void> => {
-        const { cacheKey, npmPackagePath } = cacheRecordPaths(workingDir, packages);
+        const { cacheKey, npmPackagePath } = cacheRecordPaths(workingDir, getCacheKeyPackages());
 
         cache.entries = {};
         cache.packages = {};
         cache.referenceManager.clear();
         searchParamsCache.clear();
 
+        await installConfiguredLocalPackages(npmPackagePath);
         await scanDirectory(cache, npmPackagePath);
         await saveCacheRecordToDisk(cache, workingDir, cacheKey);
 
@@ -128,10 +254,10 @@ export const createCanonicalManager = (config: Config): CanonicalManager => {
     const addPackages = async (...newPackages: string[]): Promise<Record<string, PackageId>> => {
         if (newPackages.length === 0) return packageRefToPackageMeta();
 
-        // Check if packages already exists in packages
-        const packagesToAdd = newPackages.filter((pkg) => !packages.includes(pkg));
+        const normalized = newPackages.map(normalizePackageSpec);
+        const packagesToAdd = normalized.filter((pkg) => !packageSpecs.includes(pkg));
         if (packagesToAdd.length !== 0) {
-            packages.push(...packagesToAdd);
+            packageSpecs.push(...packagesToAdd);
         }
 
         if (!initialized) {
@@ -140,7 +266,6 @@ export const createCanonicalManager = (config: Config): CanonicalManager => {
         }
 
         if (packagesToAdd.length > 0) {
-            // TODO: very expensive, we can just copy/paste old cache to avoid reinstalling packages
             await destroy();
             await init();
         }
@@ -360,43 +485,43 @@ export const createCanonicalManager = (config: Config): CanonicalManager => {
     };
 
     const addTgzPackage = async (config: TgzPackageConfig): Promise<PackageId> => {
-        const { npmPackagePath } = cacheRecordPaths(workingDir, packages);
+        const archivePath = Path.resolve(config.archivePath);
+        const { npmPackagePath } = cacheRecordPaths(workingDir, getCacheKeyPackages());
         await ensureDir(npmPackagePath);
 
-        const { name, version } = await installTgzPackage(config.archivePath, npmPackagePath, registry);
+        const { name, version } = await installTgzPackage(archivePath, npmPackagePath, registry);
 
-        const pkgRef = `${name}@${version}`;
-        if (!packages.includes(pkgRef)) {
-            packages.push(pkgRef);
+        pathPackageMeta.set(archivePath, { name, version });
+        if (!packageSpecs.includes(archivePath)) {
+            packageSpecs.push(archivePath);
         }
 
-        if (initialized) {
-            await rescan();
-        }
+        await rebuildWithCurrentConfig();
 
         return { name, version };
     };
 
     const addLocalPackage = async (config: LocalPackageConfig): Promise<PackageId> => {
-        const { npmPackagePath } = cacheRecordPaths(workingDir, packages);
-        await ensureDir(npmPackagePath);
+        const normalizedConfig: LocalPackageConfig & { path: string } = {
+            ...config,
+            path: Path.resolve(config.path),
+        };
 
-        const { name, version } = await installLocalFolder(config, npmPackagePath);
+        const cacheKeyPart = await createLocalCacheKeyPart(normalizedConfig);
+        const entry: LocalPackageEntry = {
+            config: normalizedConfig,
+            cacheKeyPart,
+        };
 
-        if (config.dependencies && config.dependencies.length > 0) {
-            await installPackages(config.dependencies, npmPackagePath, registry);
-        }
+        localPackages.set(normalizedConfig.path, entry);
+        pathPackageMeta.set(normalizedConfig.path, {
+            name: normalizedConfig.name,
+            version: normalizedConfig.version,
+        });
 
-        const pkgRef = `${name}@${version}`;
-        if (!packages.includes(pkgRef)) {
-            packages.push(pkgRef);
-        }
+        await rebuildWithCurrentConfig();
 
-        if (initialized) {
-            await rescan();
-        }
-
-        return { name, version };
+        return { name: normalizedConfig.name, version: normalizedConfig.version };
     };
 
     const flushCache = async (): Promise<void> => {
