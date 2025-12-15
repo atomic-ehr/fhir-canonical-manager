@@ -18,8 +18,7 @@
     }
   },
   "files": [
-    "dist",
-    "src"
+    "dist"
   ],
   "scripts": {
     "build": "bun run build:clean && bun run build:types",
