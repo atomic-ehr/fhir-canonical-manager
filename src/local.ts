@@ -1,6 +1,6 @@
 import * as afs from "node:fs/promises";
 import * as Path from "node:path";
-import { fileExists, ensureDir } from "./fs/index.js";
+import { ensureDir, fileExists } from "./fs/index.js";
 import { installPackages } from "./package.js";
 import type { LocalPackageConfig, PackageId } from "./types/index.js";
 
@@ -109,7 +109,7 @@ export const generateIndexJson = async (targetPath: string): Promise<void> => {
             }
 
             files.push(indexEntry);
-        } catch (e){
+        } catch (e) {
             console.error("Error while creating index.json", e);
         }
     }

@@ -27,6 +27,20 @@ export const cacheRecordPaths = (pwd: string, packages: string[]) => {
     return cacheRecordPathsFromKey(pwd, cacheKey);
 };
 
+export const calculatePackageLockHash = async (npmPackagePath: string): Promise<string | undefined> => {
+    const lockFiles = ["package-lock.json", "bun.lock", "bun.lockb"];
+    for (const lockFile of lockFiles) {
+        const lockPath = Path.join(npmPackagePath, lockFile);
+        try {
+            const content = await afs.readFile(lockPath);
+            return createHash("sha256").update(content).digest("hex");
+        } catch {
+            // Ignore missing files and try the next option
+        }
+    }
+    return undefined;
+};
+
 export const createCacheRecord = (): ExtendedCache => {
     return {
         entries: {},
@@ -51,9 +65,10 @@ export const saveCacheRecordToDisk = async (cache: ExtendedCache, pwd: string, c
         entries: cache.entries,
         packages: cache.packages,
         references: cache.referenceManager.getAllReferences(),
-        packageLockHash: cacheKey,
     };
-    const { cacheIndexFile, cacheRecordPath } = cacheRecordPathsFromKey(pwd, cacheKey);
+    const { cacheIndexFile, cacheRecordPath, npmPackagePath } = cacheRecordPathsFromKey(pwd, cacheKey);
+    const lockHash = await calculatePackageLockHash(npmPackagePath);
+    cacheData.packageLockHash = lockHash ?? cacheKey;
     await afs.mkdir(cacheRecordPath, { recursive: true });
     await afs.writeFile(cacheIndexFile, JSON.stringify(cacheData, null, 2));
 };

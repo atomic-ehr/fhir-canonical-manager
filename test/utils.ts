@@ -1,4 +1,5 @@
 import * as afs from "node:fs";
+import * as Path from "node:path";
 import { cacheRecordPaths } from "../src/cache";
 
 export const catchConsole = async (action: () => Promise<void>): Promise<string[]> => {
@@ -37,6 +38,7 @@ export const writePackage = async (content: any) => {
 export const writeNpmPackageJson = async (packages: string[], content: any) => {
     const { npmPackagePath, npmRootPackageJsonFile } = cacheRecordPaths(process.cwd(), packages);
     afs.mkdirSync(npmPackagePath, { recursive: true });
+    afs.mkdirSync(Path.join(npmPackagePath, "node_modules"), { recursive: true });
     afs.writeFileSync(npmRootPackageJsonFile, JSON.stringify(content, null, 2));
 };
 

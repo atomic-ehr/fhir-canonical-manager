@@ -5,9 +5,16 @@
 import { createHash } from "node:crypto";
 import * as afs from "node:fs/promises";
 import * as Path from "node:path";
-import { cacheRecordPaths, createCacheRecord, flushCache as flushCacheFromDisk, loadCacheRecordFromDisk, saveCacheRecordToDisk } from "../cache.js";
+import {
+    cacheRecordPaths,
+    calculatePackageLockHash,
+    createCacheRecord,
+    flushCache as flushCacheFromDisk,
+    loadCacheRecordFromDisk,
+    saveCacheRecordToDisk,
+} from "../cache.js";
 import { DEFAULT_REGISTRY } from "../constants.js";
-import { ensureDir } from "../fs/index.js";
+import { ensureDir, fileExists } from "../fs/index.js";
 import { installLocalFolder, installTgzPackage } from "../local.js";
 import { installPackages } from "../package.js";
 import { resolveWithContext } from "../resolver.js";
@@ -90,6 +97,39 @@ export const createCanonicalManager = (config: Config): CanonicalManager => {
     const getCacheKeyPackages = () => {
         const localParts = Array.from(localPackages.values()).map((entry) => entry.cacheKeyPart);
         return [...packageSpecs, ...localParts];
+    };
+    const refreshLocalPackageCacheKeys = async (): Promise<void> => {
+        if (localPackages.size === 0) return;
+        await Promise.all(
+            Array.from(localPackages.values()).map(async (entry) => {
+                entry.cacheKeyPart = await createLocalCacheKeyPart(entry.config);
+            }),
+        );
+    };
+    const localPackageTargetPath = (packageName: string, npmPackagePath: string): string => {
+        const segments = packageName.startsWith("@") ? packageName.split("/") : [packageName];
+        return Path.join(npmPackagePath, "node_modules", ...segments);
+    };
+    const ensureLocalPackagesPresent = async (npmPackagePath: string): Promise<boolean> => {
+        if (localPackages.size === 0) return true;
+        for (const entry of localPackages.values()) {
+            const targetPath = localPackageTargetPath(entry.config.name, npmPackagePath);
+            if (!(await fileExists(targetPath))) {
+                return false;
+            }
+        }
+        return true;
+    };
+    const areCachedPackagePathsPresent = async (packagesRecord: Record<string, PackageInfo>): Promise<boolean> => {
+        const packageInfos = Object.values(packagesRecord);
+        if (packageInfos.length === 0) return true;
+        const checks = await Promise.all(
+            packageInfos.map(async (pkg) => {
+                if (!pkg.path) return true;
+                return fileExists(pkg.path);
+            }),
+        );
+        return checks.every(Boolean);
     };
 
     // Ensure registry URL ends with /
@@ -200,12 +240,24 @@ export const createCanonicalManager = (config: Config): CanonicalManager => {
     const init = async (): Promise<Record<string, PackageId>> => {
         if (initialized) return packageRefToPackageMeta();
 
+        await refreshLocalPackageCacheKeys();
         await ensureDir(workingDir);
         const { cacheKey, npmPackagePath } = cacheRecordPaths(workingDir, getCacheKeyPackages());
 
         const cachedData = await loadCacheRecordFromDisk(workingDir, cacheKey);
-        const isCacheValid = cachedData && cachedData.packageLockHash === cacheKey;
-        if (isCacheValid) {
+        const currentLockHash = await calculatePackageLockHash(npmPackagePath);
+        const expectedLockHash = currentLockHash ?? cacheKey;
+        const nodeModulesPath = Path.join(npmPackagePath, "node_modules");
+        const hasInstalledPackages = await fileExists(nodeModulesPath);
+        const cachedPackagesPresent = cachedData ? await areCachedPackagePathsPresent(cachedData.packages) : false;
+        const localPackagesPresent = await ensureLocalPackagesPresent(npmPackagePath);
+        const isCacheValid =
+            cachedData !== undefined &&
+            cachedData.packageLockHash === expectedLockHash &&
+            hasInstalledPackages &&
+            cachedPackagesPresent &&
+            localPackagesPresent;
+        if (isCacheValid && cachedData) {
             // Restore cache from disk
             cache.entries = cachedData.entries;
             cache.packages = cachedData.packages;
@@ -232,6 +284,7 @@ export const createCanonicalManager = (config: Config): CanonicalManager => {
     };
 
     const rescan = async (): Promise<void> => {
+        await refreshLocalPackageCacheKeys();
         const { cacheKey, npmPackagePath } = cacheRecordPaths(workingDir, getCacheKeyPackages());
 
         cache.entries = {};
