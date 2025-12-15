@@ -106,7 +106,10 @@ describe("Cache Module", () => {
             const content = await fs.readFile(cacheFile, "utf-8");
             const data = JSON.parse(content);
 
-            expect(data.packageLockHash).toBe(cacheKey);
+            // cacheKey is now stored explicitly for validation
+            expect(data.cacheKey).toBe(cacheKey);
+            // packageLockHash is undefined when no lock file exists (no fallback to cacheKey)
+            expect(data.packageLockHash).toBeUndefined();
         });
     });
 

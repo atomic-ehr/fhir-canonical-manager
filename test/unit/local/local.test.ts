@@ -46,6 +46,34 @@ const createLocalPackageSource = async (dir: string) => {
     );
 };
 
+// Creates a source folder with ONLY FHIR resources (no package.json)
+const createLocalPackageSourceWithoutPackageJson = async (dir: string) => {
+    await fs.mkdir(dir, { recursive: true });
+    // NO package.json created!
+    await fs.writeFile(
+        path.join(dir, ".index.json"),
+        JSON.stringify(
+            {
+                "index-version": 1,
+                files: [
+                    {
+                        filename: "StructureDefinition-LocalTestResource.json",
+                        resourceType: "StructureDefinition",
+                        id: "LocalTestResource",
+                        url: RESOURCE_CONTENT.url,
+                    },
+                ],
+            },
+            null,
+            2,
+        ),
+    );
+    await fs.writeFile(
+        path.join(dir, "StructureDefinition-LocalTestResource.json"),
+        JSON.stringify(RESOURCE_CONTENT, null, 2),
+    );
+};
+
 describe("installLocalFolder", () => {
     const tmpRoot = path.join(process.cwd(), "tmp", "local-install-tests");
     const sourceDir = path.join(tmpRoot, "source");
@@ -76,5 +104,33 @@ describe("installLocalFolder", () => {
         expect(pkgJson.dependencies?.["dep.pkg.one"]).toBe("1.0.0");
         expect(pkgJson.dependencies?.["dep.pkg.two"]).toBe("2.0.0");
         expect(pkgJson.dependencies?.["./relative/path"]).toBeUndefined();
+    });
+
+    test("creates package.json with dependencies when source has none", async () => {
+        // Create source folder without package.json
+        const noPkgJsonSourceDir = path.join(tmpRoot, "no-pkg-json-source");
+        const noPkgJsonDestDir = path.join(tmpRoot, "no-pkg-json-workspace");
+        await createLocalPackageSourceWithoutPackageJson(noPkgJsonSourceDir);
+
+        const config = {
+            name: "test.no.pkgjson",
+            version: "1.0.0",
+            path: noPkgJsonSourceDir,
+            dependencies: ["hl7.fhir.r4.core@4.0.1", "another.pkg@2.0.0"],
+        };
+
+        await installLocalFolder(config, noPkgJsonDestDir);
+
+        const pkgPath = path.join(noPkgJsonDestDir, "node_modules", "test.no.pkgjson", "package.json");
+        const pkgJson = JSON.parse(await fs.readFile(pkgPath, "utf-8"));
+
+        // Verify package.json was created with correct metadata
+        expect(pkgJson.name).toBe("test.no.pkgjson");
+        expect(pkgJson.version).toBe("1.0.0");
+        expect(pkgJson.private).toBe(true);
+
+        // Verify dependencies were added
+        expect(pkgJson.dependencies?.["hl7.fhir.r4.core"]).toBe("4.0.1");
+        expect(pkgJson.dependencies?.["another.pkg"]).toBe("2.0.0");
     });
 });

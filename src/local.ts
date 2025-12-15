@@ -1,8 +1,8 @@
 import * as afs from "node:fs/promises";
 import * as Path from "node:path";
 import { ensureDir, fileExists } from "./fs/index.js";
-import { installPackages } from "./package.js";
 import { isPathSpec, parsePackageRef } from "./manager/package-spec.js";
+import { installPackages } from "./package.js";
 import type { LocalPackageConfig, PackageId } from "./types/index.js";
 
 const parseDependencySpec = (spec: string): { name: string; version: string } | undefined => {

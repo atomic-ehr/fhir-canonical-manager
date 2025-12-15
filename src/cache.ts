@@ -67,8 +67,8 @@ export const saveCacheRecordToDisk = async (cache: ExtendedCache, pwd: string, c
         references: cache.referenceManager.getAllReferences(),
     };
     const { cacheIndexFile, cacheRecordPath, npmPackagePath } = cacheRecordPathsFromKey(pwd, cacheKey);
-    const lockHash = await calculatePackageLockHash(npmPackagePath);
-    cacheData.packageLockHash = lockHash ?? cacheKey;
+    cacheData.packageLockHash = await calculatePackageLockHash(npmPackagePath);
+    cacheData.cacheKey = cacheKey;
     await afs.mkdir(cacheRecordPath, { recursive: true });
     await afs.writeFile(cacheIndexFile, JSON.stringify(cacheData, null, 2));
 };

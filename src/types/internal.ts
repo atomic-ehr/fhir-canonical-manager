@@ -1,6 +1,7 @@
 /**
  * Internal implementation types for FHIR Canonical Manager
  */
+import type { IndexEntry, PackageInfo } from "./core.js";
 
 export interface IndexFile {
     "index-version": number;
@@ -44,10 +45,11 @@ export interface IndexCache {
 }
 
 export interface CacheData {
-    entries: Record<string, import("./core").IndexEntry[]>;
-    packages: Record<string, import("./core").PackageInfo>;
+    entries: Record<string, IndexEntry[]>;
+    packages: Record<string, PackageInfo>;
     references: Record<string, ReferenceMetadata>;
     packageLockHash?: string; // Hash of package-lock.json to detect changes
+    cacheKey?: string; // Cache key used to build this cache - for validation
 }
 
 export interface ReferenceStore {

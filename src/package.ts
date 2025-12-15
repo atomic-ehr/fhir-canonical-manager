@@ -14,6 +14,9 @@ const execAsync = promisify(exec);
 export type PackageManager = "bun" | "npm";
 
 const isValidPackageRef = (pkg: string): boolean => {
+    if (pkg.startsWith("http://") || pkg.startsWith("https://")) {
+        return true;
+    }
     if (pkg.startsWith("/") || pkg.startsWith("./") || pkg.startsWith("../")) {
         return /^[a-zA-Z0-9_./@-]+$/.test(pkg);
     }

@@ -20,7 +20,6 @@ import { installPackages } from "../package.js";
 import { resolveWithContext } from "../resolver.js";
 import { scanDirectory } from "../scanner/index.js";
 import { filterBySmartSearch } from "../search/index.js";
-import { isPathSpec, normalizePackageSpec, parsePackageRef } from "./package-spec.js";
 import type {
     CanonicalManager,
     Config,
@@ -34,6 +33,7 @@ import type {
     SourceContext,
     TgzPackageConfig,
 } from "../types/index.js";
+import { isPathSpec, normalizePackageSpec, parsePackageRef } from "./package-spec.js";
 
 interface LocalPackageEntry {
     config: LocalPackageConfig & { path: string };
@@ -235,20 +235,28 @@ export const createCanonicalManager = (config: Config): CanonicalManager => {
         const { cacheKey, npmPackagePath } = cacheRecordPaths(workingDir, getCacheKeyPackages());
 
         const cachedData = await loadCacheRecordFromDisk(workingDir, cacheKey);
-        const currentLockHash = await calculatePackageLockHash(npmPackagePath);
-        const expectedLockHash = currentLockHash ?? cacheKey;
         const nodeModulesPath = Path.join(npmPackagePath, "node_modules");
         const hasInstalledPackages = await fileExists(nodeModulesPath);
-        const cachedPackagesPresent = cachedData ? await areCachedPackagePathsPresent(cachedData.packages) : false;
-        const localPackagesPresent = await ensureLocalPackagesPresent(npmPackagePath);
-        const isCacheValid =
-            cachedData !== undefined &&
-            cachedData.packageLockHash === expectedLockHash &&
-            hasInstalledPackages &&
-            cachedPackagesPresent &&
-            localPackagesPresent;
+
+        let isCacheValid = false;
+
+        if (cachedData !== undefined && hasInstalledPackages) {
+            const cacheKeyMatches = cachedData.cacheKey === cacheKey;
+
+            const currentLockHash = await calculatePackageLockHash(npmPackagePath);
+            const lockHashMatches =
+                currentLockHash === undefined ||
+                cachedData.packageLockHash === undefined ||
+                currentLockHash === cachedData.packageLockHash;
+
+            const cachedPackagesPresent = await areCachedPackagePathsPresent(cachedData.packages);
+
+            const localPackagesPresent = await ensureLocalPackagesPresent(npmPackagePath);
+
+            isCacheValid = cacheKeyMatches && lockHashMatches && cachedPackagesPresent && localPackagesPresent;
+        }
+
         if (isCacheValid && cachedData) {
-            // Restore cache from disk
             cache.entries = cachedData.entries;
             cache.packages = cachedData.packages;
             Object.entries(cachedData.references).forEach(([id, metadata]) => {
@@ -271,22 +279,6 @@ export const createCanonicalManager = (config: Config): CanonicalManager => {
         cache.referenceManager.clear();
         searchParamsCache.clear();
         initialized = false;
-    };
-
-    const rescan = async (): Promise<void> => {
-        await refreshLocalPackageCacheKeys();
-        const { cacheKey, npmPackagePath } = cacheRecordPaths(workingDir, getCacheKeyPackages());
-
-        cache.entries = {};
-        cache.packages = {};
-        cache.referenceManager.clear();
-        searchParamsCache.clear();
-
-        await installConfiguredLocalPackages(npmPackagePath);
-        await scanDirectory(cache, npmPackagePath);
-        await saveCacheRecordToDisk(cache, workingDir, cacheKey);
-
-        initialized = true;
     };
 
     const getPackages = async (): Promise<PackageId[]> => {

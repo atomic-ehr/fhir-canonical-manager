@@ -45,6 +45,7 @@ export const writeNpmPackageJson = async (packages: string[], content: any) => {
 export const writeCacheIndex = async (packages: string[], content: any) => {
     const { cacheIndexFile: cacheIndex, cacheRecordPath, cacheKey } = cacheRecordPaths(process.cwd(), packages);
     content.packageLockHash = cacheKey;
+    content.cacheKey = cacheKey; // Required for cache validation
     afs.mkdirSync(cacheRecordPath, { recursive: true });
     afs.writeFileSync(cacheIndex, JSON.stringify(content, null, 2));
 };
