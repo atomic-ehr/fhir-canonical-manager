@@ -73,6 +73,21 @@ describe("Scanner Module", () => {
             expect(isValidFileEntry(null)).toBe(false);
             expect(isValidFileEntry(undefined)).toBe(false);
         });
+
+        test("should accept null values in optional fields (UK Core compatibility)", () => {
+            // UK Core packages have entries with "kind": null
+            const entry = {
+                filename: "UKCore-Patient.json",
+                resourceType: "StructureDefinition",
+                id: "UKCore-Patient",
+                url: "https://fhir.hl7.org.uk/StructureDefinition/UKCore-Patient",
+                version: "2.0.0",
+                kind: null,
+                type: null,
+            };
+
+            expect(isValidFileEntry(entry)).toBe(true);
+        });
     });
 
     describe("isValidIndexFile", () => {
@@ -124,6 +139,22 @@ describe("Scanner Module", () => {
             };
 
             expect(isValidIndexFile(index)).toBe(false);
+        });
+
+        test("should accept index-version 0 (UK Core compatibility)", () => {
+            // UK Core packages use index-version: 0
+            const index = {
+                "index-version": 0,
+                files: [
+                    {
+                        filename: "UKCore-Patient.json",
+                        resourceType: "StructureDefinition",
+                        id: "UKCore-Patient",
+                    },
+                ],
+            };
+
+            expect(isValidIndexFile(index)).toBe(true);
         });
     });
 
