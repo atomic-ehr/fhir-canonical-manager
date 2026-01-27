@@ -53,7 +53,7 @@ describe("CLI Integration Tests", () => {
         expect(result.match(/Found \d+ resources|No resources found/)).toBeTruthy();
 
         cleanup();
-    });
+    }, 30000); // Package download may take time
 
     test("fcm search with prefix matching", async () => {
         await ensureCLIBuilt();
@@ -81,7 +81,7 @@ describe("CLI Integration Tests", () => {
         expect(result.toLowerCase()).toMatch(/patient|pat/);
 
         cleanup();
-    });
+    }, 30000); // Package download may take time
 
     test("parseArgs handles shortcuts correctly", async () => {
         await ensureCLIBuilt();
