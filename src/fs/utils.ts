@@ -24,5 +24,21 @@ export const ensureDir = async (dirPath: string): Promise<void> => {
 
 export const isFhirPackage = async (dirPath: string): Promise<boolean> => {
     const indexPath = path.join(dirPath, ".index.json");
-    return fileExists(indexPath);
+    if (await fileExists(indexPath)) return true;
+
+    const packageJsonPath = path.join(dirPath, "package.json");
+    if (await fileExists(packageJsonPath)) {
+        try {
+            const content = await fs.readFile(packageJsonPath, "utf-8");
+            const packageJson = JSON.parse(content);
+            const withFhirVersion = Array.isArray(packageJson.fhirVersions) && packageJson.fhirVersions.length > 0;
+            if (withFhirVersion) {
+                console.warn(
+                    `Warning: ${packageJson.name} does not have .index.json file. Resources will be scanned from directory (slower).`,
+                );
+                return true;
+            }
+        } catch {}
+    }
+    return false;
 };
