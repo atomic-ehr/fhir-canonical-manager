@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
-import { ensureDir, fileExists, isFhirPackage } from "../../../src/fs";
+import { ensureDir, fileExists } from "../../../src/fs";
 
 describe("File System Utilities", () => {
     let tempDir: string;
@@ -93,47 +93,6 @@ describe("File System Utilities", () => {
 
             const stats = await fs.stat(filePath);
             expect(stats.isFile()).toBe(true);
-        });
-    });
-
-    describe("isFhirPackage", () => {
-        test("should return true for FHIR package directory", async () => {
-            const packageDir = path.join(tempDir, "fhir-package");
-            await fs.mkdir(packageDir);
-            await fs.writeFile(path.join(packageDir, ".index.json"), "{}");
-
-            const isFhir = await isFhirPackage(packageDir);
-            expect(isFhir).toBe(true);
-        });
-
-        test("should return false for non-FHIR package directory", async () => {
-            const regularDir = path.join(tempDir, "regular-dir");
-            await fs.mkdir(regularDir);
-
-            const isFhir = await isFhirPackage(regularDir);
-            expect(isFhir).toBe(false);
-        });
-
-        test("should return false for directory with other files", async () => {
-            const dir = path.join(tempDir, "other-package");
-            await fs.mkdir(dir);
-            await fs.writeFile(path.join(dir, "package.json"), "{}");
-            await fs.writeFile(path.join(dir, "index.json"), "{}"); // Note: no dot prefix
-
-            const isFhir = await isFhirPackage(dir);
-            expect(isFhir).toBe(false);
-        });
-
-        test("should return false for non-existent directory", async () => {
-            const nonExistent = path.join(tempDir, "does-not-exist");
-
-            const isFhir = await isFhirPackage(nonExistent);
-            expect(isFhir).toBe(false);
-        });
-
-        test("should handle invalid paths gracefully", async () => {
-            const isFhir = await isFhirPackage("");
-            expect(isFhir).toBe(false);
         });
     });
 });
