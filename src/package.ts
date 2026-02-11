@@ -3,7 +3,7 @@
  * Merged from package/detector.ts, package/installer.ts, and package/index.ts
  */
 
-import { exec } from "node:child_process";
+import { type ExecOptions, exec } from "node:child_process";
 import * as afs from "node:fs/promises";
 import * as Path from "node:path";
 import { promisify } from "node:util";
@@ -71,30 +71,25 @@ export const installPackages = async (packages: string[], pwd: string, registry?
             const safePwd = shellEscape(pwd);
             const safeRegistry = registry ? shellEscape(registry) : undefined;
 
+            let cmd: string;
+            const opt: ExecOptions = {
+                maxBuffer: 10 * 1024 * 1024,
+            };
             if (packageManager === "bun") {
-                // Use bun with auth bypass trick for FHIR registry
-                const env = {
+                cmd = safeRegistry
+                    ? `bun add '${safePkg}' --cwd='${safePwd}' --registry='${safeRegistry}'`
+                    : `bun add --cwd='${safePwd}' '${safePkg}'`;
+                opt.env = {
                     ...process.env,
                     HOME: pwd, // Prevent reading user's .npmrc
                     NPM_CONFIG_USERCONFIG: "/dev/null", // Extra safety
                 };
-
-                const cmd = safeRegistry
-                    ? `bun add '${safePkg}' --cwd='${safePwd}' --registry='${safeRegistry}'`
-                    : `bun add --cwd='${safePwd}' '${safePkg}'`;
-                await execAsync(cmd, {
-                    env,
-                    maxBuffer: 10 * 1024 * 1024, // 10MB buffer
-                });
             } else {
-                // Use npm (handles auth correctly)
-                const cmd = safeRegistry
+                cmd = safeRegistry
                     ? `cd '${safePwd}' && npm add '${safePkg}' --registry='${safeRegistry}'`
                     : `cd '${safePwd}' && npm add '${safePkg}'`;
-                await execAsync(cmd, {
-                    maxBuffer: 10 * 1024 * 1024, // 10MB buffer
-                });
             }
+            await execAsync(cmd, opt);
         } catch (err) {
             console.error(`Failed to install package ${pkg}:`, err);
             throw err;
