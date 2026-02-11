@@ -212,22 +212,26 @@ describe("CanonicalManager local package integration", () => {
         await manager.destroy();
     });
 
-    test("packageRefToPackageMeta includes local package dependencies", async () => {
-        const manager = CanonicalManager({
-            packages: [],
-            workingDir: path.join(tmpRoot, "deps-mapping"),
-        });
+    test(
+        "packageRefToPackageMeta includes local package dependencies",
+        async () => {
+            const manager = CanonicalManager({
+                packages: [],
+                workingDir: path.join(tmpRoot, "deps-mapping"),
+            });
 
-        await manager.addLocalPackage({
-            name: "local.test.package",
-            version: "1.0.0",
-            path: localPackagePath,
-            dependencies: ["hl7.fhir.us.core@6.1.0"],
-        });
+            await manager.addLocalPackage({
+                name: "local.test.package",
+                version: "1.0.0",
+                path: localPackagePath,
+                dependencies: ["hl7.fhir.us.core@6.1.0"],
+            });
 
-        const meta = await manager.init();
-        expect(meta["hl7.fhir.us.core@6.1.0"]).toEqual({ name: "hl7.fhir.us.core", version: "6.1.0" });
+            const meta = await manager.init();
+            expect(meta["hl7.fhir.us.core@6.1.0"]).toEqual({ name: "hl7.fhir.us.core", version: "6.1.0" });
 
-        await manager.destroy();
-    });
+            await manager.destroy();
+        },
+        { timeout: 60000 },
+    );
 });
