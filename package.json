@@ -1,6 +1,6 @@
 {
   "name": "@atomic-ehr/fhir-canonical-manager",
-  "version": "0.0.17",
+  "version": "0.0.18",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -31,7 +31,8 @@
     "lint": "biome check --write",
     "lint:unsafe": "biome check --write --unsafe",
     "test": "bun test",
-    "fix": "bun run typecheck && bun run lint:unsafe && bun run format && bun test"
+    "fix": "bun run typecheck && bun run lint:unsafe && bun run format && bun test",
+    "release": "bash scripts/release.sh"
   },
   "devDependencies": {
     "@atomic-ehr/hl7.fhir.r4.core": "^0.0.1",
