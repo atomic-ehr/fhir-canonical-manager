@@ -232,6 +232,9 @@ export const createCanonicalManager = (config: Config): CanonicalManager => {
 
         await refreshLocalPackageCacheKeys();
         await ensureDir(workingDir);
+        if (config.dropCache) {
+            await flushCacheFromDisk(workingDir);
+        }
         const { cacheKey, npmPackagePath } = cacheRecordPaths(workingDir, getCacheKeyPackages());
 
         const cachedData = await loadCacheRecordFromDisk(workingDir, cacheKey);

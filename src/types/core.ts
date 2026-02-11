@@ -72,6 +72,7 @@ export interface Config {
     packages: string[];
     workingDir: string;
     registry?: string;
+    dropCache?: boolean;
 }
 
 export interface TgzPackageConfig {
