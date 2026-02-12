@@ -6,7 +6,7 @@ import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import type { ExtendedCache } from "../cache.js";
 import { fileExists } from "../fs/index.js";
-import type { IndexEntry, PackageInfo, PackageJson } from "../types/index.js";
+import type { IndexEntry, PackageJson, PreprocessPackageContext } from "../types/index.js";
 import { processIndex } from "./processor.js";
 
 const scanDirectoryForResources = async (
@@ -87,14 +87,22 @@ const hasCorePackageDependency = (dependencies: Record<string, string> | undefin
  * Load a package into cache. Always registers. Scans resources if possible.
  * Returns a warning string if there's something to warn about, undefined otherwise.
  */
-export const loadPackage = async (packagePath: string, cache: ExtendedCache): Promise<string | undefined> => {
+export const loadPackage = async (
+    packagePath: string,
+    cache: ExtendedCache,
+    preprocessPackage?: (context: PreprocessPackageContext) => PreprocessPackageContext,
+): Promise<string | undefined> => {
     const packageJsonPath = path.join(packagePath, "package.json");
     if (!(await fileExists(packageJsonPath))) return undefined;
 
     let packageJson: PackageJson;
     try {
         const content = await fs.readFile(packageJsonPath, "utf-8");
-        packageJson = JSON.parse(content);
+        let parsed = JSON.parse(content);
+        if (preprocessPackage) {
+            parsed = preprocessPackage({ packageJson: parsed }).packageJson;
+        }
+        packageJson = parsed as PackageJson;
     } catch {
         return undefined;
     }

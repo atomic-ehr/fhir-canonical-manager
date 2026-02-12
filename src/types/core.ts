@@ -68,11 +68,17 @@ export interface SourceContext {
     path?: string;
 }
 
+export type PreprocessPackageContext = {
+    packageJson: Record<string, unknown>;
+};
+
 export interface Config {
     packages: string[];
     workingDir: string;
     registry?: string;
     dropCache?: boolean;
+    /** Hook to preprocess package.json before loading. Can modify and return the data. */
+    preprocessPackage?: (context: PreprocessPackageContext) => PreprocessPackageContext;
 }
 
 export interface TgzPackageConfig {

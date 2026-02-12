@@ -268,7 +268,7 @@ export const createCanonicalManager = (config: Config): CanonicalManager => {
         } else {
             await installPackages(packageSpecs, npmPackagePath, registry);
             await installConfiguredLocalPackages(npmPackagePath);
-            await scanDirectory(cache, npmPackagePath);
+            await scanDirectory(cache, npmPackagePath, config.preprocessPackage);
             await saveCacheRecordToDisk(cache, workingDir, cacheKey);
         }
 
