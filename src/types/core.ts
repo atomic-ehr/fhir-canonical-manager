@@ -97,13 +97,24 @@ export interface LocalPackageConfig {
     dependencies?: string[];
 }
 
-export interface PackageInfo {
+export type PackageJson = {
+    name: string;
+    version: string;
+    /** Optional: not all packages declare FHIR version (e.g., hl7.fhir.r4.core lacks it) */
+    fhirVersions?: string[];
+    type?: string;
+    canonical?: string;
+    dependencies?: Record<string, string>;
+    [key: string]: unknown;
+};
+
+export type PackageInfo = {
     id: PackageId;
     path: string;
     canonical?: string;
     fhirVersions?: string[];
-    packageJson?: Record<string, unknown>;
-}
+    packageJson: PackageJson;
+};
 
 export interface CanonicalManager {
     init(): Promise<Record<string, PackageId>>;
@@ -154,5 +165,5 @@ export interface CanonicalManager {
         },
     ): Promise<IndexEntry[]>;
     getSearchParametersForResource(resourceType: string): Promise<SearchParameter[]>;
-    packageJson(packageName: string): Promise<unknown>;
+    packageJson(packageName: string): Promise<PackageJson>;
 }

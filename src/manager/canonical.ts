@@ -27,6 +27,7 @@ import type {
     LocalPackageConfig,
     PackageId,
     PackageInfo,
+    PackageJson,
     Reference,
     Resource,
     SearchParameter,
@@ -514,7 +515,7 @@ export const createCanonicalManager = (config: Config): CanonicalManager => {
         return results;
     };
 
-    const packageJson = async (packageName: string) => {
+    const packageJson = async (packageName: string): Promise<PackageJson> => {
         ensureInitialized();
         const pkg = cache.packages[packageName];
         if (!pkg) throw new Error(`Package ${packageName} not found`);
