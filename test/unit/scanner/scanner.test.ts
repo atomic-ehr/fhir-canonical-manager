@@ -440,6 +440,8 @@ describe("Scanner Module", () => {
             expect(cache.packages["test.package"]).toBeDefined();
             expect(cache.packages["test.packge"]).toBeUndefined();
             expect(cache.packages["test.package"]?.id.name).toBe("test.package");
+            // Check that packageJson in cache contains preprocessed data
+            expect(cache.packages["test.package"]?.packageJson?.name).toBe("test.package");
         });
 
         test("should not modify original file on disk", async () => {
@@ -479,6 +481,8 @@ describe("Scanner Module", () => {
 
             // Cache should have modified name
             expect(cache.packages["modified.name"]).toBeDefined();
+            // packageJson in cache should have preprocessed data
+            expect(cache.packages["modified.name"]?.packageJson?.name).toBe("modified.name");
 
             // File on disk should remain unchanged
             const fileContent = JSON.parse(await fs.readFile(path.join(packagePath, "package.json"), "utf-8"));

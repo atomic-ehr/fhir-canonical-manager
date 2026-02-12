@@ -516,10 +516,9 @@ export const createCanonicalManager = (config: Config): CanonicalManager => {
 
     const packageJson = async (packageName: string) => {
         ensureInitialized();
-        const fn = cache.packages[packageName]?.path;
-        if (!fn) throw new Error(`Package ${packageName} not found`);
-        const packageJSON = JSON.parse(await afs.readFile(Path.join(fn, "package.json"), "utf8"));
-        return packageJSON;
+        const pkg = cache.packages[packageName];
+        if (!pkg) throw new Error(`Package ${packageName} not found`);
+        return pkg.packageJson;
     };
 
     const addTgzPackage = async (config: TgzPackageConfig): Promise<PackageId> => {

@@ -113,6 +113,7 @@ export const loadPackage = async (
         path: packagePath,
         canonical: packageJson.canonical,
         fhirVersions: packageJson.fhirVersions,
+        packageJson: packageJson as unknown as Record<string, unknown>,
     };
 
     const hasIndex = await fileExists(path.join(packagePath, ".index.json"));

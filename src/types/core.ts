@@ -102,6 +102,7 @@ export interface PackageInfo {
     path: string;
     canonical?: string;
     fhirVersions?: string[];
+    packageJson?: Record<string, unknown>;
 }
 
 export interface CanonicalManager {
