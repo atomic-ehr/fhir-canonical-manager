@@ -68,11 +68,17 @@ export interface SourceContext {
     path?: string;
 }
 
+export type PreprocessPackageContext = {
+    packageJson: Record<string, unknown>;
+};
+
 export interface Config {
     packages: string[];
     workingDir: string;
     registry?: string;
     dropCache?: boolean;
+    /** Hook to preprocess package.json before loading. Can modify and return the data. */
+    preprocessPackage?: (context: PreprocessPackageContext) => PreprocessPackageContext;
 }
 
 export interface TgzPackageConfig {
@@ -91,12 +97,24 @@ export interface LocalPackageConfig {
     dependencies?: string[];
 }
 
-export interface PackageInfo {
+export type PackageJson = {
+    name: string;
+    version: string;
+    /** Optional: not all packages declare FHIR version (e.g., hl7.fhir.r4.core lacks it) */
+    fhirVersions?: string[];
+    type?: string;
+    canonical?: string;
+    dependencies?: Record<string, string>;
+    [key: string]: unknown;
+};
+
+export type PackageInfo = {
     id: PackageId;
     path: string;
     canonical?: string;
     fhirVersions?: string[];
-}
+    packageJson: PackageJson;
+};
 
 export interface CanonicalManager {
     init(): Promise<Record<string, PackageId>>;
@@ -147,5 +165,5 @@ export interface CanonicalManager {
         },
     ): Promise<IndexEntry[]>;
     getSearchParametersForResource(resourceType: string): Promise<SearchParameter[]>;
-    packageJson(packageName: string): Promise<unknown>;
+    packageJson(packageName: string): Promise<PackageJson>;
 }

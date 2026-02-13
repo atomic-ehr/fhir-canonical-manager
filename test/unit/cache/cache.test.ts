@@ -65,6 +65,7 @@ describe("Cache Module", () => {
             cache.packages["test.package"] = {
                 id: { name: "test.package", version: "1.0.0" },
                 path: "/path/to/package",
+                packageJson: { name: "test.package", version: "1.0.0" },
             };
 
             const metadata: ReferenceMetadata = {
@@ -133,6 +134,7 @@ describe("Cache Module", () => {
                     "test.package": {
                         id: { name: "test.package", version: "1.0.0" },
                         path: "/path/to/package",
+                        packageJson: { name: "test.package", version: "1.0.0" },
                     },
                 },
                 references: {

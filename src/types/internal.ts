@@ -18,15 +18,6 @@ export interface IndexFileEntry {
     type?: string;
 }
 
-export interface PackageJson {
-    name: string;
-    version: string;
-    fhirVersions?: string[];
-    type?: string;
-    canonical?: string;
-    dependencies?: Record<string, string>;
-}
-
 export interface ReferenceMetadata {
     packageName: string;
     packageVersion: string;

@@ -6,10 +6,10 @@ import { createCacheRecord } from "../../../src/cache";
 import {
     isValidFileEntry,
     isValidIndexFile,
+    loadPackage,
     parseIndex,
     processIndex,
     scanDirectory,
-    scanPackage,
 } from "../../../src/scanner";
 import type { PackageJson } from "../../../src/types";
 
@@ -289,7 +289,7 @@ describe("Scanner Module", () => {
         });
     });
 
-    describe("scanPackage", () => {
+    describe("loadPackage", () => {
         test("should scan a complete FHIR package", async () => {
             const cache = createCacheRecord();
             const packagePath = path.join(tempDir, "test-package");
@@ -320,7 +320,7 @@ describe("Scanner Module", () => {
 
             await fs.writeFile(path.join(packagePath, ".index.json"), JSON.stringify(indexContent));
 
-            await scanPackage(packagePath, cache);
+            await loadPackage(packagePath, cache);
 
             // Check package info
             expect(cache.packages["hl7.fhir.test"]).toBeDefined();
@@ -376,7 +376,7 @@ describe("Scanner Module", () => {
                 }),
             );
 
-            await scanPackage(packagePath, cache);
+            await loadPackage(packagePath, cache);
 
             expect(cache.entries["http://example.com/Profile"]).toHaveLength(1);
             expect(cache.entries["http://example.com/Patient/example"]).toHaveLength(1);
@@ -387,9 +387,106 @@ describe("Scanner Module", () => {
             const packagePath = path.join(tempDir, "invalid-package");
 
             // Should not throw
-            await scanPackage(packagePath, cache);
+            await loadPackage(packagePath, cache);
 
             expect(Object.keys(cache.packages)).toHaveLength(0);
+        });
+    });
+
+    describe("loadPackage with preprocessPackage hook", () => {
+        test("should apply preprocessPackage hook to modify package.json in memory", async () => {
+            const cache = createCacheRecord();
+            const packagePath = path.join(tempDir, "test-package");
+            await fs.mkdir(packagePath, { recursive: true });
+
+            // Create package.json with a typo in name
+            await fs.writeFile(
+                path.join(packagePath, "package.json"),
+                JSON.stringify({
+                    name: "test.packge", // typo
+                    version: "1.0.0",
+                    fhirVersions: ["4.0.1"],
+                    dependencies: { "hl7.fhir.r4.core": "4.0.1" },
+                }),
+            );
+
+            // Create .index.json
+            await fs.writeFile(
+                path.join(packagePath, ".index.json"),
+                JSON.stringify({
+                    "index-version": 1,
+                    files: [
+                        {
+                            filename: "Patient.json",
+                            resourceType: "StructureDefinition",
+                            id: "Patient",
+                            url: "http://example.com/Patient",
+                        },
+                    ],
+                }),
+            );
+
+            // Hook that fixes the typo
+            const preprocessPackage = ({ packageJson }: { packageJson: Record<string, unknown> }) => {
+                if (packageJson.name === "test.packge") {
+                    return { packageJson: { ...packageJson, name: "test.package" } };
+                }
+                return { packageJson };
+            };
+
+            await loadPackage(packagePath, cache, preprocessPackage);
+
+            // Check that cache uses the fixed name
+            expect(cache.packages["test.package"]).toBeDefined();
+            expect(cache.packages["test.packge"]).toBeUndefined();
+            expect(cache.packages["test.package"]?.id.name).toBe("test.package");
+            // Check that packageJson in cache contains preprocessed data
+            expect(cache.packages["test.package"]?.packageJson?.name).toBe("test.package");
+        });
+
+        test("should not modify original file on disk", async () => {
+            const cache = createCacheRecord();
+            const packagePath = path.join(tempDir, "test-package");
+            await fs.mkdir(packagePath, { recursive: true });
+
+            const originalContent = {
+                name: "original.name",
+                version: "1.0.0",
+                fhirVersions: ["4.0.1"],
+                dependencies: { "hl7.fhir.r4.core": "4.0.1" },
+            };
+
+            await fs.writeFile(path.join(packagePath, "package.json"), JSON.stringify(originalContent));
+
+            await fs.writeFile(
+                path.join(packagePath, ".index.json"),
+                JSON.stringify({
+                    "index-version": 1,
+                    files: [
+                        {
+                            filename: "Resource.json",
+                            resourceType: "StructureDefinition",
+                            id: "Resource",
+                            url: "http://example.com/Resource",
+                        },
+                    ],
+                }),
+            );
+
+            const preprocessPackage = ({ packageJson }: { packageJson: Record<string, unknown> }) => {
+                return { packageJson: { ...packageJson, name: "modified.name" } };
+            };
+
+            await loadPackage(packagePath, cache, preprocessPackage);
+
+            // Cache should have modified name
+            expect(cache.packages["modified.name"]).toBeDefined();
+            // packageJson in cache should have preprocessed data
+            expect(cache.packages["modified.name"]?.packageJson?.name).toBe("modified.name");
+
+            // File on disk should remain unchanged
+            const fileContent = JSON.parse(await fs.readFile(path.join(packagePath, "package.json"), "utf-8"));
+            expect(fileContent.name).toBe("original.name");
         });
     });
 
@@ -432,7 +529,7 @@ describe("Scanner Module", () => {
             await scanDirectory(cache, tempDir);
 
             expect(cache.packages["fhir.package1"]).toBeDefined();
-            expect(cache.packages["regular.package"]).toBeUndefined();
+            expect(cache.packages["regular.package"]).toBeDefined(); // All packages are registered now
             expect(cache.entries["http://example.com/Resource1"]).toHaveLength(1);
         });
 
