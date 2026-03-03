@@ -6,7 +6,7 @@ import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import type { ExtendedCache } from "../cache.js";
 import { fileExists } from "../fs/index.js";
-import type { IndexEntry, PackageJson, PreprocessPackageContext } from "../types/index.js";
+import type { IndexEntry, PackageJson, PreprocessContext } from "../types/index.js";
 import { processIndex } from "./processor.js";
 
 const scanDirectoryForResources = async (
@@ -90,7 +90,7 @@ const hasCorePackageDependency = (dependencies: Record<string, string> | undefin
 export const loadPackage = async (
     packagePath: string,
     cache: ExtendedCache,
-    preprocessPackage?: (context: PreprocessPackageContext) => PreprocessPackageContext,
+    preprocessPackage?: (context: PreprocessContext) => PreprocessContext,
 ): Promise<string | undefined> => {
     const packageJsonPath = path.join(packagePath, "package.json");
     if (!(await fileExists(packageJsonPath))) return undefined;
@@ -100,7 +100,12 @@ export const loadPackage = async (
         const content = await fs.readFile(packageJsonPath, "utf-8");
         let parsed = JSON.parse(content);
         if (preprocessPackage) {
-            parsed = preprocessPackage({ packageJson: parsed }).packageJson;
+            const result = preprocessPackage({
+                kind: "package",
+                packageJson: parsed,
+                package: { name: parsed.name, version: parsed.version },
+            });
+            if (result.kind === "package") parsed = result.packageJson;
         }
         packageJson = parsed as PackageJson;
     } catch {
