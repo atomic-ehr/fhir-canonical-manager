@@ -68,17 +68,29 @@ export interface SourceContext {
     path?: string;
 }
 
-export type PreprocessPackageContext = {
+export type PreprocessBaseContext = {
+    package: PackageId;
+};
+
+export type PreprocessPackageContext = PreprocessBaseContext & {
+    kind: "package";
     packageJson: Record<string, unknown>;
 };
+
+export type PreprocessResourceContext = PreprocessBaseContext & {
+    kind: "resource";
+    resource: Resource;
+};
+
+export type PreprocessContext = PreprocessPackageContext | PreprocessResourceContext;
 
 export interface Config {
     packages: string[];
     workingDir: string;
     registry?: string;
     dropCache?: boolean;
-    /** Hook to preprocess package.json before loading. Can modify and return the data. */
-    preprocessPackage?: (context: PreprocessPackageContext) => PreprocessPackageContext;
+    /** Hook to preprocess packages and resources. Receives a discriminated union with `kind` field. */
+    preprocessPackage?: (context: PreprocessContext) => PreprocessContext;
 }
 
 export interface TgzPackageConfig {
