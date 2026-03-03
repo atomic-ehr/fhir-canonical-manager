@@ -377,13 +377,26 @@ export const createCanonicalManager = (config: Config): CanonicalManager => {
 
         try {
             const content = await afs.readFile(metadata.filePath, "utf-8");
-            const resource = JSON.parse(content);
+            const parsed = JSON.parse(content);
 
-            return {
-                ...resource,
+            let resource: Resource = {
+                ...parsed,
                 id: reference.id,
                 resourceType: reference.resourceType,
             };
+
+            if (config.preprocessPackage) {
+                const result = config.preprocessPackage({
+                    kind: "resource",
+                    resource,
+                    package: { name: metadata.packageName, version: metadata.packageVersion },
+                });
+                if (result.kind === "resource") {
+                    resource = result.resource;
+                }
+            }
+
+            return resource;
         } catch (err) {
             throw new Error(`Failed to read resource: ${err}`);
         }

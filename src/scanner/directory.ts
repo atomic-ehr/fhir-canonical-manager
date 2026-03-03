@@ -5,13 +5,13 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import type { ExtendedCache } from "../cache.js";
-import type { PreprocessPackageContext } from "../types/index.js";
+import type { PreprocessContext } from "../types/index.js";
 import { loadPackage } from "./package.js";
 
 export const loadPackagesIntoCache = async (
     cache: ExtendedCache,
     pwd: string,
-    preprocessPackage?: (context: PreprocessPackageContext) => PreprocessPackageContext,
+    preprocessPackage?: (context: PreprocessContext) => PreprocessContext,
 ): Promise<void> => {
     const nodeModulesPath = path.join(pwd, "node_modules");
     const entries = await fs.readdir(nodeModulesPath, { withFileTypes: true });
