@@ -43,9 +43,10 @@ jobs:
       - name: Generate canary version
         id: version
         run: |
+          BASE_VERSION=$(node -p "require('./package.json').version")
           COMMIT_SHA=$(git rev-parse --short HEAD)
           TIMESTAMP=$(date +%Y%m%d%H%M%S)
-          CANARY_VERSION="0.0.1-canary.${TIMESTAMP}.${COMMIT_SHA}"
+          CANARY_VERSION="${BASE_VERSION}-canary.${TIMESTAMP}.${COMMIT_SHA}"
           echo "canary_version=${CANARY_VERSION}" >> $GITHUB_OUTPUT
           echo "Generated canary version: ${CANARY_VERSION}"
 
