@@ -11,7 +11,7 @@ import {
     processIndex,
     scanDirectory,
 } from "../../../src/scanner";
-import type { PackageJson } from "../../../src/types";
+import type { PackageJson, PreprocessContext } from "../../../src/types";
 
 describe("Scanner Module", () => {
     let tempDir: string;
@@ -427,11 +427,12 @@ describe("Scanner Module", () => {
             );
 
             // Hook that fixes the typo
-            const preprocessPackage = ({ packageJson }: { packageJson: Record<string, unknown> }) => {
-                if (packageJson.name === "test.packge") {
-                    return { packageJson: { ...packageJson, name: "test.package" } };
+            const preprocessPackage = (ctx: PreprocessContext): PreprocessContext => {
+                if (ctx.kind !== "package") return ctx;
+                if (ctx.packageJson.name === "test.packge") {
+                    return { ...ctx, packageJson: { ...ctx.packageJson, name: "test.package" } };
                 }
-                return { packageJson };
+                return ctx;
             };
 
             await loadPackage(packagePath, cache, preprocessPackage);
@@ -473,8 +474,9 @@ describe("Scanner Module", () => {
                 }),
             );
 
-            const preprocessPackage = ({ packageJson }: { packageJson: Record<string, unknown> }) => {
-                return { packageJson: { ...packageJson, name: "modified.name" } };
+            const preprocessPackage = (ctx: PreprocessContext): PreprocessContext => {
+                if (ctx.kind !== "package") return ctx;
+                return { ...ctx, packageJson: { ...ctx.packageJson, name: "modified.name" } };
             };
 
             await loadPackage(packagePath, cache, preprocessPackage);
