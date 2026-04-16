@@ -22,7 +22,7 @@ describe("CanonicalManager - Packages without .index.json", () => {
             registry: "https://fs.get-ig.org/pkgs/",
         });
         await manager.init();
-    });
+    }, 30_000);
 
     afterAll(async () => {
         await manager.destroy();
