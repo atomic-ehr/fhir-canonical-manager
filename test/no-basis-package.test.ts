@@ -3,12 +3,14 @@
  * This tests the directory scanning fallback functionality
  */
 
-import { afterAll, beforeAll, describe, expect, test } from "bun:test";
+import { afterAll, beforeAll, describe, expect, setDefaultTimeout, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import { CanonicalManager } from "../src/index.js";
 import type { CanonicalManager as ICanonicalManager } from "../src/types/index.js";
 
 describe("CanonicalManager - Packages without .index.json", () => {
+    setDefaultTimeout(30_000);
+
     let manager: ICanonicalManager;
     const testWorkingDir = "./tmp/test-no-basis";
 
@@ -22,7 +24,7 @@ describe("CanonicalManager - Packages without .index.json", () => {
             registry: "https://fs.get-ig.org/pkgs/",
         });
         await manager.init();
-    }, 30_000);
+    });
 
     afterAll(async () => {
         await manager.destroy();
