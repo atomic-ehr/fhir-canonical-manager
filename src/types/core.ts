@@ -91,6 +91,8 @@ export interface Config {
     dropCache?: boolean;
     /** Hook to preprocess packages and resources. Receives a discriminated union with `kind` field. */
     preprocessPackage?: (context: PreprocessContext) => PreprocessContext;
+    /** Ignore shipped .index.json files and force directory scanning for all packages. */
+    ignorePackageIndex?: boolean;
 }
 
 export interface TgzPackageConfig {

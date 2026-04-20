@@ -91,6 +91,7 @@ export const loadPackage = async (
     packagePath: string,
     cache: ExtendedCache,
     preprocessPackage?: (context: PreprocessContext) => PreprocessContext,
+    options?: { ignorePackageIndex?: boolean },
 ): Promise<string | undefined> => {
     const packageJsonPath = path.join(packagePath, "package.json");
     if (!(await fileExists(packageJsonPath))) return undefined;
@@ -121,7 +122,7 @@ export const loadPackage = async (
         packageJson,
     };
 
-    const hasIndex = await fileExists(path.join(packagePath, ".index.json"));
+    const hasIndex = !options?.ignorePackageIndex && (await fileExists(path.join(packagePath, ".index.json")));
     const hasFhirVersions = Array.isArray(packageJson.fhirVersions) && packageJson.fhirVersions.length > 0;
     const hasCoreDep = isCorePackage(packageJson.name) || hasCorePackageDependency(packageJson.dependencies);
 

@@ -5,6 +5,7 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import type { ExtendedCache } from "../cache.js";
+import { fileExists } from "../fs/index.js";
 import type { IndexEntry, PackageJson } from "../types/index.js";
 import { parseIndex } from "./parser.js";
 
@@ -17,10 +18,16 @@ export const processIndex = async (basePath: string, packageJson: PackageJson, c
 
         if (!index) return;
 
+        let missingCount = 0;
         for (const file of index.files) {
             if (!file.url) continue;
 
             const filePath = path.join(basePath, file.filename);
+
+            if (!(await fileExists(filePath))) {
+                missingCount++;
+                continue;
+            }
 
             const id = cache.referenceManager.generateId({
                 packageName: packageJson.name,
@@ -58,6 +65,12 @@ export const processIndex = async (basePath: string, packageJson: PackageJson, c
             if (entries) {
                 entries.push(entry);
             }
+        }
+
+        if (missingCount > 0) {
+            console.warn(
+                `Warning: ${packageJson.name}@${packageJson.version} .index.json references ${missingCount} file(s) not found on disk — index may be corrupt`,
+            );
         }
     } catch {
         // Silently ignore index processing errors
