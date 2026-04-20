@@ -12,6 +12,7 @@ export const loadPackagesIntoCache = async (
     cache: ExtendedCache,
     pwd: string,
     preprocessPackage?: (context: PreprocessContext) => PreprocessContext,
+    options?: { ignorePackageIndex?: boolean },
 ): Promise<void> => {
     const nodeModulesPath = path.join(pwd, "node_modules");
     const entries = await fs.readdir(nodeModulesPath, { withFileTypes: true });
@@ -25,11 +26,11 @@ export const loadPackagesIntoCache = async (
             const scopedEntries = await fs.readdir(packagePath, { withFileTypes: true });
             for (const scopedEntry of scopedEntries) {
                 if (!scopedEntry.isDirectory()) continue;
-                const w = await loadPackage(path.join(packagePath, scopedEntry.name), cache, preprocessPackage);
+                const w = await loadPackage(path.join(packagePath, scopedEntry.name), cache, preprocessPackage, options);
                 if (w) warnings.push(w);
             }
         } else {
-            const w = await loadPackage(packagePath, cache, preprocessPackage);
+            const w = await loadPackage(packagePath, cache, preprocessPackage, options);
             if (w) warnings.push(w);
         }
     }

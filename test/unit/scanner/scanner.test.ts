@@ -13,6 +13,9 @@ import {
 } from "../../../src/scanner";
 import type { PackageJson, PreprocessContext } from "../../../src/types";
 
+/** Write an empty stub file so processIndex's fileExists check passes. */
+const touchFile = (filePath: string) => fs.writeFile(filePath, "{}");
+
 describe("Scanner Module", () => {
     let tempDir: string;
 
@@ -226,6 +229,8 @@ describe("Scanner Module", () => {
             };
 
             await fs.writeFile(path.join(packagePath, ".index.json"), JSON.stringify(indexContent));
+            await touchFile(path.join(packagePath, "Patient.json"));
+            await touchFile(path.join(packagePath, "Observation.json"));
 
             const packageJson: PackageJson = {
                 name: "test.package",
@@ -319,6 +324,7 @@ describe("Scanner Module", () => {
             };
 
             await fs.writeFile(path.join(packagePath, ".index.json"), JSON.stringify(indexContent));
+            await touchFile(path.join(packagePath, "Patient.json"));
 
             await loadPackage(packagePath, cache);
 
@@ -359,6 +365,7 @@ describe("Scanner Module", () => {
                     ],
                 }),
             );
+            await touchFile(path.join(packagePath, "Profile.json"));
 
             // Examples files
             await fs.writeFile(
@@ -375,6 +382,7 @@ describe("Scanner Module", () => {
                     ],
                 }),
             );
+            await touchFile(path.join(examplesPath, "example.json"));
 
             await loadPackage(packagePath, cache);
 
@@ -473,6 +481,7 @@ describe("Scanner Module", () => {
                     ],
                 }),
             );
+            await touchFile(path.join(packagePath, "Resource.json"));
 
             const preprocessPackage = (ctx: PreprocessContext): PreprocessContext => {
                 if (ctx.kind !== "package") return ctx;
@@ -521,6 +530,7 @@ describe("Scanner Module", () => {
                     ],
                 }),
             );
+            await touchFile(path.join(package1, "Resource1.json"));
 
             // Package 2 - Regular package (no .index.json)
             await fs.writeFile(
@@ -561,6 +571,7 @@ describe("Scanner Module", () => {
                     ],
                 }),
             );
+            await touchFile(path.join(packageDir, "Scoped.json"));
 
             await scanDirectory(cache, tempDir);
 
