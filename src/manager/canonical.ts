@@ -95,7 +95,7 @@ export const createCanonicalManager = (config: Config): CanonicalManager => {
     };
     const getCacheKeyPackages = () => {
         const localParts = Array.from(localPackages.values()).map((entry) => entry.cacheKeyPart);
-        return [`__pm:${getResolvedPackageManager()}`, ...packageSpecs, ...localParts];
+        return [...packageSpecs, ...localParts];
     };
     const refreshLocalPackageCacheKeys = async (): Promise<void> => {
         if (localPackages.size === 0) return;
@@ -166,7 +166,11 @@ export const createCanonicalManager = (config: Config): CanonicalManager => {
 
     const packageRefToPackageMeta = async () => {
         ensureInitialized();
-        const { npmRootPackageJsonFile } = cacheRecordPaths(workingDir, getCacheKeyPackages());
+        const { npmRootPackageJsonFile } = cacheRecordPaths(
+            workingDir,
+            getResolvedPackageManager(),
+            getCacheKeyPackages(),
+        );
         const rootPackageDeps =
             (
                 JSON.parse(await afs.readFile(npmRootPackageJsonFile, "utf8")) as {
@@ -250,7 +254,7 @@ export const createCanonicalManager = (config: Config): CanonicalManager => {
         if (config.dropCache) {
             await flushCacheFromDisk(workingDir);
         }
-        const { cacheKey, npmPackagePath } = cacheRecordPaths(workingDir, getCacheKeyPackages());
+        const { cacheKey, npmPackagePath } = cacheRecordPaths(workingDir, resolvedPackageManager, getCacheKeyPackages());
 
         const cachedData = await loadCacheRecordFromDisk(workingDir, cacheKey);
         const nodeModulesPath = Path.join(npmPackagePath, "node_modules");
@@ -286,7 +290,7 @@ export const createCanonicalManager = (config: Config): CanonicalManager => {
             await scanDirectory(cache, npmPackagePath, config.preprocessPackage, {
                 ignorePackageIndex: config.ignorePackageIndex,
             });
-            await saveCacheRecordToDisk(cache, workingDir, getCacheKeyPackages(), resolvedPackageManager);
+            await saveCacheRecordToDisk(cache, workingDir, resolvedPackageManager, getCacheKeyPackages());
         }
 
         initialized = true;
@@ -553,7 +557,7 @@ export const createCanonicalManager = (config: Config): CanonicalManager => {
 
     const addTgzPackage = async (config: TgzPackageConfig): Promise<PackageId> => {
         const archivePath = Path.resolve(config.archivePath);
-        const { npmPackagePath } = cacheRecordPaths(workingDir, getCacheKeyPackages());
+        const { npmPackagePath } = cacheRecordPaths(workingDir, getResolvedPackageManager(), getCacheKeyPackages());
         await ensureDir(npmPackagePath);
 
         const { name, version } = await installTgzPackage(archivePath, npmPackagePath, registry, resolvedPackageManager);

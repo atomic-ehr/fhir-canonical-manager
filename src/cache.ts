@@ -8,8 +8,8 @@ export interface ExtendedCache extends IndexCache {
     referenceManager: ReferenceManager;
 }
 
-export const computeCacheKey = (packages: string[]): CacheKey => {
-    const content = JSON.stringify(packages.toSorted());
+export const computeCacheKey = (packageManager: PackageManager, packages: string[]): CacheKey => {
+    const content = JSON.stringify({ packageManager, packages: packages.toSorted() });
     const hash = createHash("sha256").update(content).digest("hex");
     return hash as CacheKey;
 };
@@ -22,8 +22,8 @@ const cacheRecordPathsFromKey = (pwd: string, cacheKey: CacheKey) => {
     return { cacheKey, cacheRecordPath, cacheIndexFile, npmPackagePath, npmRootPackageJsonFile };
 };
 
-export const cacheRecordPaths = (pwd: string, packages: string[]) => {
-    const cacheKey = computeCacheKey(packages);
+export const cacheRecordPaths = (pwd: string, packageManager: PackageManager, packages: string[]) => {
+    const cacheKey = computeCacheKey(packageManager, packages);
     return cacheRecordPathsFromKey(pwd, cacheKey);
 };
 
@@ -63,8 +63,8 @@ export const loadCacheRecordFromDisk = async (pwd: string, cacheKey: CacheKey): 
 export const writeCacheReadme = async (
     pwd: string,
     cacheKey: CacheKey,
-    packages: PackageInfo[],
     packageManager: PackageManager,
+    packages: PackageInfo[],
 ): Promise<void> => {
     const readmePath = Path.join(pwd, "README.md");
     let existing = "";
@@ -95,10 +95,10 @@ export const writeCacheReadme = async (
 export const saveCacheRecordToDisk = async (
     cache: ExtendedCache,
     pwd: string,
-    packages: string[],
     packageManager: PackageManager,
+    packages: string[],
 ): Promise<void> => {
-    const cacheKey = computeCacheKey(packages);
+    const cacheKey = computeCacheKey(packageManager, packages);
     const cacheData: CacheData = {
         entries: cache.entries,
         packages: cache.packages,
@@ -108,7 +108,7 @@ export const saveCacheRecordToDisk = async (
     cacheData.packageLockHash = await calculatePackageLockHash(npmPackagePath);
     cacheData.cacheKey = cacheKey;
     await afs.mkdir(cacheRecordPath, { recursive: true });
-    await writeCacheReadme(pwd, cacheKey, Object.values(cache.packages), packageManager);
+    await writeCacheReadme(pwd, cacheKey, packageManager, Object.values(cache.packages));
     await afs.writeFile(cacheIndexFile, JSON.stringify(cacheData, null, 2));
 };
 
