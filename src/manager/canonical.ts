@@ -86,13 +86,10 @@ export const createCanonicalManager = (config: Config): CanonicalManager => {
     const packageSpecs = [...(config.packages ?? [])].map(normalizePackageSpec);
     const localPackages = new Map<string, LocalPackageEntry>();
     const pathPackageMeta = new Map<string, PackageId>();
-    let resolvedPackageManager: PackageManager | undefined = config.packageManager;
-    const getResolvedPackageManager = (): PackageManager => {
-        if (!resolvedPackageManager) {
-            throw new Error("Package manager not resolved. Call init() first.");
-        }
-        return resolvedPackageManager;
-    };
+    const resolvedPackageManager = config.packageManager ?? detectPackageManager();
+    if (!resolvedPackageManager) {
+        throw new Error("No package manager found. Please install bun or npm, or set Config.packageManager.");
+    }
     const getCacheKeyPackages = () => {
         const localParts = Array.from(localPackages.values()).map((entry) => entry.cacheKeyPart);
         return [...packageSpecs, ...localParts];
@@ -166,11 +163,7 @@ export const createCanonicalManager = (config: Config): CanonicalManager => {
 
     const packageRefToPackageMeta = async () => {
         ensureInitialized();
-        const { npmRootPackageJsonFile } = cacheRecordPaths(
-            workingDir,
-            getResolvedPackageManager(),
-            getCacheKeyPackages(),
-        );
+        const { npmRootPackageJsonFile } = cacheRecordPaths(workingDir, resolvedPackageManager, getCacheKeyPackages());
         const rootPackageDeps =
             (
                 JSON.parse(await afs.readFile(npmRootPackageJsonFile, "utf8")) as {
@@ -243,12 +236,6 @@ export const createCanonicalManager = (config: Config): CanonicalManager => {
     const init = async (): Promise<Record<string, PackageId>> => {
         if (initialized) return packageRefToPackageMeta();
 
-        if (!resolvedPackageManager) {
-            resolvedPackageManager = await detectPackageManager();
-            if (!resolvedPackageManager) {
-                throw new Error("No package manager found. Please install bun or npm.");
-            }
-        }
         await refreshLocalPackageCacheKeys();
         await ensureDir(workingDir);
         if (config.dropCache) {
@@ -557,7 +544,7 @@ export const createCanonicalManager = (config: Config): CanonicalManager => {
 
     const addTgzPackage = async (config: TgzPackageConfig): Promise<PackageId> => {
         const archivePath = Path.resolve(config.archivePath);
-        const { npmPackagePath } = cacheRecordPaths(workingDir, getResolvedPackageManager(), getCacheKeyPackages());
+        const { npmPackagePath } = cacheRecordPaths(workingDir, resolvedPackageManager, getCacheKeyPackages());
         await ensureDir(npmPackagePath);
 
         const { name, version } = await installTgzPackage(archivePath, npmPackagePath, registry, resolvedPackageManager);

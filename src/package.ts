@@ -3,7 +3,7 @@
  * Merged from package/detector.ts, package/installer.ts, and package/index.ts
  */
 
-import { type ExecOptions, exec } from "node:child_process";
+import { type ExecOptions, exec, execSync } from "node:child_process";
 import * as afs from "node:fs/promises";
 import * as Path from "node:path";
 import { promisify } from "node:util";
@@ -28,18 +28,14 @@ const shellEscape = (str: string): string => {
     return str.replace(/'/g, "'\\''");
 };
 
-export const detectPackageManager = async (): Promise<PackageManager | undefined> => {
-    try {
-        await execAsync("bun --version");
-        return "bun";
-    } catch {
+export const detectPackageManager = (): PackageManager | undefined => {
+    for (const candidate of ["bun", "npm"] as const) {
         try {
-            await execAsync("npm --version");
-            return "npm";
-        } catch {
-            return;
-        }
+            execSync(`${candidate} --version`, { stdio: "ignore" });
+            return candidate;
+        } catch {}
     }
+    return undefined;
 };
 
 const ensurePackageJson = async (pwd: string) => {
@@ -141,7 +137,7 @@ export const installPackages = async (
     await ensureDir(pwd);
     await ensurePackageJson(pwd);
 
-    const resolvedPackageManager = packageManager ?? (await detectPackageManager());
+    const resolvedPackageManager = packageManager ?? detectPackageManager();
     if (!resolvedPackageManager) throw new Error("No package manager found. Please install bun or npm.");
 
     // Build a map of user-specified package names to their full refs

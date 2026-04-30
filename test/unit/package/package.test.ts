@@ -18,7 +18,7 @@ describe("Package Module", () => {
     describe("detectPackageManager", () => {
         test("should detect bun when available", async () => {
             // This test will actually check for bun on the system
-            const result = await detectPackageManager();
+            const result = detectPackageManager();
 
             // On systems with bun installed, this should return 'bun'
             // On CI or other systems, it might return 'npm' or null
@@ -26,7 +26,7 @@ describe("Package Module", () => {
         });
 
         test("should return string or null", async () => {
-            const result = await detectPackageManager();
+            const result = detectPackageManager();
 
             if (result !== null) {
                 expect(typeof result).toBe("string");
