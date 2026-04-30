@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import * as afs from "node:fs/promises";
 import * as Path from "node:path";
 import { createReferenceManager, type ReferenceManager } from "./reference.js";
-import type { CacheData, CacheKey, IndexCache, PackageInfo } from "./types/index.js";
+import type { CacheData, CacheKey, IndexCache, PackageInfo, PackageManager } from "./types/index.js";
 
 export interface ExtendedCache extends IndexCache {
     referenceManager: ReferenceManager;
@@ -60,7 +60,12 @@ export const loadCacheRecordFromDisk = async (pwd: string, cacheKey: CacheKey): 
     }
 };
 
-export const writeCacheReadme = async (pwd: string, cacheKey: CacheKey, packages: PackageInfo[]): Promise<void> => {
+export const writeCacheReadme = async (
+    pwd: string,
+    cacheKey: CacheKey,
+    packages: PackageInfo[],
+    packageManager: PackageManager,
+): Promise<void> => {
     const readmePath = Path.join(pwd, "README.md");
     let existing = "";
     try {
@@ -73,7 +78,7 @@ export const writeCacheReadme = async (pwd: string, cacheKey: CacheKey, packages
     if (existing === "") {
         lines.push("# FHIR Canonical Manager Cache", "");
     }
-    lines.push(`- \`${cacheKey}\``);
+    lines.push(`- \`${cacheKey}\` (${packageManager})`);
     const sorted = packages.map((p) => `${p.id.name}@${p.id.version}`).toSorted();
     if (sorted.length === 0) {
         lines.push("    - _no packages_");
@@ -91,6 +96,7 @@ export const saveCacheRecordToDisk = async (
     cache: ExtendedCache,
     pwd: string,
     packages: string[],
+    packageManager: PackageManager,
 ): Promise<void> => {
     const cacheKey = computeCacheKey(packages);
     const cacheData: CacheData = {
@@ -102,7 +108,7 @@ export const saveCacheRecordToDisk = async (
     cacheData.packageLockHash = await calculatePackageLockHash(npmPackagePath);
     cacheData.cacheKey = cacheKey;
     await afs.mkdir(cacheRecordPath, { recursive: true });
-    await writeCacheReadme(pwd, cacheKey, Object.values(cache.packages));
+    await writeCacheReadme(pwd, cacheKey, Object.values(cache.packages), packageManager);
     await afs.writeFile(cacheIndexFile, JSON.stringify(cacheData, null, 2));
 };
 

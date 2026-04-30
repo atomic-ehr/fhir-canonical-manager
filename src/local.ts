@@ -3,7 +3,7 @@ import * as Path from "node:path";
 import { ensureDir, fileExists } from "./fs/index.js";
 import { isPathSpec, parsePackageRef } from "./manager/package-spec.js";
 import { installPackages } from "./package.js";
-import type { LocalPackageConfig, PackageId } from "./types/index.js";
+import type { LocalPackageConfig, PackageId, PackageManager } from "./types/index.js";
 
 const parseDependencySpec = (spec: string): { name: string; version: string } | undefined => {
     const trimmed = spec.trim();
@@ -46,12 +46,13 @@ export const installTgzPackage = async (
     archivePath: string,
     destPath: string,
     registry?: string,
+    packageManager?: PackageManager,
 ): Promise<PackageId> => {
     if (!(await fileExists(archivePath))) {
         throw new Error(`TGZ archive not found: ${archivePath}`);
     }
 
-    await installPackages([archivePath], destPath, registry);
+    await installPackages([archivePath], destPath, registry, packageManager);
 
     const rootPackageJsonPath = Path.join(destPath, "package.json");
     const rootPackageJson = JSON.parse(await afs.readFile(rootPackageJsonPath, "utf-8"));

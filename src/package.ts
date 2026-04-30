@@ -8,10 +8,11 @@ import * as afs from "node:fs/promises";
 import * as Path from "node:path";
 import { promisify } from "node:util";
 import { ensureDir, fileExists } from "./fs/index.js";
+import type { PackageManager } from "./types/index.js";
+
+export type { PackageManager };
 
 const execAsync = promisify(exec);
-
-export type PackageManager = "bun" | "npm";
 
 const isValidPackageRef = (pkg: string): boolean => {
     if (pkg.startsWith("http://") || pkg.startsWith("https://")) {
@@ -131,12 +132,17 @@ const installSinglePackage = async (
     await execAsync(cmd, opt);
 };
 
-export const installPackages = async (packages: string[], pwd: string, registry?: string): Promise<void> => {
+export const installPackages = async (
+    packages: string[],
+    pwd: string,
+    registry?: string,
+    packageManager?: PackageManager,
+): Promise<void> => {
     await ensureDir(pwd);
     await ensurePackageJson(pwd);
 
-    const packageManager = await detectPackageManager();
-    if (!packageManager) throw new Error("No package manager found. Please install bun or npm.");
+    const resolvedPackageManager = packageManager ?? (await detectPackageManager());
+    if (!resolvedPackageManager) throw new Error("No package manager found. Please install bun or npm.");
 
     // Build a map of user-specified package names to their full refs
     // User-specified versions take precedence over transitive dependency versions
@@ -162,7 +168,7 @@ export const installPackages = async (packages: string[], pwd: string, registry?
         }
 
         try {
-            await installSinglePackage(pkg, pwd, packageManager, registry);
+            await installSinglePackage(pkg, pwd, resolvedPackageManager, registry);
             installed.add(packageName);
 
             // Read dependencies from installed package and install them recursively

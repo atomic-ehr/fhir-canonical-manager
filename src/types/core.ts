@@ -84,11 +84,15 @@ export type PreprocessResourceContext = PreprocessBaseContext & {
 
 export type PreprocessContext = PreprocessPackageContext | PreprocessResourceContext;
 
+export type PackageManager = "bun" | "npm";
+
 export interface Config {
     packages: string[];
     workingDir: string;
     registry?: string;
     dropCache?: boolean;
+    /** Force a specific package manager; auto-detected when omitted. */
+    packageManager?: PackageManager;
     /** Hook to preprocess packages and resources. Receives a discriminated union with `kind` field. */
     preprocessPackage?: (context: PreprocessContext) => PreprocessContext;
     /** Ignore shipped .index.json files and force directory scanning for all packages. */
