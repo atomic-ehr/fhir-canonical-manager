@@ -60,7 +60,7 @@ export const loadCacheRecordFromDisk = async (pwd: string, cacheKey: CacheKey): 
     }
 };
 
-export const writeCacheReadme = async (
+const writeCacheReadme = async (
     pwd: string,
     cacheKey: CacheKey,
     packageManager: PackageManager,
