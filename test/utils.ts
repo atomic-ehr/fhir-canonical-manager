@@ -36,18 +36,14 @@ export const writePackage = async (content: any) => {
     afs.writeFileSync("package.json", JSON.stringify(content, null, 2));
 };
 
-export const writeNpmPackageJson = async (
-    packages: string[],
-    content: any,
-    packageManager: PackageManager = "bun",
-) => {
+export const writeNpmPackageJson = async (packageManager: PackageManager, packages: string[], content: any) => {
     const { npmPackagePath, npmRootPackageJsonFile } = cacheRecordPaths(process.cwd(), packageManager, packages);
     afs.mkdirSync(npmPackagePath, { recursive: true });
     afs.mkdirSync(Path.join(npmPackagePath, "node_modules"), { recursive: true });
     afs.writeFileSync(npmRootPackageJsonFile, JSON.stringify(content, null, 2));
 };
 
-export const writeCacheIndex = async (packages: string[], content: any, packageManager: PackageManager = "bun") => {
+export const writeCacheIndex = async (packageManager: PackageManager, packages: string[], content: any) => {
     const {
         cacheIndexFile: cacheIndex,
         cacheRecordPath,

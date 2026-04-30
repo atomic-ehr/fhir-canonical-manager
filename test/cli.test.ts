@@ -72,8 +72,8 @@ describe("CLI search output format", () => {
                         packageManager: "bun",
                     },
                 });
-                writeNpmPackageJson(["hl7.fhir.r4.core@4.0.1"], {});
-                writeCacheIndex(["hl7.fhir.r4.core@4.0.1"], {
+                writeNpmPackageJson("bun", ["hl7.fhir.r4.core@4.0.1"], {});
+                writeCacheIndex("bun", ["hl7.fhir.r4.core@4.0.1"], {
                     packages: [
                         {
                             name: "hl7.fhir.r4.core",
@@ -152,8 +152,8 @@ describe("CLI search output format", () => {
                         packageManager: "bun",
                     },
                 });
-                writeNpmPackageJson(["hl7.fhir.r4.core@4.0.1"], {});
-                writeCacheIndex(["hl7.fhir.r4.core@4.0.1"], {
+                writeNpmPackageJson("bun", ["hl7.fhir.r4.core@4.0.1"], {});
+                writeCacheIndex("bun", ["hl7.fhir.r4.core@4.0.1"], {
                     packages: [{ name: "hl7.fhir.r4.core", version: "4.0.1" }],
                     entries: {},
                     references: {},
@@ -177,8 +177,8 @@ describe("CLI search output format", () => {
                         packageManager: "bun",
                     },
                 });
-                writeNpmPackageJson(["hl7.fhir.r4.core@4.0.1"], {});
-                writeCacheIndex(["hl7.fhir.r4.core@4.0.1"], {
+                writeNpmPackageJson("bun", ["hl7.fhir.r4.core@4.0.1"], {});
+                writeCacheIndex("bun", ["hl7.fhir.r4.core@4.0.1"], {
                     packages: [
                         {
                             name: "hl7.fhir.r4.core",
@@ -253,8 +253,8 @@ describe("CLI search output format", () => {
                         packageManager: "bun",
                     },
                 });
-                writeNpmPackageJson(["hl7.fhir.r4.core@4.0.1"], {});
-                writeCacheIndex(["hl7.fhir.r4.core@4.0.1"], {
+                writeNpmPackageJson("bun", ["hl7.fhir.r4.core@4.0.1"], {});
+                writeCacheIndex("bun", ["hl7.fhir.r4.core@4.0.1"], {
                     packages: [
                         {
                             name: "hl7.fhir.r4.core",
