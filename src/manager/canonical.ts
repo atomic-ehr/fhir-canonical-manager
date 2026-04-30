@@ -16,7 +16,7 @@ import {
 import { DEFAULT_REGISTRY } from "../constants.js";
 import { ensureDir, fileExists } from "../fs/index.js";
 import { installLocalFolder, installTgzPackage } from "../local.js";
-import { installPackages } from "../package.js";
+import { detectPackageManager, installPackages } from "../package.js";
 import { resolveWithContext } from "../resolver.js";
 import { scanDirectory } from "../scanner/index.js";
 import { filterBySmartSearch } from "../search/index.js";
@@ -28,6 +28,7 @@ import type {
     PackageId,
     PackageInfo,
     PackageJson,
+    PackageManager,
     Reference,
     Resource,
     SearchParameter,
@@ -85,6 +86,10 @@ export const createCanonicalManager = (config: Config): CanonicalManager => {
     const packageSpecs = [...(config.packages ?? [])].map(normalizePackageSpec);
     const localPackages = new Map<string, LocalPackageEntry>();
     const pathPackageMeta = new Map<string, PackageId>();
+    const packageManager = config.packageManager ?? detectPackageManager();
+    if (!packageManager) {
+        throw new Error("No package manager found. Please install bun or npm, or set Config.packageManager.");
+    }
     const getCacheKeyPackages = () => {
         const localParts = Array.from(localPackages.values()).map((entry) => entry.cacheKeyPart);
         return [...packageSpecs, ...localParts];
@@ -138,7 +143,7 @@ export const createCanonicalManager = (config: Config): CanonicalManager => {
         for (const entry of localPackages.values()) {
             await installLocalFolder(entry.config, npmPackagePath);
             if (!skipDependencyInstall && entry.config.dependencies && entry.config.dependencies.length > 0) {
-                await installPackages(entry.config.dependencies, npmPackagePath, registry);
+                await installPackages(entry.config.dependencies, npmPackagePath, packageManager, registry);
             }
         }
     };
@@ -158,7 +163,7 @@ export const createCanonicalManager = (config: Config): CanonicalManager => {
 
     const packageRefToPackageMeta = async () => {
         ensureInitialized();
-        const { npmRootPackageJsonFile } = cacheRecordPaths(workingDir, getCacheKeyPackages());
+        const { npmRootPackageJsonFile } = cacheRecordPaths(workingDir, packageManager, getCacheKeyPackages());
         const rootPackageDeps =
             (
                 JSON.parse(await afs.readFile(npmRootPackageJsonFile, "utf8")) as {
@@ -236,7 +241,7 @@ export const createCanonicalManager = (config: Config): CanonicalManager => {
         if (config.dropCache) {
             await flushCacheFromDisk(workingDir);
         }
-        const { cacheKey, npmPackagePath } = cacheRecordPaths(workingDir, getCacheKeyPackages());
+        const { cacheKey, npmPackagePath } = cacheRecordPaths(workingDir, packageManager, getCacheKeyPackages());
 
         const cachedData = await loadCacheRecordFromDisk(workingDir, cacheKey);
         const nodeModulesPath = Path.join(npmPackagePath, "node_modules");
@@ -267,12 +272,12 @@ export const createCanonicalManager = (config: Config): CanonicalManager => {
                 cache.referenceManager.set(id, metadata);
             });
         } else {
-            await installPackages(packageSpecs, npmPackagePath, registry);
+            await installPackages(packageSpecs, npmPackagePath, packageManager, registry);
             await installConfiguredLocalPackages(npmPackagePath);
             await scanDirectory(cache, npmPackagePath, config.preprocessPackage, {
                 ignorePackageIndex: config.ignorePackageIndex,
             });
-            await saveCacheRecordToDisk(cache, workingDir, getCacheKeyPackages());
+            await saveCacheRecordToDisk(cache, workingDir, packageManager, getCacheKeyPackages());
         }
 
         initialized = true;
@@ -539,10 +544,10 @@ export const createCanonicalManager = (config: Config): CanonicalManager => {
 
     const addTgzPackage = async (config: TgzPackageConfig): Promise<PackageId> => {
         const archivePath = Path.resolve(config.archivePath);
-        const { npmPackagePath } = cacheRecordPaths(workingDir, getCacheKeyPackages());
+        const { npmPackagePath } = cacheRecordPaths(workingDir, packageManager, getCacheKeyPackages());
         await ensureDir(npmPackagePath);
 
-        const { name, version } = await installTgzPackage(archivePath, npmPackagePath, registry);
+        const { name, version } = await installTgzPackage(archivePath, npmPackagePath, packageManager, registry);
 
         pathPackageMeta.set(archivePath, { name, version });
         if (!packageSpecs.includes(archivePath)) {

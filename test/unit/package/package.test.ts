@@ -18,7 +18,7 @@ describe("Package Module", () => {
     describe("detectPackageManager", () => {
         test("should detect bun when available", async () => {
             // This test will actually check for bun on the system
-            const result = await detectPackageManager();
+            const result = detectPackageManager();
 
             // On systems with bun installed, this should return 'bun'
             // On CI or other systems, it might return 'npm' or null
@@ -26,7 +26,7 @@ describe("Package Module", () => {
         });
 
         test("should return string or null", async () => {
-            const result = await detectPackageManager();
+            const result = detectPackageManager();
 
             if (result !== null) {
                 expect(typeof result).toBe("string");
@@ -44,7 +44,7 @@ describe("Package Module", () => {
             // We can't easily mock the actual exec in Bun test
             // So we'll just test the package.json creation
             try {
-                await installPackages(["test-package"], tempDir, undefined);
+                await installPackages(["test-package"], tempDir, "bun");
             } catch {
                 // Installation will fail, but package.json should be created
             }
@@ -80,7 +80,7 @@ describe("Package Module", () => {
             await fs.writeFile(path.join(tempDir, "package.json"), JSON.stringify(existingPackage));
 
             try {
-                await installPackages(["test-package"], tempDir, undefined);
+                await installPackages(["test-package"], tempDir, "bun");
             } catch {
                 // Installation will fail, but that's ok
             }

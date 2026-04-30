@@ -36,3 +36,6 @@ tmp/
 
 # Zed
 .zed/
+
+# Claude Code runtime state
+.claude/scheduled_tasks.lock

@@ -22,8 +22,8 @@ describe("Cache Module", () => {
 
     describe("computeCacheKey", () => {
         test("should compute consistent hash for same packages", () => {
-            const hash1 = computeCacheKey(["foo", "bar"]);
-            const hash2 = computeCacheKey(["bar", "foo"]);
+            const hash1 = computeCacheKey("bun", ["foo", "bar"]);
+            const hash2 = computeCacheKey("bun", ["bar", "foo"]);
 
             expect(hash1).toBeDefined();
             expect(typeof hash1).toBe("string");
@@ -32,14 +32,14 @@ describe("Cache Module", () => {
         });
 
         test("should compute different hashes for different package lists", () => {
-            const hash1 = computeCacheKey(["package-lock-test", "bun-lock-test"]);
-            const hash2 = computeCacheKey(["different-package"]);
+            const hash1 = computeCacheKey("bun", ["package-lock-test", "bun-lock-test"]);
+            const hash2 = computeCacheKey("bun", ["different-package"]);
 
             expect(hash1).not.toBe(hash2);
         });
 
         test("should handle empty package list", () => {
-            const hash = computeCacheKey([]);
+            const hash = computeCacheKey("bun", []);
 
             expect(hash).toBeDefined();
             expect(typeof hash).toBe("string");
@@ -76,8 +76,8 @@ describe("Cache Module", () => {
             };
             cache.referenceManager.set("ref-id", metadata);
 
-            const cacheKey = computeCacheKey(["test.package"]);
-            await saveCacheRecordToDisk(cache, cacheDir, ["test.package"]);
+            const cacheKey = computeCacheKey("bun", ["test.package"]);
+            await saveCacheRecordToDisk(cache, cacheDir, "bun", ["test.package"]);
 
             const cacheFile = path.join(cacheDir, cacheKey, "index.json");
             const exists = await fs
@@ -100,8 +100,8 @@ describe("Cache Module", () => {
             const cacheDir = path.join(tempDir, "cache");
             await fs.mkdir(cacheDir, { recursive: true });
 
-            const cacheKey = computeCacheKey(["test.package"]);
-            await saveCacheRecordToDisk(cache, cacheDir, ["test.package"]);
+            const cacheKey = computeCacheKey("bun", ["test.package"]);
+            await saveCacheRecordToDisk(cache, cacheDir, "bun", ["test.package"]);
 
             const cacheFile = path.join(cacheDir, cacheKey, "index.json");
             const content = await fs.readFile(cacheFile, "utf-8");
@@ -148,7 +148,7 @@ describe("Cache Module", () => {
                 packageLockHash: "abc123",
             };
 
-            const cacheKey = computeCacheKey(["test-package"]);
+            const cacheKey = computeCacheKey("bun", ["test-package"]);
             const cacheSubdir = path.join(cacheDir, cacheKey);
             await fs.mkdir(cacheSubdir, { recursive: true });
             await fs.writeFile(path.join(cacheSubdir, "index.json"), JSON.stringify(cacheData, null, 2));
@@ -162,7 +162,7 @@ describe("Cache Module", () => {
             const cacheDir = path.join(tempDir, "cache");
             await fs.mkdir(cacheDir, { recursive: true });
 
-            const cacheKey = computeCacheKey(["test-package"]);
+            const cacheKey = computeCacheKey("bun", ["test-package"]);
             const loaded = await loadCacheRecordFromDisk(cacheDir, cacheKey);
 
             expect(loaded).toBeUndefined();
@@ -172,7 +172,7 @@ describe("Cache Module", () => {
             const cacheDir = path.join(tempDir, "cache");
             await fs.mkdir(cacheDir, { recursive: true });
 
-            const cacheKey = computeCacheKey(["test-package"]);
+            const cacheKey = computeCacheKey("bun", ["test-package"]);
             const cacheSubdir = path.join(cacheDir, cacheKey);
             await fs.mkdir(cacheSubdir, { recursive: true });
             await fs.writeFile(path.join(cacheSubdir, "index.json"), "invalid json content");
@@ -183,7 +183,7 @@ describe("Cache Module", () => {
         });
 
         test("should return undefined when directory does not exist", async () => {
-            const cacheKey = computeCacheKey(["test-package"]);
+            const cacheKey = computeCacheKey("bun", ["test-package"]);
             const loaded = await loadCacheRecordFromDisk("/non/existent/path", cacheKey);
             expect(loaded).toBeUndefined();
         });
@@ -247,8 +247,8 @@ describe("Cache Module", () => {
             cache.referenceManager.set("id2", metadata2);
 
             // Save
-            const cacheKey = computeCacheKey(["test.package"]);
-            await saveCacheRecordToDisk(cache, cacheDir, ["test.package"]);
+            const cacheKey = computeCacheKey("bun", ["test.package"]);
+            await saveCacheRecordToDisk(cache, cacheDir, "bun", ["test.package"]);
 
             // Load
             const loaded = await loadCacheRecordFromDisk(cacheDir, cacheKey);

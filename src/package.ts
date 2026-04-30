@@ -3,15 +3,16 @@
  * Merged from package/detector.ts, package/installer.ts, and package/index.ts
  */
 
-import { type ExecOptions, exec } from "node:child_process";
+import { type ExecOptions, exec, execSync } from "node:child_process";
 import * as afs from "node:fs/promises";
 import * as Path from "node:path";
 import { promisify } from "node:util";
 import { ensureDir, fileExists } from "./fs/index.js";
+import type { PackageManager } from "./types/index.js";
+
+export type { PackageManager };
 
 const execAsync = promisify(exec);
-
-export type PackageManager = "bun" | "npm";
 
 const isValidPackageRef = (pkg: string): boolean => {
     if (pkg.startsWith("http://") || pkg.startsWith("https://")) {
@@ -27,18 +28,14 @@ const shellEscape = (str: string): string => {
     return str.replace(/'/g, "'\\''");
 };
 
-export const detectPackageManager = async (): Promise<PackageManager | undefined> => {
-    try {
-        await execAsync("bun --version");
-        return "bun";
-    } catch {
+export const detectPackageManager = (): PackageManager | undefined => {
+    for (const candidate of ["bun", "npm"] as const) {
         try {
-            await execAsync("npm --version");
-            return "npm";
-        } catch {
-            return;
-        }
+            execSync(`${candidate} --version`, { stdio: "ignore" });
+            return candidate;
+        } catch {}
     }
+    return undefined;
 };
 
 const ensurePackageJson = async (pwd: string) => {
@@ -131,12 +128,14 @@ const installSinglePackage = async (
     await execAsync(cmd, opt);
 };
 
-export const installPackages = async (packages: string[], pwd: string, registry?: string): Promise<void> => {
+export const installPackages = async (
+    packages: string[],
+    pwd: string,
+    packageManager: PackageManager,
+    registry?: string,
+): Promise<void> => {
     await ensureDir(pwd);
     await ensurePackageJson(pwd);
-
-    const packageManager = await detectPackageManager();
-    if (!packageManager) throw new Error("No package manager found. Please install bun or npm.");
 
     // Build a map of user-specified package names to their full refs
     // User-specified versions take precedence over transitive dependency versions

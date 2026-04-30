@@ -2,14 +2,14 @@ import { createHash } from "node:crypto";
 import * as afs from "node:fs/promises";
 import * as Path from "node:path";
 import { createReferenceManager, type ReferenceManager } from "./reference.js";
-import type { CacheData, CacheKey, IndexCache, PackageInfo } from "./types/index.js";
+import type { CacheData, CacheKey, IndexCache, PackageInfo, PackageManager } from "./types/index.js";
 
 export interface ExtendedCache extends IndexCache {
     referenceManager: ReferenceManager;
 }
 
-export const computeCacheKey = (packages: string[]): CacheKey => {
-    const content = JSON.stringify(packages.toSorted());
+export const computeCacheKey = (packageManager: PackageManager, packages: string[]): CacheKey => {
+    const content = JSON.stringify({ packageManager, packages: packages.toSorted() });
     const hash = createHash("sha256").update(content).digest("hex");
     return hash as CacheKey;
 };
@@ -22,8 +22,8 @@ const cacheRecordPathsFromKey = (pwd: string, cacheKey: CacheKey) => {
     return { cacheKey, cacheRecordPath, cacheIndexFile, npmPackagePath, npmRootPackageJsonFile };
 };
 
-export const cacheRecordPaths = (pwd: string, packages: string[]) => {
-    const cacheKey = computeCacheKey(packages);
+export const cacheRecordPaths = (pwd: string, packageManager: PackageManager, packages: string[]) => {
+    const cacheKey = computeCacheKey(packageManager, packages);
     return cacheRecordPathsFromKey(pwd, cacheKey);
 };
 
@@ -60,7 +60,12 @@ export const loadCacheRecordFromDisk = async (pwd: string, cacheKey: CacheKey): 
     }
 };
 
-export const writeCacheReadme = async (pwd: string, cacheKey: CacheKey, packages: PackageInfo[]): Promise<void> => {
+export const writeCacheReadme = async (
+    pwd: string,
+    cacheKey: CacheKey,
+    packageManager: PackageManager,
+    packages: PackageInfo[],
+): Promise<void> => {
     const readmePath = Path.join(pwd, "README.md");
     let existing = "";
     try {
@@ -73,7 +78,7 @@ export const writeCacheReadme = async (pwd: string, cacheKey: CacheKey, packages
     if (existing === "") {
         lines.push("# FHIR Canonical Manager Cache", "");
     }
-    lines.push(`- \`${cacheKey}\``);
+    lines.push(`- \`${cacheKey}\` (${packageManager})`);
     const sorted = packages.map((p) => `${p.id.name}@${p.id.version}`).toSorted();
     if (sorted.length === 0) {
         lines.push("    - _no packages_");
@@ -90,9 +95,10 @@ export const writeCacheReadme = async (pwd: string, cacheKey: CacheKey, packages
 export const saveCacheRecordToDisk = async (
     cache: ExtendedCache,
     pwd: string,
+    packageManager: PackageManager,
     packages: string[],
 ): Promise<void> => {
-    const cacheKey = computeCacheKey(packages);
+    const cacheKey = computeCacheKey(packageManager, packages);
     const cacheData: CacheData = {
         entries: cache.entries,
         packages: cache.packages,
@@ -102,7 +108,7 @@ export const saveCacheRecordToDisk = async (
     cacheData.packageLockHash = await calculatePackageLockHash(npmPackagePath);
     cacheData.cacheKey = cacheKey;
     await afs.mkdir(cacheRecordPath, { recursive: true });
-    await writeCacheReadme(pwd, cacheKey, Object.values(cache.packages));
+    await writeCacheReadme(pwd, cacheKey, packageManager, Object.values(cache.packages));
     await afs.writeFile(cacheIndexFile, JSON.stringify(cacheData, null, 2));
 };
 
