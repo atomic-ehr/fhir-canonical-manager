@@ -44,7 +44,7 @@ describe("Package Module", () => {
             // We can't easily mock the actual exec in Bun test
             // So we'll just test the package.json creation
             try {
-                await installPackages(["test-package"], tempDir, undefined);
+                await installPackages(["test-package"], tempDir, "bun");
             } catch {
                 // Installation will fail, but package.json should be created
             }
@@ -80,7 +80,7 @@ describe("Package Module", () => {
             await fs.writeFile(path.join(tempDir, "package.json"), JSON.stringify(existingPackage));
 
             try {
-                await installPackages(["test-package"], tempDir, undefined);
+                await installPackages(["test-package"], tempDir, "bun");
             } catch {
                 // Installation will fail, but that's ok
             }

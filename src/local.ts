@@ -45,14 +45,14 @@ interface FhirResource {
 export const installTgzPackage = async (
     archivePath: string,
     destPath: string,
+    packageManager: PackageManager,
     registry?: string,
-    packageManager?: PackageManager,
 ): Promise<PackageId> => {
     if (!(await fileExists(archivePath))) {
         throw new Error(`TGZ archive not found: ${archivePath}`);
     }
 
-    await installPackages([archivePath], destPath, registry, packageManager);
+    await installPackages([archivePath], destPath, packageManager, registry);
 
     const rootPackageJsonPath = Path.join(destPath, "package.json");
     const rootPackageJson = JSON.parse(await afs.readFile(rootPackageJsonPath, "utf-8"));

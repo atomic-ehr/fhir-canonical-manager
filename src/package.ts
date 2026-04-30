@@ -131,14 +131,11 @@ const installSinglePackage = async (
 export const installPackages = async (
     packages: string[],
     pwd: string,
+    packageManager: PackageManager,
     registry?: string,
-    packageManager?: PackageManager,
 ): Promise<void> => {
     await ensureDir(pwd);
     await ensurePackageJson(pwd);
-
-    const resolvedPackageManager = packageManager ?? detectPackageManager();
-    if (!resolvedPackageManager) throw new Error("No package manager found. Please install bun or npm.");
 
     // Build a map of user-specified package names to their full refs
     // User-specified versions take precedence over transitive dependency versions
@@ -164,7 +161,7 @@ export const installPackages = async (
         }
 
         try {
-            await installSinglePackage(pkg, pwd, resolvedPackageManager, registry);
+            await installSinglePackage(pkg, pwd, packageManager, registry);
             installed.add(packageName);
 
             // Read dependencies from installed package and install them recursively

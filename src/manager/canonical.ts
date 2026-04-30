@@ -143,7 +143,7 @@ export const createCanonicalManager = (config: Config): CanonicalManager => {
         for (const entry of localPackages.values()) {
             await installLocalFolder(entry.config, npmPackagePath);
             if (!skipDependencyInstall && entry.config.dependencies && entry.config.dependencies.length > 0) {
-                await installPackages(entry.config.dependencies, npmPackagePath, registry, resolvedPackageManager);
+                await installPackages(entry.config.dependencies, npmPackagePath, resolvedPackageManager, registry);
             }
         }
     };
@@ -272,7 +272,7 @@ export const createCanonicalManager = (config: Config): CanonicalManager => {
                 cache.referenceManager.set(id, metadata);
             });
         } else {
-            await installPackages(packageSpecs, npmPackagePath, registry, resolvedPackageManager);
+            await installPackages(packageSpecs, npmPackagePath, resolvedPackageManager, registry);
             await installConfiguredLocalPackages(npmPackagePath);
             await scanDirectory(cache, npmPackagePath, config.preprocessPackage, {
                 ignorePackageIndex: config.ignorePackageIndex,
@@ -547,7 +547,7 @@ export const createCanonicalManager = (config: Config): CanonicalManager => {
         const { npmPackagePath } = cacheRecordPaths(workingDir, resolvedPackageManager, getCacheKeyPackages());
         await ensureDir(npmPackagePath);
 
-        const { name, version } = await installTgzPackage(archivePath, npmPackagePath, registry, resolvedPackageManager);
+        const { name, version } = await installTgzPackage(archivePath, npmPackagePath, resolvedPackageManager, registry);
 
         pathPackageMeta.set(archivePath, { name, version });
         if (!packageSpecs.includes(archivePath)) {
