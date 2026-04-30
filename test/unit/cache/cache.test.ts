@@ -77,7 +77,7 @@ describe("Cache Module", () => {
             cache.referenceManager.set("ref-id", metadata);
 
             const cacheKey = computeCacheKey(["test.package"]);
-            await saveCacheRecordToDisk(cache, cacheDir, cacheKey);
+            await saveCacheRecordToDisk(cache, cacheDir, ["test.package"]);
 
             const cacheFile = path.join(cacheDir, cacheKey, "index.json");
             const exists = await fs
@@ -101,7 +101,7 @@ describe("Cache Module", () => {
             await fs.mkdir(cacheDir, { recursive: true });
 
             const cacheKey = computeCacheKey(["test.package"]);
-            await saveCacheRecordToDisk(cache, cacheDir, cacheKey);
+            await saveCacheRecordToDisk(cache, cacheDir, ["test.package"]);
 
             const cacheFile = path.join(cacheDir, cacheKey, "index.json");
             const content = await fs.readFile(cacheFile, "utf-8");
@@ -248,7 +248,7 @@ describe("Cache Module", () => {
 
             // Save
             const cacheKey = computeCacheKey(["test.package"]);
-            await saveCacheRecordToDisk(cache, cacheDir, cacheKey);
+            await saveCacheRecordToDisk(cache, cacheDir, ["test.package"]);
 
             // Load
             const loaded = await loadCacheRecordFromDisk(cacheDir, cacheKey);

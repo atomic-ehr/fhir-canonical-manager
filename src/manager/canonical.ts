@@ -272,7 +272,7 @@ export const createCanonicalManager = (config: Config): CanonicalManager => {
             await scanDirectory(cache, npmPackagePath, config.preprocessPackage, {
                 ignorePackageIndex: config.ignorePackageIndex,
             });
-            await saveCacheRecordToDisk(cache, workingDir, cacheKey);
+            await saveCacheRecordToDisk(cache, workingDir, getCacheKeyPackages());
         }
 
         initialized = true;
