@@ -174,6 +174,7 @@ export function getConfigFromPackageJson(packageJson: any): Partial<Config> {
     return {
         packages: fcm.packages || [],
         registry: fcm.registry,
+        packageManager: fcm.packageManager,
         workingDir: process.cwd(),
     };
 }

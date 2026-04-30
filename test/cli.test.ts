@@ -69,6 +69,7 @@ describe("CLI search output format", () => {
                     name: "test-project",
                     fcm: {
                         packages: ["hl7.fhir.r4.core@4.0.1"],
+                        packageManager: "bun",
                     },
                 });
                 writeNpmPackageJson(["hl7.fhir.r4.core@4.0.1"], {});
@@ -148,6 +149,7 @@ describe("CLI search output format", () => {
                     name: "test-project",
                     fcm: {
                         packages: ["hl7.fhir.r4.core@4.0.1"],
+                        packageManager: "bun",
                     },
                 });
                 writeNpmPackageJson(["hl7.fhir.r4.core@4.0.1"], {});
@@ -172,6 +174,7 @@ describe("CLI search output format", () => {
                     name: "test-project",
                     fcm: {
                         packages: ["hl7.fhir.r4.core@4.0.1"],
+                        packageManager: "bun",
                     },
                 });
                 writeNpmPackageJson(["hl7.fhir.r4.core@4.0.1"], {});
@@ -247,6 +250,7 @@ describe("CLI search output format", () => {
                     name: "test-project",
                     fcm: {
                         packages: ["hl7.fhir.r4.core@4.0.1"],
+                        packageManager: "bun",
                     },
                 });
                 writeNpmPackageJson(["hl7.fhir.r4.core@4.0.1"], {});

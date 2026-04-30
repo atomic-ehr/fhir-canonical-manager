@@ -1,6 +1,10 @@
 import * as afs from "node:fs";
 import * as Path from "node:path";
 import { cacheRecordPaths } from "../src/cache";
+import type { PackageManager } from "../src/types";
+
+const cacheKeyInput = (packages: string[], packageManager: PackageManager = "bun"): string[] =>
+    [`__pm:${packageManager}`, ...packages];
 
 export const catchConsole = async (action: () => Promise<void>): Promise<string[]> => {
     const consoleOutput: string[] = [];
@@ -35,15 +39,26 @@ export const writePackage = async (content: any) => {
     afs.writeFileSync("package.json", JSON.stringify(content, null, 2));
 };
 
-export const writeNpmPackageJson = async (packages: string[], content: any) => {
-    const { npmPackagePath, npmRootPackageJsonFile } = cacheRecordPaths(process.cwd(), packages);
+export const writeNpmPackageJson = async (
+    packages: string[],
+    content: any,
+    packageManager: PackageManager = "bun",
+) => {
+    const { npmPackagePath, npmRootPackageJsonFile } = cacheRecordPaths(
+        process.cwd(),
+        cacheKeyInput(packages, packageManager),
+    );
     afs.mkdirSync(npmPackagePath, { recursive: true });
     afs.mkdirSync(Path.join(npmPackagePath, "node_modules"), { recursive: true });
     afs.writeFileSync(npmRootPackageJsonFile, JSON.stringify(content, null, 2));
 };
 
-export const writeCacheIndex = async (packages: string[], content: any) => {
-    const { cacheIndexFile: cacheIndex, cacheRecordPath, cacheKey } = cacheRecordPaths(process.cwd(), packages);
+export const writeCacheIndex = async (packages: string[], content: any, packageManager: PackageManager = "bun") => {
+    const {
+        cacheIndexFile: cacheIndex,
+        cacheRecordPath,
+        cacheKey,
+    } = cacheRecordPaths(process.cwd(), cacheKeyInput(packages, packageManager));
     content.packageLockHash = cacheKey;
     content.cacheKey = cacheKey; // Required for cache validation
     afs.mkdirSync(cacheRecordPath, { recursive: true });
