@@ -10,8 +10,6 @@ import { promisify } from "node:util";
 import { ensureDir, fileExists } from "./fs/index.js";
 import type { PackageManager } from "./types/index.js";
 
-export type { PackageManager };
-
 const execAsync = promisify(exec);
 
 const isValidPackageRef = (pkg: string): boolean => {

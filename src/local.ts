@@ -3,7 +3,7 @@ import * as Path from "node:path";
 import { ensureDir, fileExists } from "./fs/index.js";
 import { isPathSpec, parsePackageRef } from "./manager/package-spec.js";
 import { installPackages } from "./package.js";
-import type { LocalPackageConfig, PackageId, PackageManager } from "./types/index.js";
+import type { IndexFile, IndexFileEntry, LocalPackageConfig, PackageId, PackageManager } from "./types/index.js";
 
 const parseDependencySpec = (spec: string): { name: string; version: string } | undefined => {
     const trimmed = spec.trim();
@@ -17,21 +17,6 @@ const parseDependencySpec = (spec: string): { name: string; version: string } | 
         return undefined;
     }
 };
-
-interface IndexFileEntry {
-    filename: string;
-    resourceType: string;
-    id: string;
-    url?: string;
-    version?: string;
-    kind?: string;
-    type?: string;
-}
-
-interface IndexFile {
-    "index-version": number;
-    files: IndexFileEntry[];
-}
 
 interface FhirResource {
     resourceType?: string;
@@ -92,7 +77,7 @@ export const installTgzPackage = async (
     throw new Error(`Failed to identify installed package from tgz: ${archivePath}`);
 };
 
-export const generateIndexJson = async (targetPath: string): Promise<void> => {
+const generateIndexJson = async (targetPath: string): Promise<void> => {
     const files: IndexFileEntry[] = [];
     const entries = await afs.readdir(targetPath, { withFileTypes: true });
 
