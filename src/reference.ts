@@ -72,6 +72,3 @@ export const createReferenceManager = (): ReferenceManager => {
         getAllReferences: () => references,
     };
 };
-
-// For backward compatibility - function alias (will be deprecated)
-export { createReferenceManager as ReferenceManagerFactory };
