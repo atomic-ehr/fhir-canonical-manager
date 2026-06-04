@@ -36,6 +36,7 @@
     "format": "biome format --write",
     "lint": "biome check --write",
     "lint:unsafe": "biome check --write --unsafe",
+    "lint:ci": "biome ci",
     "test": "bun test",
     "fix": "bun run typecheck && bun run lint:unsafe && bun run format && bun test",
     "release": "bash scripts/release.sh"

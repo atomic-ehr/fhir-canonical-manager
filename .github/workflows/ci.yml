@@ -20,6 +20,9 @@ jobs:
       - name: Install dependencies
         run: bun install
 
+      - name: Run Biome (lint + format check)
+        run: bun run lint:ci
+
       - name: Run tests
         run: bun test
 
