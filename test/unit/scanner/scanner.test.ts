@@ -7,9 +7,9 @@ import {
     isValidFileEntry,
     isValidIndexFile,
     loadPackage,
+    loadPackagesIntoCache,
     parseIndex,
     processIndex,
-    scanDirectory,
 } from "../../../src/scanner";
 import type { PackageJson, PreprocessContext } from "../../../src/types";
 
@@ -326,7 +326,7 @@ describe("Scanner Module", () => {
             await fs.writeFile(path.join(packagePath, ".index.json"), JSON.stringify(indexContent));
             await touchFile(path.join(packagePath, "Patient.json"));
 
-            await loadPackage(packagePath, cache);
+            await loadPackage(packagePath, cache, { packageIndexMode: "use", preprocessPackage: (e) => e });
 
             // Check package info
             expect(cache.packages["hl7.fhir.test"]).toBeDefined();
@@ -384,7 +384,7 @@ describe("Scanner Module", () => {
             );
             await touchFile(path.join(examplesPath, "example.json"));
 
-            await loadPackage(packagePath, cache);
+            await loadPackage(packagePath, cache, { packageIndexMode: "use", preprocessPackage: (e) => e });
 
             expect(cache.entries["http://example.com/Profile"]).toHaveLength(1);
             expect(cache.entries["http://example.com/Patient/example"]).toHaveLength(1);
@@ -395,9 +395,132 @@ describe("Scanner Module", () => {
             const packagePath = path.join(tempDir, "invalid-package");
 
             // Should not throw
-            await loadPackage(packagePath, cache);
+            await loadPackage(packagePath, cache, { packageIndexMode: "use", preprocessPackage: (e) => e });
 
             expect(Object.keys(cache.packages)).toHaveLength(0);
+        });
+    });
+
+    describe("loadPackage packageIndex modes", () => {
+        const writeResource = (filePath: string, url: string) =>
+            fs.writeFile(filePath, JSON.stringify({ resourceType: "StructureDefinition", url, kind: "resource" }));
+
+        const writePackageJson = (packagePath: string) =>
+            fs.writeFile(
+                path.join(packagePath, "package.json"),
+                JSON.stringify({ name: "test.package", version: "1.0.0" }),
+            );
+
+        test('"regenerate" ignores the shipped index and scans the directory', async () => {
+            const cache = createCacheRecord();
+            const packagePath = path.join(tempDir, "pkg");
+            await fs.mkdir(packagePath, { recursive: true });
+            await writePackageJson(packagePath);
+
+            // Valid index that points at Ghost.json; plus a real on-disk resource not in the index.
+            await fs.writeFile(
+                path.join(packagePath, ".index.json"),
+                JSON.stringify({
+                    "index-version": 1,
+                    files: [
+                        {
+                            filename: "Ghost.json",
+                            resourceType: "StructureDefinition",
+                            id: "g",
+                            url: "http://ex/Ghost",
+                        },
+                    ],
+                }),
+            );
+            await touchFile(path.join(packagePath, "Ghost.json"));
+            await writeResource(path.join(packagePath, "Real.json"), "http://ex/Real");
+
+            await loadPackage(packagePath, cache, { packageIndexMode: "regenerate", preprocessPackage: (e) => e });
+
+            expect(cache.entries["http://ex/Real"]).toHaveLength(1); // scanned from disk
+            expect(cache.entries["http://ex/Ghost"]).toBeUndefined(); // shipped index ignored
+        });
+
+        test('"recover" falls back to a directory scan when the index is corrupt', async () => {
+            const cache = createCacheRecord();
+            const packagePath = path.join(tempDir, "pkg");
+            await fs.mkdir(packagePath, { recursive: true });
+            await writePackageJson(packagePath);
+
+            // Index references a file that does not exist on disk → "missing-files" corruption.
+            await fs.writeFile(
+                path.join(packagePath, ".index.json"),
+                JSON.stringify({
+                    "index-version": 1,
+                    files: [
+                        {
+                            filename: "Missing.json",
+                            resourceType: "StructureDefinition",
+                            id: "m",
+                            url: "http://ex/Missing",
+                        },
+                    ],
+                }),
+            );
+            await writeResource(path.join(packagePath, "Real.json"), "http://ex/Real");
+
+            await loadPackage(packagePath, cache, { packageIndexMode: "recover", preprocessPackage: (e) => e });
+
+            expect(cache.entries["http://ex/Real"]).toHaveLength(1); // recovered via scan
+            expect(cache.entries["http://ex/Missing"]).toBeUndefined();
+        });
+
+        test('"use" (default) does not recover a corrupt index and warns', async () => {
+            const cache = createCacheRecord();
+            const packagePath = path.join(tempDir, "pkg");
+            await fs.mkdir(packagePath, { recursive: true });
+            await writePackageJson(packagePath);
+
+            await fs.writeFile(
+                path.join(packagePath, ".index.json"),
+                JSON.stringify({
+                    "index-version": 1,
+                    files: [
+                        {
+                            filename: "Missing.json",
+                            resourceType: "StructureDefinition",
+                            id: "m",
+                            url: "http://ex/Missing",
+                        },
+                    ],
+                }),
+            );
+            await writeResource(path.join(packagePath, "Real.json"), "http://ex/Real");
+
+            const warnings: string[] = [];
+            const original = console.warn;
+            console.warn = (...args: unknown[]) => warnings.push(args.join(" "));
+            try {
+                await loadPackage(packagePath, cache, { packageIndexMode: "use", preprocessPackage: (e) => e });
+            } finally {
+                console.warn = original;
+            }
+
+            expect(cache.entries["http://ex/Real"]).toBeUndefined(); // no fallback scan in "use"
+            expect(warnings.some((w) => w.includes("missing-files"))).toBe(true); // but it warns
+        });
+
+        test("valid empty index (files: []) is not treated as corruption", async () => {
+            const cache = createCacheRecord();
+            const packagePath = path.join(tempDir, "pkg");
+            await fs.mkdir(packagePath, { recursive: true });
+            await writePackageJson(packagePath);
+
+            await fs.writeFile(
+                path.join(packagePath, ".index.json"),
+                JSON.stringify({ "index-version": 1, files: [] }),
+            );
+            await writeResource(path.join(packagePath, "Real.json"), "http://ex/Real");
+
+            await loadPackage(packagePath, cache, { packageIndexMode: "recover", preprocessPackage: (e) => e });
+
+            // Empty-but-valid index → ok/count:0 → no recover, so the on-disk file is NOT scanned in.
+            expect(cache.entries["http://ex/Real"]).toBeUndefined();
         });
     });
 
@@ -443,7 +566,7 @@ describe("Scanner Module", () => {
                 return ctx;
             };
 
-            await loadPackage(packagePath, cache, preprocessPackage);
+            await loadPackage(packagePath, cache, { packageIndexMode: "use", preprocessPackage });
 
             // Check that cache uses the fixed name
             expect(cache.packages["test.package"]).toBeDefined();
@@ -488,7 +611,7 @@ describe("Scanner Module", () => {
                 return { ...ctx, packageJson: { ...ctx.packageJson, name: "modified.name" } };
             };
 
-            await loadPackage(packagePath, cache, preprocessPackage);
+            await loadPackage(packagePath, cache, { packageIndexMode: "use", preprocessPackage });
 
             // Cache should have modified name
             expect(cache.packages["modified.name"]).toBeDefined();
@@ -501,7 +624,7 @@ describe("Scanner Module", () => {
         });
     });
 
-    describe("scanDirectory", () => {
+    describe("loadPackagesIntoCache", () => {
         test("should scan directory with FHIR packages", async () => {
             const cache = createCacheRecord();
             const nodeModules = path.join(tempDir, "node_modules");
@@ -538,7 +661,7 @@ describe("Scanner Module", () => {
                 JSON.stringify({ name: "regular.package", version: "1.0.0" }),
             );
 
-            await scanDirectory(cache, tempDir);
+            await loadPackagesIntoCache(cache, tempDir, { packageIndexMode: "use", preprocessPackage: (e) => e });
 
             expect(cache.packages["fhir.package1"]).toBeDefined();
             expect(cache.packages["regular.package"]).toBeDefined(); // All packages are registered now
@@ -573,7 +696,7 @@ describe("Scanner Module", () => {
             );
             await touchFile(path.join(packageDir, "Scoped.json"));
 
-            await scanDirectory(cache, tempDir);
+            await loadPackagesIntoCache(cache, tempDir, { packageIndexMode: "use", preprocessPackage: (e) => e });
 
             expect(cache.packages["@scope/package"]).toBeDefined();
             expect(cache.entries["http://example.com/Scoped"]).toHaveLength(1);

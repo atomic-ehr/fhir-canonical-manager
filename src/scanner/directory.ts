@@ -5,15 +5,9 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import type { ExtendedCache } from "../cache.js";
-import type { PreprocessContext } from "../types/index.js";
-import { loadPackage } from "./package.js";
+import { loadPackage, type ScanOptions } from "./package.js";
 
-export const loadPackagesIntoCache = async (
-    cache: ExtendedCache,
-    pwd: string,
-    preprocessPackage?: (context: PreprocessContext) => PreprocessContext,
-    options?: { ignorePackageIndex?: boolean },
-): Promise<void> => {
+export const loadPackagesIntoCache = async (cache: ExtendedCache, pwd: string, options: ScanOptions): Promise<void> => {
     const nodeModulesPath = path.join(pwd, "node_modules");
     const entries = await fs.readdir(nodeModulesPath, { withFileTypes: true });
     const warnings: string[] = [];
@@ -26,11 +20,11 @@ export const loadPackagesIntoCache = async (
             const scopedEntries = await fs.readdir(packagePath, { withFileTypes: true });
             for (const scopedEntry of scopedEntries) {
                 if (!scopedEntry.isDirectory()) continue;
-                const w = await loadPackage(path.join(packagePath, scopedEntry.name), cache, preprocessPackage, options);
+                const w = await loadPackage(path.join(packagePath, scopedEntry.name), cache, options);
                 if (w) warnings.push(w);
             }
         } else {
-            const w = await loadPackage(packagePath, cache, preprocessPackage, options);
+            const w = await loadPackage(packagePath, cache, options);
             if (w) warnings.push(w);
         }
     }

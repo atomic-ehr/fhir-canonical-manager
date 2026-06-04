@@ -86,6 +86,16 @@ export type PreprocessContext = PreprocessPackageContext | PreprocessResourceCon
 
 export type PackageManager = "bun" | "npm";
 
+/**
+ * How to treat a package's shipped `.index.json`:
+ * - `"use"` (default): trust the shipped index; scan the directory only if it is absent.
+ *   A corrupt index is reported (warning) but not worked around.
+ * - `"recover"`: use the index, but fall back to a directory scan per-package if the
+ *   index is corrupt/incomplete (unparseable, or references files missing on disk).
+ * - `"regenerate"`: ignore shipped indexes and always scan the directory.
+ */
+export type PackageIndexMode = "use" | "recover" | "regenerate";
+
 export interface Config {
     packages: string[];
     workingDir: string;
@@ -95,7 +105,12 @@ export interface Config {
     packageManager?: PackageManager;
     /** Hook to preprocess packages and resources. Receives a discriminated union with `kind` field. */
     preprocessPackage?: (context: PreprocessContext) => PreprocessContext;
-    /** Ignore shipped .index.json files and force directory scanning for all packages. */
+    /** How to treat shipped `.index.json` files (default `"use"`). */
+    packageIndex?: PackageIndexMode;
+    /**
+     * @deprecated Use `packageIndex` instead (`true` → `"regenerate"`, `false` → `"use"`).
+     * Setting both `packageIndex` and `ignorePackageIndex` throws.
+     */
     ignorePackageIndex?: boolean;
 }
 
