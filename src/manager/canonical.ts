@@ -18,7 +18,7 @@ import { ensureDir, fileExists } from "../fs/index.js";
 import { installLocalFolder, installTgzPackage } from "../local.js";
 import { detectPackageManager, installPackages } from "../package.js";
 import { resolveWithContext } from "../resolver.js";
-import { scanDirectory } from "../scanner/index.js";
+import { loadPackagesIntoCache } from "../scanner/index.js";
 import { filterBySmartSearch } from "../search/index.js";
 import type {
     CanonicalManager,
@@ -26,9 +26,9 @@ import type {
     IndexEntry,
     LocalPackageConfig,
     PackageId,
+    PackageIndexMode,
     PackageInfo,
     PackageJson,
-    PackageManager,
     Reference,
     Resource,
     SearchParameter,
@@ -36,6 +36,25 @@ import type {
     TgzPackageConfig,
 } from "../types/index.js";
 import { isPathSpec, normalizePackageSpec, parsePackageRef } from "./package-spec.js";
+
+/**
+ * Resolve the effective `packageIndex` mode, translating the deprecated
+ * `ignorePackageIndex` boolean. Throws if both are set.
+ */
+const resolvePackageIndexMode = (config: Config): PackageIndexMode => {
+    // No deprecated flag → just use packageIndex (default "use").
+    if (config.ignorePackageIndex === undefined) return config.packageIndex ?? "use";
+
+    if (config.packageIndex !== undefined) {
+        throw new Error(
+            "Cannot set both `packageIndex` and the deprecated `ignorePackageIndex`. Use `packageIndex` only.",
+        );
+    }
+    console.warn(
+        '`ignorePackageIndex` is deprecated; use `packageIndex` instead ("regenerate" replaces `true`, "use" replaces `false`).',
+    );
+    return config.ignorePackageIndex ? "regenerate" : "use";
+};
 
 interface LocalPackageEntry {
     config: LocalPackageConfig & { path: string };
@@ -236,6 +255,9 @@ export const createCanonicalManager = (config: Config): CanonicalManager => {
     const init = async (): Promise<Record<string, PackageId>> => {
         if (initialized) return packageRefToPackageMeta();
 
+        // Validate + resolve up front so the both-set error / deprecation fires regardless of cache state.
+        const packageIndexMode = resolvePackageIndexMode(config);
+
         await refreshLocalPackageCacheKeys();
         await ensureDir(workingDir);
         if (config.dropCache) {
@@ -274,8 +296,9 @@ export const createCanonicalManager = (config: Config): CanonicalManager => {
         } else {
             await installPackages(packageSpecs, npmPackagePath, packageManager, registry);
             await installConfiguredLocalPackages(npmPackagePath);
-            await scanDirectory(cache, npmPackagePath, config.preprocessPackage, {
-                ignorePackageIndex: config.ignorePackageIndex,
+            await loadPackagesIntoCache(cache, npmPackagePath, {
+                packageIndexMode,
+                preprocessPackage: config.preprocessPackage ?? ((e) => e),
             });
             await saveCacheRecordToDisk(cache, workingDir, packageManager, getCacheKeyPackages());
         }
