@@ -5,6 +5,7 @@
 
 // Re-export main CanonicalManager factory and class
 export { CanonicalManager, createCanonicalManager } from "./manager/index.js";
+// Composable patches are exposed via the "@atomic-ehr/fhir-canonical-manager/patch" subpath (src/patches.ts).
 export type { ReferenceManager as ReferenceManagerType } from "./reference.js";
 // Re-export reference management
 export { createReferenceManager, ReferenceManagerFactory as ReferenceManager } from "./reference.js";

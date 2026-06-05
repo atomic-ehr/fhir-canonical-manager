@@ -6,73 +6,9 @@ import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import type { ExtendedCache } from "../cache.js";
 import { fileExists } from "../fs/index.js";
-import type { IndexEntry, PackageIndexMode, PackageJson, PreprocessContext } from "../types/index.js";
-import { collectFromIndex, commitEntries } from "./processor.js";
-
-const scanDirectoryForResources = async (
-    dirPath: string,
-    packageJson: PackageJson,
-    cache: ExtendedCache,
-): Promise<number> => {
-    let count = 0;
-    try {
-        const entries = await fs.readdir(dirPath, { withFileTypes: true });
-
-        for (const entry of entries) {
-            if (!entry.isFile() || !entry.name.endsWith(".json")) continue;
-            if (entry.name === "package.json" || entry.name === ".index.json") continue;
-
-            const filePath = path.join(dirPath, entry.name);
-
-            try {
-                const content = await fs.readFile(filePath, "utf-8");
-                const resource = JSON.parse(content);
-
-                if (!resource.resourceType || !resource.url) continue;
-
-                const id = cache.referenceManager.generateId({
-                    packageName: packageJson.name,
-                    packageVersion: packageJson.version,
-                    filePath,
-                });
-
-                cache.referenceManager.set(id, {
-                    packageName: packageJson.name,
-                    packageVersion: packageJson.version,
-                    filePath,
-                    resourceType: resource.resourceType,
-                    url: resource.url,
-                    version: resource.version,
-                });
-
-                const indexEntry: IndexEntry = {
-                    id,
-                    resourceType: resource.resourceType,
-                    indexVersion: 0,
-                    url: resource.url,
-                    version: resource.version,
-                    kind: resource.kind,
-                    type: resource.type,
-                    package: {
-                        name: packageJson.name,
-                        version: packageJson.version,
-                    },
-                };
-
-                if (!cache.entries[resource.url]) {
-                    cache.entries[resource.url] = [];
-                }
-                cache.entries[resource.url]?.push(indexEntry);
-                count++;
-            } catch {
-                // Skip files that can't be parsed
-            }
-        }
-    } catch {
-        // Silently ignore directory scan errors
-    }
-    return count;
-};
+import { applyPatches } from "../patches.js";
+import type { PackageIndexMode, PackageJson, Patches, PatchReportSink } from "../types/index.js";
+import { collectFromDirectory, collectFromIndex, commitEntries } from "./processor.js";
 
 const CORE_PACKAGE_PATTERN = /^hl7\.fhir\.r\d+\.core$/;
 
@@ -83,28 +19,34 @@ const hasCorePackageDependency = (dependencies: Record<string, string> | undefin
     return Object.keys(dependencies).some(isCorePackage);
 };
 
-/** Options for scanning a package into the cache. The mode is resolved by the caller. */
+/** Options for scanning a package into the cache. The mode and composed patches are resolved by the caller. */
 export type ScanOptions = {
     packageIndexMode: PackageIndexMode;
-    preprocessPackage: (context: PreprocessContext) => PreprocessContext;
+    /** Composed patches (transforms + exclusions), applied at the package, entry, and resource phases. */
+    patches: Patches;
+    /** Diagnostics sink for patch/recovery/exclusion reasons. */
+    report: PatchReportSink;
 };
 
 /**
  * Load a package's resources into the cache: use the shipped index, scan the directory,
  * or recover (scan when the index is corrupt). Returns the committed count and whether
- * the shipped index was used (drives the "no .index.json" diagnostic).
+ * the shipped index was used (drives the "no .index.json" diagnostic). `patches` runs at the
+ * entry phase per candidate (a `null` return excludes it).
  */
 const loadResources = async (
     packagePath: string,
     packageJson: PackageJson,
     cache: ExtendedCache,
     mode: PackageIndexMode,
+    patches: Patches,
+    report: PatchReportSink,
 ): Promise<{ count: number; usedIndex: boolean }> => {
     const pkgId = `${packageJson.name}@${packageJson.version}`;
 
     // No usable shipped index → scan the directory.
     if (mode === "regenerate" || !(await fileExists(path.join(packagePath, ".index.json")))) {
-        const count = await scanDirectoryForResources(packagePath, packageJson, cache);
+        const count = commitEntries(cache, packageJson, await collectFromDirectory(packagePath), patches, report);
         if (count > 0) {
             console.warn(`Warning: index generated for ${packageJson.name} (${count} resources)`);
         }
@@ -117,9 +59,16 @@ const loadResources = async (
     if (!result.ok) {
         if (mode === "recover") {
             console.warn(`Recovered ${pkgId}: .index.json is ${result.reason}; scanning directory instead.`);
-            return { count: await scanDirectoryForResources(packagePath, packageJson, cache), usedIndex: false };
+            const count = commitEntries(cache, packageJson, await collectFromDirectory(packagePath), patches, report);
+            report({
+                kind: "index-recovery",
+                package: { name: packageJson.name, version: packageJson.version },
+                reason: result.reason,
+                recovered: count,
+            });
+            return { count, usedIndex: false };
         }
-        const count = commitEntries(cache, packageJson, entries);
+        const count = commitEntries(cache, packageJson, entries, patches, report);
         console.warn(
             `Warning: ${pkgId} .index.json is ${result.reason}; loaded ${count} resource(s). ` +
                 `Set packageIndex: "recover" to fall back to a directory scan.`,
@@ -128,10 +77,10 @@ const loadResources = async (
     }
 
     // Usable shipped index (plus any examples index).
-    let count = commitEntries(cache, packageJson, entries);
+    let count = commitEntries(cache, packageJson, entries, patches, report);
     const examplesPath = path.join(packagePath, "examples");
     if (await fileExists(path.join(examplesPath, ".index.json"))) {
-        count += commitEntries(cache, packageJson, (await collectFromIndex(examplesPath)).entries);
+        count += commitEntries(cache, packageJson, (await collectFromIndex(examplesPath)).entries, patches, report);
     }
     return { count, usedIndex: true };
 };
@@ -145,7 +94,7 @@ export const loadPackage = async (
     cache: ExtendedCache,
     options: ScanOptions,
 ): Promise<string | undefined> => {
-    const { packageIndexMode: mode, preprocessPackage } = options;
+    const { packageIndexMode: mode, patches, report } = options;
 
     const packageJsonPath = path.join(packagePath, "package.json");
     if (!(await fileExists(packageJsonPath))) return undefined;
@@ -154,12 +103,8 @@ export const loadPackage = async (
     try {
         const content = await fs.readFile(packageJsonPath, "utf-8");
         let parsed = JSON.parse(content);
-        const result = preprocessPackage({
-            kind: "package",
-            packageJson: parsed,
-            package: { name: parsed.name, version: parsed.version },
-        });
-        if (result.kind === "package") parsed = result.packageJson;
+        const result = applyPatches(patches.package, { name: parsed.name, version: parsed.version }, parsed, report);
+        if (result) parsed = result;
         packageJson = parsed as PackageJson;
     } catch {
         return undefined;
@@ -174,7 +119,7 @@ export const loadPackage = async (
         packageJson,
     };
 
-    const { count, usedIndex } = await loadResources(packagePath, packageJson, cache, mode);
+    const { count, usedIndex } = await loadResources(packagePath, packageJson, cache, mode, patches, report);
 
     // No resources = not a FHIR package, no warning needed
     if (count === 0) return undefined;
