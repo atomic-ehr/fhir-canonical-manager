@@ -17,6 +17,7 @@ import { DEFAULT_REGISTRY } from "../constants.js";
 import { ensureDir, fileExists } from "../fs/index.js";
 import { installLocalFolder, installTgzPackage } from "../local.js";
 import { detectPackageManager, installPackages } from "../package.js";
+import { applyPatches } from "../patches.js";
 import { resolveWithContext } from "../resolver.js";
 import { loadPackagesIntoCache } from "../scanner/index.js";
 import { filterBySmartSearch } from "../search/index.js";
@@ -29,7 +30,10 @@ import type {
     PackageIndexMode,
     PackageInfo,
     PackageJson,
+    Patches,
+    PatchReportSink,
     Reference,
+    ReportEntry,
     Resource,
     SearchParameter,
     SourceContext,
@@ -54,6 +58,42 @@ const resolvePackageIndexMode = (config: Config): PackageIndexMode => {
         '`ignorePackageIndex` is deprecated; use `packageIndex` instead ("regenerate" replaces `true`, "use" replaces `false`).',
     );
     return config.ignorePackageIndex ? "regenerate" : "use";
+};
+
+/** A diagnostics sink plus the backing entries array exposed via `report()`. */
+const createReportSink = (): { sink: PatchReportSink; entries: ReportEntry[] } => {
+    const entries: ReportEntry[] = [];
+    return {
+        entries,
+        sink: (entry) => {
+            entries.push(entry);
+        },
+    };
+};
+
+/** Compose `config.patches` (and the deprecated `preprocessPackage`, last) into one effective patch. */
+const resolveEffectivePatch = (config: Config): Patches => {
+    const configured = config.patches ?? {};
+    const patches: Patches = {
+        package: [...(configured.package ?? [])],
+        entry: [...(configured.entry ?? [])],
+        resource: [...(configured.resource ?? [])],
+    };
+    if (config.preprocessPackage) {
+        const legacy = config.preprocessPackage;
+        // The legacy hook predates per-phase handlers: it takes a kind-tagged PreprocessContext
+        // and only transforms packages/resources. Bridge it — add `kind` going in, strip it (and
+        // guard against a wrong-kind return) coming out — as package/resource handlers.
+        patches.package.push((pkg, packageJson) => {
+            const r = legacy({ kind: "package", package: pkg, packageJson });
+            return r.kind === "package" ? r.packageJson : undefined;
+        });
+        patches.resource.push((pkg, resource) => {
+            const r = legacy({ kind: "resource", package: pkg, resource });
+            return r.kind === "resource" ? r.resource : undefined;
+        });
+    }
+    return patches;
 };
 
 interface LocalPackageEntry {
@@ -157,6 +197,10 @@ export const createCanonicalManager = (config: Config): CanonicalManager => {
     let initialized = false;
     const searchParamsCache = new Map<string, SearchParameter[]>();
 
+    // Composed patch + de-duped diagnostics sink, built once and used at all three phases.
+    const { sink: reportSink, entries: reportEntries } = createReportSink();
+    const effectivePatches = resolveEffectivePatch(config);
+
     const installConfiguredLocalPackages = async (npmPackagePath: string): Promise<void> => {
         const skipDependencyInstall = process.env.FCM_SKIP_LOCAL_DEP_INSTALL === "1";
         for (const entry of localPackages.values()) {
@@ -257,6 +301,12 @@ export const createCanonicalManager = (config: Config): CanonicalManager => {
 
         // Validate + resolve up front so the both-set error / deprecation fires regardless of cache state.
         const packageIndexMode = resolvePackageIndexMode(config);
+        if (config.ignorePackageIndex !== undefined) {
+            reportSink({
+                kind: "deprecation",
+                message: "`ignorePackageIndex` is deprecated; use `packageIndex`.",
+            });
+        }
 
         await refreshLocalPackageCacheKeys();
         await ensureDir(workingDir);
@@ -298,7 +348,8 @@ export const createCanonicalManager = (config: Config): CanonicalManager => {
             await installConfiguredLocalPackages(npmPackagePath);
             await loadPackagesIntoCache(cache, npmPackagePath, {
                 packageIndexMode,
-                preprocessPackage: config.preprocessPackage ?? ((e) => e),
+                patches: effectivePatches,
+                report: reportSink,
             });
             await saveCacheRecordToDisk(cache, workingDir, packageManager, getCacheKeyPackages());
         }
@@ -415,16 +466,13 @@ export const createCanonicalManager = (config: Config): CanonicalManager => {
                 resourceType: reference.resourceType,
             };
 
-            if (config.preprocessPackage) {
-                const result = config.preprocessPackage({
-                    kind: "resource",
-                    resource,
-                    package: { name: metadata.packageName, version: metadata.packageVersion },
-                });
-                if (result.kind === "resource") {
-                    resource = result.resource;
-                }
-            }
+            const result = applyPatches(
+                effectivePatches.resource,
+                { name: metadata.packageName, version: metadata.packageVersion },
+                resource,
+                reportSink,
+            );
+            if (result) resource = result;
 
             return resource;
         } catch (err) {
@@ -628,5 +676,6 @@ export const createCanonicalManager = (config: Config): CanonicalManager => {
         smartSearch,
         getSearchParametersForResource,
         packageJson,
+        report: (): ReportEntry[] => [...reportEntries],
     };
 };

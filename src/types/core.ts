@@ -68,21 +68,55 @@ export interface SourceContext {
     path?: string;
 }
 
-export type PreprocessBaseContext = {
-    package: PackageId;
-};
+/**
+ * @deprecated Use `patches` (per-phase handlers). Kind-discriminated context for the legacy
+ * `preprocessPackage` hook; only the package and resource phases are surfaced to it.
+ */
+export type PreprocessContext =
+    | { kind: "package"; package: PackageId; packageJson: Record<string, unknown> }
+    | { kind: "resource"; package: PackageId; resource: Resource };
 
-export type PreprocessPackageContext = PreprocessBaseContext & {
-    kind: "package";
-    packageJson: Record<string, unknown>;
-};
+/** A structured record of a defect-handling action CM took (returned by `report()`). */
+export type ReportEntry =
+    | {
+          kind: "index-recovery";
+          package: PackageId;
+          reason: "unparseable" | "missing-files";
+          recovered: number;
+      }
+    | { kind: "exclusion"; package: PackageId; url: string; reason: string }
+    | { kind: "deprecation"; message: string };
 
-export type PreprocessResourceContext = PreprocessBaseContext & {
-    kind: "resource";
-    resource: Resource;
-};
+/** Diagnostics sink passed to patches as their second argument. */
+export type PatchReportSink = (entry: ReportEntry) => void;
 
-export type PreprocessContext = PreprocessPackageContext | PreprocessResourceContext;
+/** Patch handler for the package phase: transform the package.json, or no-op (`undefined`). */
+export type PackagePatch = (
+    pkg: PackageId,
+    packageJson: Record<string, unknown>,
+    report: PatchReportSink,
+) => Record<string, unknown> | undefined;
+
+/** Patch handler for the index-entry phase: transform the entry, drop it (`null`), or no-op. */
+export type EntryPatch = (pkg: PackageId, entry: IndexEntry, report: PatchReportSink) => IndexEntry | null | undefined;
+
+/** Patch handler for the resource phase: transform the resource, or no-op (`undefined`). */
+export type ResourcePatch = (pkg: PackageId, resource: Resource, report: PatchReportSink) => Resource | undefined;
+
+/**
+ * A composable set of transform/filter handlers applied to packages, index entries, and
+ * resources. Each phase holds a list of handlers run left-to-right; each handler receives
+ * its package id, the value being patched (`packageJson` / `entry` / `resource`), and a
+ * diagnostics sink, and returns a transformed value or `undefined` for no-op. Drop (`null`)
+ * is available **only** at the `entry` phase. This is the normalized form (every phase
+ * present); `Config.patches` accepts a `Partial<Patches>`, so callers provide only the
+ * phase(s) they care about.
+ */
+export type Patches = {
+    package: PackagePatch[];
+    entry: EntryPatch[];
+    resource: ResourcePatch[];
+};
 
 export type PackageManager = "bun" | "npm";
 
@@ -105,6 +139,8 @@ export interface Config {
     packageManager?: PackageManager;
     /** Hook to preprocess packages and resources. Receives a discriminated union with `kind` field. */
     preprocessPackage?: (context: PreprocessContext) => PreprocessContext;
+    /** Composable patch handlers applied to packages, index entries, and resources (run before `preprocessPackage`). */
+    patches?: Partial<Patches>;
     /** How to treat shipped `.index.json` files (default `"use"`). */
     packageIndex?: PackageIndexMode;
     /**
@@ -199,4 +235,11 @@ export interface CanonicalManager {
     ): Promise<IndexEntry[]>;
     getSearchParametersForResource(resourceType: string): Promise<SearchParameter[]>;
     packageJson(packageName: string): Promise<PackageJson>;
+    /**
+     * Structured record of defect-handling actions (index recoveries, exclusions, deprecation
+     * notices). These are emitted only while **building** the index; on a cached run the actions
+     * are already baked into the cache, so `report()` returns nothing for them — set
+     * `dropCache: true` to rebuild and repopulate the report.
+     */
+    report(): ReportEntry[];
 }
