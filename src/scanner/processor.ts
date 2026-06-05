@@ -141,8 +141,8 @@ export const commitEntries = (
             package: pkg,
         };
 
-        if (patches?.entry.length && report) {
-            const result = applyPatches(patches.entry, pkg, indexEntry, report);
+        if (patches?.indexEntry.length && report) {
+            const result = applyPatches(patches.indexEntry, pkg, indexEntry, report);
             if (result === null) continue; // excluded — never registered or indexed
             indexEntry = result;
         }

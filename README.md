@@ -341,13 +341,13 @@ setting both it and `packageIndex` throws.
 
 #### `patches` — composable transforms and exclusions
 
-`patches` is a single `Patches` object with an optional **list of handlers per phase** —
-`package`, `entry`, and `resource`. Each handler receives its package id, the value being
-patched (`packageJson` / `entry` / `resource`), and a diagnostics sink, and returns a
+`patches` is a single `Patches` object with an optional **list of handlers per phase**,
+keyed by the value each handler transforms — `packageJson`, `indexEntry`, and `fhirResource`.
+Each handler receives its package id, that value, and a diagnostics sink, and returns a
 transformed value or `undefined` to no-op; the handlers in a phase run left-to-right. The
-`entry` handlers may also return `null` to **drop** the canonical (it never enters the
+`indexEntry` handlers may also return `null` to **drop** the canonical (it never enters the
 index). Provide only the phases you need; the deprecated `preprocessPackage` is appended
-after your package/resource handlers.
+after your packageJson/fhirResource handlers.
 
 ```typescript
 import type { PackagePatch } from "@atomic-ehr/fhir-canonical-manager";
@@ -356,12 +356,12 @@ import type { PackagePatch } from "@atomic-ehr/fhir-canonical-manager";
 // Fix a package's declared version at the package phase:
 const fixVersion: PackagePatch = (pkg, packageJson) => ({ ...packageJson, version: "1.2.3" });
 
-// patches: { package: [fixVersion] }
+// patches: { packageJson: [fixVersion] }
 ```
 
 The bundled patch helpers (`excludeCanonical`, `applyPatches`, `matchPackage`) are exported
 from the `@atomic-ehr/fhir-canonical-manager/patch` subpath. `excludeCanonical` returns an
-`entry` handler that drops a canonical (e.g. an R4 extension that references an R5-only type):
+`indexEntry` handler that drops a canonical (e.g. an R4 extension that references an R5-only type):
 
 ```typescript
 import { CanonicalManager } from "@atomic-ehr/fhir-canonical-manager";
@@ -371,7 +371,7 @@ const manager = CanonicalManager({
     packages: ["hl7.fhir.uv.extensions.r4"],
     workingDir: "./fhir-packages",
     patches: {
-        entry: [
+        indexEntry: [
             excludeCanonical({
                 url: "http://hl7.org/fhir/StructureDefinition/specimen-additive",
                 reason: "Uses CodeableReference, not available in R4",
