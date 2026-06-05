@@ -18,7 +18,7 @@ export const catchConsole = async (action: () => Promise<void>): Promise<string[
     return consoleOutput;
 };
 
-export const changeWorkDir = async (dir: string, action: () => Promise<void>, removeDir: boolean = true) => {
+export const changeWorkDir = async (dir: string, action: () => Promise<void>, removeDir = true) => {
     const originalCwd = process.cwd();
     try {
         afs.mkdirSync(dir, { recursive: true });

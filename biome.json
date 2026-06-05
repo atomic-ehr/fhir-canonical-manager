@@ -21,11 +21,17 @@
         "noImplicitAnyLet": "off",
         "noExplicitAny": "off",
         "noAssignInExpressions": "off",
-        "noVar": "error"
+        "noVar": "error",
+        "noEvolvingTypes": "error"
       },
       "correctness": {
         "noUnusedPrivateClassMembers": "error",
-        "noUnusedImports": { "level": "error" }
+        "noUnusedImports": { "level": "error" },
+        "noUnusedVariables": "error",
+        "noUnusedFunctionParameters": "error"
+      },
+      "performance": {
+        "noAccumulatingSpread": "error"
       },
       "nursery": {
         "noUnresolvedImports": "off"
@@ -41,7 +47,17 @@
       "style": {
         "useConsistentArrayType": "error",
         "useArrayLiterals": "error",
-        "noNestedTernary": "error"
+        "noNestedTernary": "error",
+        "useImportType": "error",
+        "useExportType": "error",
+        "noInferrableTypes": "error",
+        "noNonNullAssertion": "error",
+        "noParameterAssign": "error",
+        "useThrowOnlyError": "error",
+        "useDefaultParameterLast": "error",
+        "useShorthandAssign": "error",
+        "useTemplate": "error",
+        "useCollapsedElseIf": "error"
       },
       "recommended": true
     }

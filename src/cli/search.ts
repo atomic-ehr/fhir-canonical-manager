@@ -59,23 +59,21 @@ export async function searchCommand(args: string[]): Promise<void> {
 
         if (isJson) {
             console.log(JSON.stringify(results, null, 2));
+        } else if (results.length === 0) {
+            console.log("No resources found");
         } else {
-            if (results.length === 0) {
-                console.log("No resources found");
-            } else {
-                const searchInfo = searchTerms.length > 0 ? ` matching "${searchTerms.join(" ")}"` : "";
-                console.log(`Found ${results.length} resource${results.length === 1 ? "" : "s"}${searchInfo}:`);
+            const searchInfo = searchTerms.length > 0 ? ` matching "${searchTerms.join(" ")}"` : "";
+            console.log(`Found ${results.length} resource${results.length === 1 ? "" : "s"}${searchInfo}:`);
 
-                results.forEach((resource) => {
-                    const info = {
-                        resourceType: resource.resourceType,
-                        kind: resource.kind,
-                        type: resource.type,
-                        package: resource.package?.name,
-                    };
-                    console.log(`${resource.url}, ${JSON.stringify(info)}`);
-                });
-            }
+            results.forEach((resource) => {
+                const info = {
+                    resourceType: resource.resourceType,
+                    kind: resource.kind,
+                    type: resource.type,
+                    package: resource.package?.name,
+                };
+                console.log(`${resource.url}, ${JSON.stringify(info)}`);
+            });
         }
     } finally {
         await manager.destroy();
