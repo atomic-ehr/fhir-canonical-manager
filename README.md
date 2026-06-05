@@ -13,6 +13,7 @@ A TypeScript package manager for FHIR resources that provides canonical URL reso
 - 🎯 **Flexible Search** - Search resources by type, kind, URL, version, or package
 - ⚡ **Performance Optimized** - In-memory cache with disk persistence
 - 🛠️ **TypeScript First** - Full TypeScript support with comprehensive types
+- 🩹 **Package Defect Handling** - Composable patches, canonical exclusion, index recovery, and a diagnostics report
 - 🖥️ **CLI Tool** - Command-line interface for package management and resource discovery
 
 ## Installation
@@ -292,9 +293,16 @@ Creates a new instance of the canonical manager.
 
 ```typescript
 interface Config {
-  packages: string[];      // FHIR packages to install (e.g., ["hl7.fhir.r4.core"])
-  workingDir: string;      // Directory for packages and cache
-  registry?: string;       // NPM registry URL (optional)
+  packages: string[];               // FHIR packages to install (e.g., ["hl7.fhir.r4.core"])
+  workingDir: string;               // Directory for packages and cache
+  registry?: string;                // NPM registry URL (optional)
+  dropCache?: boolean;              // Rebuild the cache instead of loading it from disk
+  patches?: Partial<Patches>;       // Per-phase handler lists (see "Patches & defect handling")
+  packageIndex?: PackageIndexMode;  // How to treat shipped .index.json files (default "use")
+  /** @deprecated use `patches` — equivalent to package/resource handlers */
+  preprocessPackage?: (ctx: PreprocessContext) => PreprocessContext;
+  /** @deprecated use `packageIndex` */
+  ignorePackageIndex?: boolean;
 }
 ```
 
@@ -309,6 +317,90 @@ const manager = CanonicalManager({
     registry: "https://fs.get-ig.org/pkgs/"
 });
 ```
+
+### Patches & defect handling
+
+Real-world FHIR packages ship defects (missing dependencies, canonical URL typos,
+unavailable ValueSet bindings, cross-version type references, corrupt `.index.json`).
+CanonicalManager exposes three knobs to work around them.
+
+#### `packageIndex` — how to treat shipped `.index.json`
+
+```typescript
+type PackageIndexMode = "use" | "recover" | "regenerate";
+```
+
+- **`"use"`** (default): trust the shipped index; scan the directory only if it's
+  absent. A corrupt index is **warned** about but not worked around (matches prior behavior).
+- **`"recover"`**: use the index, but fall back to a **per-package** directory scan when
+  it's corrupt or incomplete (unparseable, or references files missing on disk).
+- **`"regenerate"`**: ignore shipped indexes and always scan.
+
+`ignorePackageIndex` is a deprecated alias (`true` → `"regenerate"`, `false` → `"use"`);
+setting both it and `packageIndex` throws.
+
+#### `patches` — composable transforms and exclusions
+
+`patches` is a single `Patches` object with an optional **list of handlers per phase** —
+`package`, `entry`, and `resource`. Each handler receives its package id, the value being
+patched (`packageJson` / `entry` / `resource`), and a diagnostics sink, and returns a
+transformed value or `undefined` to no-op; the handlers in a phase run left-to-right. The
+`entry` handlers may also return `null` to **drop** the canonical (it never enters the
+index). Provide only the phases you need; the deprecated `preprocessPackage` is appended
+after your package/resource handlers.
+
+```typescript
+import type { PackagePatch } from "@atomic-ehr/fhir-canonical-manager";
+
+// A handler is (pkg, value, report) => transformedValue | undefined.
+// Fix a package's declared version at the package phase:
+const fixVersion: PackagePatch = (pkg, packageJson) => ({ ...packageJson, version: "1.2.3" });
+
+// patches: { package: [fixVersion] }
+```
+
+The bundled patch helpers (`excludeCanonical`, `applyPatches`, `matchPackage`) are exported
+from the `@atomic-ehr/fhir-canonical-manager/patch` subpath. `excludeCanonical` returns an
+`entry` handler that drops a canonical (e.g. an R4 extension that references an R5-only type):
+
+```typescript
+import { CanonicalManager } from "@atomic-ehr/fhir-canonical-manager";
+import { excludeCanonical } from "@atomic-ehr/fhir-canonical-manager/patch";
+
+const manager = CanonicalManager({
+    packages: ["hl7.fhir.uv.extensions.r4"],
+    workingDir: "./fhir-packages",
+    patches: {
+        entry: [
+            excludeCanonical({
+                url: "http://hl7.org/fhir/StructureDefinition/specimen-additive",
+                reason: "Uses CodeableReference, not available in R4",
+            }),
+        ],
+    },
+});
+```
+
+> **Caching note:** exclusions and package-level transforms are baked into the on-disk
+> cache when the index is built. If you change `patches` between runs, set
+> `dropCache: true` (or clear the working dir) so the change takes effect.
+
+#### `report()` — why you see what you see
+
+```typescript
+const report = manager.report(); // ReportEntry[]
+//   { kind: "index-recovery"; package; reason; recovered }
+//   | { kind: "exclusion"; package; url; reason }
+//   | { kind: "deprecation"; message }
+```
+
+Returns a record of every defect-handling action taken (index recoveries, exclusions,
+deprecation notices), so downstream tools can explain why a canonical is missing or changed.
+
+> **Cached-run caveat:** these actions are recorded only while **building** the index. On a
+> cached run the outcomes are already baked into the cache, so `report()` returns nothing for
+> them — exactly when you might ask "why is X missing." Use `dropCache: true` to rebuild and
+> repopulate the report.
 
 ### `init(): Promise<void>`
 
