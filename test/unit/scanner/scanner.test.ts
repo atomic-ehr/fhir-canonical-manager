@@ -26,9 +26,9 @@ const mkScanOptions = (
     packageIndexMode: overrides.packageIndexMode ?? "use",
     report: overrides.report ?? (() => {}),
     patches: {
-        package: overrides.patches?.package ?? [],
-        entry: overrides.patches?.entry ?? [],
-        resource: overrides.patches?.resource ?? [],
+        packageJson: overrides.patches?.packageJson ?? [],
+        indexEntry: overrides.patches?.indexEntry ?? [],
+        fhirResource: overrides.patches?.fhirResource ?? [],
     },
 });
 
@@ -572,7 +572,7 @@ describe("Scanner Module", () => {
                 packagePath,
                 cache,
                 mkScanOptions({
-                    patches: { entry: [excludeCanonical({ url: "http://ex/Bad", reason: "cross-version" })] },
+                    patches: { indexEntry: [excludeCanonical({ url: "http://ex/Bad", reason: "cross-version" })] },
                     report: (e) => entries.push(e),
                 }),
             );
@@ -594,7 +594,7 @@ describe("Scanner Module", () => {
                 packagePath,
                 cache,
                 mkScanOptions({
-                    patches: { entry: [excludeCanonical({ url: "http://ex/Bad", reason: "x" })] },
+                    patches: { indexEntry: [excludeCanonical({ url: "http://ex/Bad", reason: "x" })] },
                     packageIndexMode: "regenerate",
                 }),
             );
@@ -624,7 +624,7 @@ describe("Scanner Module", () => {
                 cache,
                 mkScanOptions({
                     patches: {
-                        entry: [
+                        indexEntry: [
                             (_pkg, entry) =>
                                 entry.url === "http://ex/Typo" ? { ...entry, url: "http://ex/Fixed" } : undefined,
                         ],
@@ -661,7 +661,7 @@ describe("Scanner Module", () => {
                 cache,
                 mkScanOptions({
                     patches: {
-                        entry: [
+                        indexEntry: [
                             (_pkg, entry) =>
                                 entry.url === "http://ex/Cleared" ? { ...entry, url: undefined } : undefined,
                         ],
@@ -711,7 +711,7 @@ describe("Scanner Module", () => {
 
             // Patch that fixes the typo at the package phase
             const preprocessPackage: Partial<Patches> = {
-                package: [
+                packageJson: [
                     (_pkg, packageJson) =>
                         packageJson.name === "test.packge" ? { ...packageJson, name: "test.package" } : undefined,
                 ],
@@ -758,7 +758,7 @@ describe("Scanner Module", () => {
             await touchFile(path.join(packagePath, "Resource.json"));
 
             const preprocessPackage: Partial<Patches> = {
-                package: [(_pkg, packageJson) => ({ ...packageJson, name: "modified.name" })],
+                packageJson: [(_pkg, packageJson) => ({ ...packageJson, name: "modified.name" })],
             };
 
             await loadPackage(packagePath, cache, mkScanOptions({ patches: preprocessPackage }));

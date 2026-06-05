@@ -113,9 +113,9 @@ export type ResourcePatch = (pkg: PackageId, resource: Resource, report: PatchRe
  * phase(s) they care about.
  */
 export type Patches = {
-    package: PackagePatch[];
-    entry: EntryPatch[];
-    resource: ResourcePatch[];
+    packageJson: PackagePatch[];
+    indexEntry: EntryPatch[];
+    fhirResource: ResourcePatch[];
 };
 
 export type PackageManager = "bun" | "npm";

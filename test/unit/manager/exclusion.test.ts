@@ -45,7 +45,7 @@ describe("CM-level exclusion", () => {
         const manager = CanonicalManager({
             packages: [],
             workingDir: path.join(root, "wd"),
-            patches: { entry: [excludeCanonical({ url: "http://ex/Bad", reason: "cross-version type" })] },
+            patches: { indexEntry: [excludeCanonical({ url: "http://ex/Bad", reason: "cross-version type" })] },
         });
         await manager.addLocalPackage({ name: "test.package", version: "1.0.0", path: pkgPath });
         await manager.init();

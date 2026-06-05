@@ -103,7 +103,12 @@ export const loadPackage = async (
     try {
         const content = await fs.readFile(packageJsonPath, "utf-8");
         let parsed = JSON.parse(content);
-        const result = applyPatches(patches.package, { name: parsed.name, version: parsed.version }, parsed, report);
+        const result = applyPatches(
+            patches.packageJson,
+            { name: parsed.name, version: parsed.version },
+            parsed,
+            report,
+        );
         if (result) parsed = result;
         packageJson = parsed as PackageJson;
     } catch {

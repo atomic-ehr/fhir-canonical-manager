@@ -75,20 +75,20 @@ const createReportSink = (): { sink: PatchReportSink; entries: ReportEntry[] } =
 const resolveEffectivePatch = (config: Config): Patches => {
     const configured = config.patches ?? {};
     const patches: Patches = {
-        package: [...(configured.package ?? [])],
-        entry: [...(configured.entry ?? [])],
-        resource: [...(configured.resource ?? [])],
+        packageJson: [...(configured.packageJson ?? [])],
+        indexEntry: [...(configured.indexEntry ?? [])],
+        fhirResource: [...(configured.fhirResource ?? [])],
     };
     if (config.preprocessPackage) {
         const legacy = config.preprocessPackage;
         // The legacy hook predates per-phase handlers: it takes a kind-tagged PreprocessContext
         // and only transforms packages/resources. Bridge it — add `kind` going in, strip it (and
-        // guard against a wrong-kind return) coming out — as package/resource handlers.
-        patches.package.push((pkg, packageJson) => {
+        // guard against a wrong-kind return) coming out — as packageJson/fhirResource handlers.
+        patches.packageJson.push((pkg, packageJson) => {
             const r = legacy({ kind: "package", package: pkg, packageJson });
             return r.kind === "package" ? r.packageJson : undefined;
         });
-        patches.resource.push((pkg, resource) => {
+        patches.fhirResource.push((pkg, resource) => {
             const r = legacy({ kind: "resource", package: pkg, resource });
             return r.kind === "resource" ? r.resource : undefined;
         });
@@ -467,7 +467,7 @@ export const createCanonicalManager = (config: Config): CanonicalManager => {
             };
 
             const result = applyPatches(
-                effectivePatches.resource,
+                effectivePatches.fhirResource,
                 { name: metadata.packageName, version: metadata.packageVersion },
                 resource,
                 reportSink,
