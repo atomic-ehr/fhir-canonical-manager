@@ -89,7 +89,7 @@ const writeCacheReadme = async (
     }
 
     const prefix = existing === "" ? "" : existing.replace(/\n*$/, "\n");
-    await afs.writeFile(readmePath, prefix + lines.join("\n") + "\n");
+    await afs.writeFile(readmePath, `${prefix}${lines.join("\n")}\n`);
 };
 
 export const saveCacheRecordToDisk = async (
