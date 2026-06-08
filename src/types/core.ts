@@ -7,10 +7,13 @@ export interface Reference {
     resourceType: string;
 }
 
-export interface PackageId {
-    name: string;
-    version: string;
-}
+export type PackageName = string;
+export type PackageVersion = string;
+
+export type PackageId = {
+    name: PackageName;
+    version: PackageVersion;
+};
 
 export interface IndexEntry extends Reference {
     indexVersion: number;
