@@ -30,6 +30,7 @@ import type {
     PackageIndexMode,
     PackageInfo,
     PackageJson,
+    PackageName,
     Patches,
     PatchReportSink,
     Reference,
@@ -161,7 +162,7 @@ export const createCanonicalManager = (config: Config): CanonicalManager => {
             }),
         );
     };
-    const localPackageTargetPath = (packageName: string, npmPackagePath: string): string => {
+    const localPackageTargetPath = (packageName: PackageName, npmPackagePath: string): string => {
         const segments = packageName.startsWith("@") ? packageName.split("/") : [packageName];
         return Path.join(npmPackagePath, "node_modules", ...segments);
     };
@@ -606,7 +607,7 @@ export const createCanonicalManager = (config: Config): CanonicalManager => {
         return results;
     };
 
-    const packageJson = async (packageName: string): Promise<PackageJson> => {
+    const packageJson = async (packageName: PackageName): Promise<PackageJson> => {
         ensureInitialized();
         const pkg = cache.packages[packageName];
         if (!pkg) throw new Error(`Package ${packageName} not found`);

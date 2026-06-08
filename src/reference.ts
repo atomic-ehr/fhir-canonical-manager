@@ -4,14 +4,14 @@
  */
 
 import { createHash } from "node:crypto";
-import type { Reference, ReferenceMetadata, ReferenceStore } from "./types/index.js";
+import type { PackageName, PackageVersion, Reference, ReferenceMetadata, ReferenceStore } from "./types/index.js";
 
 /**
  * Generate a unique reference ID from metadata
  */
 export const generateReferenceId = (metadata: {
-    packageName: string;
-    packageVersion: string;
+    packageName: PackageName;
+    packageVersion: PackageVersion;
     filePath: string;
 }): string => {
     const input = `${metadata.packageName}@${metadata.packageVersion}:${metadata.filePath}`;

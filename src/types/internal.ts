@@ -1,7 +1,7 @@
 /**
  * Internal implementation types for FHIR Canonical Manager
  */
-import type { IndexEntry, PackageInfo } from "./core.js";
+import type { IndexEntry, PackageInfo, PackageName, PackageVersion } from "./core.js";
 
 export interface IndexFile {
     "index-version": number;
@@ -19,8 +19,8 @@ export interface IndexFileEntry {
 }
 
 export interface ReferenceMetadata {
-    packageName: string;
-    packageVersion: string;
+    packageName: PackageName;
+    packageVersion: PackageVersion;
     filePath: string;
     resourceType: string;
     url?: string;
