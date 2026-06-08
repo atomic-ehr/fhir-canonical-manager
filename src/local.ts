@@ -5,7 +5,7 @@ import { isPathSpec, parsePackageRef } from "./manager/package-spec.js";
 import { installPackages } from "./package.js";
 import type { IndexFile, IndexFileEntry, LocalPackageConfig, PackageId, PackageManager } from "./types/index.js";
 
-const parseDependencySpec = (spec: string): { name: string; version: string } | undefined => {
+const parseDependencySpec = (spec: string): PackageId | undefined => {
     const trimmed = spec.trim();
     if (!trimmed || isPathSpec(trimmed) || trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
         return undefined;

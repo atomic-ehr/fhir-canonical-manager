@@ -160,9 +160,9 @@ export interface TgzPackageConfig {
 
 export interface LocalPackageConfig {
     /** Package name for the local package */
-    name: string;
+    name: PackageName;
     /** Package version for the local package */
-    version: string;
+    version: PackageVersion;
     /** Absolute path to the local package folder */
     path: string;
     /** Dependencies to install from registry */
@@ -170,8 +170,8 @@ export interface LocalPackageConfig {
 }
 
 export type PackageJson = {
-    name: string;
-    version: string;
+    name: PackageName;
+    version: PackageVersion;
     /** Optional: not all packages declare FHIR version (e.g., hl7.fhir.r4.core lacks it) */
     fhirVersions?: string[];
     type?: string;
@@ -199,7 +199,7 @@ export interface CanonicalManager {
     resolveEntry(
         canonicalUrl: string,
         options?: {
-            package?: string;
+            package?: PackageName;
             version?: string;
             sourceContext?: SourceContext;
         },
@@ -207,7 +207,7 @@ export interface CanonicalManager {
     resolve(
         canonicalUrl: string,
         options?: {
-            package?: string;
+            package?: PackageName;
             version?: string;
             sourceContext?: SourceContext;
         },
@@ -237,7 +237,7 @@ export interface CanonicalManager {
         },
     ): Promise<IndexEntry[]>;
     getSearchParametersForResource(resourceType: string): Promise<SearchParameter[]>;
-    packageJson(packageName: string): Promise<PackageJson>;
+    packageJson(packageName: PackageName): Promise<PackageJson>;
     /**
      * Structured record of defect-handling actions (index recoveries, exclusions, deprecation
      * notices). These are emitted only while **building** the index; on a cached run the actions

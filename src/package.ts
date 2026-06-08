@@ -8,7 +8,7 @@ import * as afs from "node:fs/promises";
 import * as Path from "node:path";
 import { promisify } from "node:util";
 import { ensureDir, fileExists } from "./fs/index.js";
-import type { PackageManager } from "./types/index.js";
+import type { PackageManager, PackageName } from "./types/index.js";
 
 const execAsync = promisify(exec);
 
@@ -70,7 +70,7 @@ const parsePackageName = (pkg: string): string => {
 /**
  * Get installed package path in node_modules
  */
-const getInstalledPackagePath = (packageName: string, pwd: string): string => {
+const getInstalledPackagePath = (packageName: PackageName, pwd: string): string => {
     const name = parsePackageName(packageName);
     return Path.join(pwd, "node_modules", name);
 };
