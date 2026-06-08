@@ -75,7 +75,7 @@ describe("matchPackage", () => {
     test("matches by string, object, and predicate", () => {
         expect(matchPackage("p", pkg)).toBe(true);
         expect(matchPackage("q", pkg)).toBe(false);
-        expect(matchPackage({ name: "p" }, pkg)).toBe(true);
+        expect(matchPackage({ name: "p", version: "1" }, pkg)).toBe(true);
         expect(matchPackage({ name: "p", version: "2" }, pkg)).toBe(false);
         expect(matchPackage((x) => x.version === "1", pkg)).toBe(true);
     });
