@@ -5,7 +5,7 @@
 import type { EntryPatch, IndexEntry, PackageId, PatchReportSink, Resource } from "./types/index.js";
 
 /** Match a package by exact name, name+version, or a predicate. */
-export type PackageMatch = string | { name: string; version?: string } | ((pkg: PackageId) => boolean);
+export type PackageMatch = string | PackageId | ((pkg: PackageId) => boolean);
 
 export const matchPackage = (match: PackageMatch, pkg: PackageId): boolean => {
     if (typeof match === "function") return match(pkg);
