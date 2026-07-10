@@ -1,6 +1,6 @@
 {
   "name": "@atomic-ehr/fhir-canonical-manager",
-  "version": "0.0.24",
+  "version": "0.0.25",
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.js",
