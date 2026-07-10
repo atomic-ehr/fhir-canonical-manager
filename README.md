@@ -1,7 +1,8 @@
 # @atomic-ehr/fhir-canonical-manager
 
-[![npm version](https://badge.fury.io/js/@atomic-ehr%2Ffhir-canonical-manager.svg)](https://www.npmjs.com/package/@atomic-ehr/fhir-canonical-manager)
 [![npm canary](https://img.shields.io/npm/v/@atomic-ehr/fhir-canonical-manager/canary.svg?label=canary)](https://www.npmjs.com/package/@atomic-ehr/fhir-canonical-manager/v/canary)
+[![npm version](https://img.shields.io/npm/v/@atomic-ehr/fhir-canonical-manager.svg)](https://www.npmjs.com/package/@atomic-ehr/fhir-canonical-manager)
+[![CI](https://github.com/atomic-ehr/fhir-canonical-manager/actions/workflows/ci.yml/badge.svg)](https://github.com/atomic-ehr/fhir-canonical-manager/actions/workflows/ci.yml)
 
 A TypeScript package manager for FHIR resources that provides canonical URL resolution. This library helps you discover, resolve, and manage FHIR packages and their resources through a simple, functional API.
 
