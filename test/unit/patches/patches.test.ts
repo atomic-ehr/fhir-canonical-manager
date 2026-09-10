@@ -139,6 +139,10 @@ describe("helper factories", () => {
         expect(
             patch(pkg, { resourceType: "CodeSystem", url: "http://other", concept: [] } as never, noReport),
         ).toBeUndefined();
+        // Never touch a non-CodeSystem that happens to share the URL.
+        expect(
+            patch(pkg, { resourceType: "ValueSet", url: "http://cs", concept: [] } as never, noReport),
+        ).toBeUndefined();
     });
 
     test("inPackage scopes handlers and nests with inResource", () => {

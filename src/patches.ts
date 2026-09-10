@@ -116,7 +116,7 @@ export const replaceText =
 export const ensureCodes =
     (url: string, codes: string[]): ResourcePatch =>
     (_pkg, resource) => {
-        if (resource.url !== url) return undefined;
+        if (resource.resourceType !== "CodeSystem" || resource.url !== url) return undefined;
         const concept = (resource as { concept?: { code: string }[] }).concept;
         if (!concept) return undefined;
         const existing = new Set(concept.map((c) => c.code));
