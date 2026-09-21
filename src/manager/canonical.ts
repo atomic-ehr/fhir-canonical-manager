@@ -207,7 +207,10 @@ export const createCanonicalManager = (config: Config): CanonicalManager => {
         for (const entry of localPackages.values()) {
             await installLocalFolder(entry.config, npmPackagePath);
             if (!skipDependencyInstall && entry.config.dependencies && entry.config.dependencies.length > 0) {
-                await installPackages(entry.config.dependencies, npmPackagePath, packageManager, registry);
+                await installPackages(entry.config.dependencies, npmPackagePath, packageManager, registry, {
+                    patches: effectivePatches.packageJson,
+                    report: reportSink,
+                });
             }
         }
     };
@@ -345,7 +348,10 @@ export const createCanonicalManager = (config: Config): CanonicalManager => {
                 cache.referenceManager.set(id, metadata);
             });
         } else {
-            await installPackages(packageSpecs, npmPackagePath, packageManager, registry);
+            await installPackages(packageSpecs, npmPackagePath, packageManager, registry, {
+                patches: effectivePatches.packageJson,
+                report: reportSink,
+            });
             await installConfiguredLocalPackages(npmPackagePath);
             await loadPackagesIntoCache(cache, npmPackagePath, {
                 packageIndexMode,

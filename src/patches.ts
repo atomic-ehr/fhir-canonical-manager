@@ -129,6 +129,11 @@ export const ensureCodes =
  * Ensure the manifest declares each dependency at the given version — adds missing entries and
  * adjusts mismatched versions (unlike `injectDependency`, which never touches declared deps).
  * A package is never given itself as a dependency, so it needs no `inPackage` scoping.
+ *
+ * Adjusting a declared version also redirects the install: dependencies are installed from the
+ * patched manifest. `node_modules` is flat and only one version per package name is indexed, so
+ * the first version reached in the dependency walk is the one installed — patch every package
+ * that declares the dependency, otherwise the result depends on the walk order.
  */
 export const ensureDependency =
     (deps: Record<string, string>): PackagePatch =>
