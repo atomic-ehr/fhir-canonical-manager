@@ -8,7 +8,8 @@ import * as afs from "node:fs/promises";
 import * as Path from "node:path";
 import { promisify } from "node:util";
 import { ensureDir, fileExists } from "./fs/index.js";
-import type { PackageManager, PackageName } from "./types/index.js";
+import { applyPatches } from "./patches.js";
+import type { PackageJson, PackageManager, PackageName, PackagePatch, PatchReportSink } from "./types/index.js";
 
 const execAsync = promisify(exec);
 
@@ -76,20 +77,31 @@ const getInstalledPackagePath = (packageName: PackageName, pwd: string): string 
 };
 
 /**
- * Read dependencies from an installed package's package.json
+ * Read an installed package's package.json with the `packageJson` patches applied, so a
+ * patched `dependencies` decides what gets installed next. The scan phase applies the same
+ * handlers again when the package is indexed; handlers are pure, so running them twice is
+ * safe.
  */
-const getPackageDependencies = async (packagePath: string): Promise<Record<string, string>> => {
+const readPatchedPackageJson = async (
+    packagePath: string,
+    patches: PackagePatch[],
+    report: PatchReportSink,
+): Promise<PackageJson | undefined> => {
     const packageJsonPath = Path.join(packagePath, "package.json");
     if (!(await fileExists(packageJsonPath))) {
-        return {};
+        return undefined;
     }
+    let packageJson: PackageJson;
     try {
-        const content = await afs.readFile(packageJsonPath, "utf8");
-        const pkg = JSON.parse(content) as { dependencies?: Record<string, string> };
-        return pkg.dependencies ?? {};
+        packageJson = JSON.parse(await afs.readFile(packageJsonPath, "utf8")) as PackageJson;
     } catch {
-        return {};
+        return undefined;
     }
+    if (typeof packageJson.name !== "string" || typeof packageJson.version !== "string") {
+        return packageJson;
+    }
+    const pkg = { name: packageJson.name, version: packageJson.version };
+    return (applyPatches(patches, pkg, packageJson, report) as PackageJson | null) ?? packageJson;
 };
 
 /**
@@ -131,6 +143,12 @@ export const installPackages = async (
     pwd: string,
     packageManager: PackageManager,
     registry?: string,
+    /** `packageJson` patches applied to each installed manifest before its dependencies are
+     *  enumerated — this is what lets a patch redirect a transitive dependency version.
+     *  A redirect only takes effect while the package is not installed yet: `installed` is
+     *  keyed by name, so the first version reached in the walk wins. Patch every package
+     *  that declares the dependency to make the outcome independent of the walk order. */
+    patching?: { patches: PackagePatch[]; report: PatchReportSink },
 ): Promise<void> => {
     await ensureDir(pwd);
     await ensurePackageJson(pwd);
@@ -166,7 +184,12 @@ export const installPackages = async (
             // This is needed because some registries (like Simplifier) don't expose
             // dependencies in their npm metadata
             const packagePath = getInstalledPackagePath(packageName, pwd);
-            const dependencies = await getPackageDependencies(packagePath);
+            const manifest = await readPatchedPackageJson(
+                packagePath,
+                patching?.patches ?? [],
+                patching?.report ?? (() => {}),
+            );
+            const dependencies = manifest?.dependencies ?? {};
 
             for (const [depName, depVersion] of Object.entries(dependencies)) {
                 if (!installed.has(depName)) {
