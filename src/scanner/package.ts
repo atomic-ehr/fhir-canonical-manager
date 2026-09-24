@@ -31,22 +31,23 @@ export type ScanOptions = {
 /**
  * Load a package's resources into the cache: use the shipped index, scan the directory,
  * or recover (scan when the index is corrupt). Returns the committed count and whether
- * the shipped index was used (drives the "no .index.json" diagnostic). `patches` runs at the
- * entry phase per candidate (a `null` return excludes it).
+ * the shipped index was used (drives the "no .index.json" diagnostic).
+ *
+ * The committed index is raw — `indexEntry` patches are applied per manager once the cache
+ * is populated, so that the persisted record stays shareable.
  */
 const loadResources = async (
     packagePath: string,
     packageJson: PackageJson,
     cache: ExtendedCache,
     mode: PackageIndexMode,
-    patches: Patches,
     report: PatchReportSink,
 ): Promise<{ count: number; usedIndex: boolean }> => {
     const pkgId = `${packageJson.name}@${packageJson.version}`;
 
     // No usable shipped index → scan the directory.
     if (mode === "regenerate" || !(await fileExists(path.join(packagePath, ".index.json")))) {
-        const count = commitEntries(cache, packageJson, await collectFromDirectory(packagePath), patches, report);
+        const count = commitEntries(cache, packageJson, await collectFromDirectory(packagePath));
         if (count > 0) {
             console.warn(`Warning: index generated for ${packageJson.name} (${count} resources)`);
         }
@@ -59,7 +60,7 @@ const loadResources = async (
     if (!result.ok) {
         if (mode === "recover") {
             console.warn(`Recovered ${pkgId}: .index.json is ${result.reason}; scanning directory instead.`);
-            const count = commitEntries(cache, packageJson, await collectFromDirectory(packagePath), patches, report);
+            const count = commitEntries(cache, packageJson, await collectFromDirectory(packagePath));
             report({
                 kind: "index-recovery",
                 package: { name: packageJson.name, version: packageJson.version },
@@ -68,7 +69,7 @@ const loadResources = async (
             });
             return { count, usedIndex: false };
         }
-        const count = commitEntries(cache, packageJson, entries, patches, report);
+        const count = commitEntries(cache, packageJson, entries);
         console.warn(
             `Warning: ${pkgId} .index.json is ${result.reason}; loaded ${count} resource(s). ` +
                 `Set packageIndex: "recover" to fall back to a directory scan.`,
@@ -77,10 +78,10 @@ const loadResources = async (
     }
 
     // Usable shipped index (plus any examples index).
-    let count = commitEntries(cache, packageJson, entries, patches, report);
+    let count = commitEntries(cache, packageJson, entries);
     const examplesPath = path.join(packagePath, "examples");
     if (await fileExists(path.join(examplesPath, ".index.json"))) {
-        count += commitEntries(cache, packageJson, (await collectFromIndex(examplesPath)).entries, patches, report);
+        count += commitEntries(cache, packageJson, (await collectFromIndex(examplesPath)).entries);
     }
     return { count, usedIndex: true };
 };
@@ -124,7 +125,7 @@ export const loadPackage = async (
         packageJson,
     };
 
-    const { count, usedIndex } = await loadResources(packagePath, packageJson, cache, mode, patches, report);
+    const { count, usedIndex } = await loadResources(packagePath, packageJson, cache, mode, report);
 
     // No resources = not a FHIR package, no warning needed
     if (count === 0) return undefined;

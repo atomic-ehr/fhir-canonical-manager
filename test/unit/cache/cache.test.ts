@@ -79,7 +79,7 @@ describe("Cache Module", () => {
             const cacheKey = computeCacheKey("bun", ["test.package"]);
             await saveCacheRecordToDisk(cache, cacheDir, "bun", ["test.package"]);
 
-            const cacheFile = path.join(cacheDir, cacheKey, "index.json");
+            const cacheFile = path.join(cacheDir, cacheKey, "index.v2.json");
             const exists = await fs
                 .access(cacheFile)
                 .then(() => true)
@@ -103,7 +103,7 @@ describe("Cache Module", () => {
             const cacheKey = computeCacheKey("bun", ["test.package"]);
             await saveCacheRecordToDisk(cache, cacheDir, "bun", ["test.package"]);
 
-            const cacheFile = path.join(cacheDir, cacheKey, "index.json");
+            const cacheFile = path.join(cacheDir, cacheKey, "index.v2.json");
             const content = await fs.readFile(cacheFile, "utf-8");
             const data = JSON.parse(content);
 
@@ -151,7 +151,7 @@ describe("Cache Module", () => {
             const cacheKey = computeCacheKey("bun", ["test-package"]);
             const cacheSubdir = path.join(cacheDir, cacheKey);
             await fs.mkdir(cacheSubdir, { recursive: true });
-            await fs.writeFile(path.join(cacheSubdir, "index.json"), JSON.stringify(cacheData, null, 2));
+            await fs.writeFile(path.join(cacheSubdir, "index.v2.json"), JSON.stringify(cacheData, null, 2));
 
             const loaded = await loadCacheRecordFromDisk(cacheDir, cacheKey);
 
@@ -175,7 +175,7 @@ describe("Cache Module", () => {
             const cacheKey = computeCacheKey("bun", ["test-package"]);
             const cacheSubdir = path.join(cacheDir, cacheKey);
             await fs.mkdir(cacheSubdir, { recursive: true });
-            await fs.writeFile(path.join(cacheSubdir, "index.json"), "invalid json content");
+            await fs.writeFile(path.join(cacheSubdir, "index.v2.json"), "invalid json content");
 
             const loaded = await loadCacheRecordFromDisk(cacheDir, cacheKey);
 

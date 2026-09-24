@@ -16,7 +16,8 @@ describe("CM-level exclusion", () => {
         await fs.rm(root, { recursive: true, force: true }).catch(() => {});
     });
 
-    test("an excluded canonical is absent from the index and reported", async () => {
+    /** A local package shipping one canonical to keep and one to exclude. */
+    const writeTestPackage = async (): Promise<string> => {
         const pkgPath = path.join(root, "pkg");
         await fs.mkdir(pkgPath, { recursive: true });
         await fs.writeFile(
@@ -41,6 +42,11 @@ describe("CM-level exclusion", () => {
             path.join(pkgPath, "Bad.json"),
             JSON.stringify({ resourceType: "StructureDefinition", id: "b", url: "http://ex/Bad" }),
         );
+        return pkgPath;
+    };
+
+    test("an excluded canonical is absent from the index and reported", async () => {
+        const pkgPath = await writeTestPackage();
 
         const manager = CanonicalManager({
             packages: [],
@@ -59,5 +65,69 @@ describe("CM-level exclusion", () => {
         // The exclusion (with its reason) shows up in the diagnostics report.
         const report = manager.report();
         expect(report.some((e) => e.kind === "exclusion" && e.url === "http://ex/Bad")).toBe(true);
+    });
+
+    /**
+     * The cache record is keyed by the package set alone, so managers with different patches
+     * share one. Patches used to be applied while scanning and were therefore baked into that
+     * shared record: whichever manager scanned first decided what every later one could see.
+     */
+    test("managers over the same packages do not inherit each other's exclusions", async () => {
+        const pkgPath = await writeTestPackage();
+        const workingDir = path.join(root, "wd");
+
+        const mkManager = (exclude: boolean) =>
+            CanonicalManager({
+                packages: [],
+                workingDir,
+                patches: exclude
+                    ? { indexEntry: [excludeCanonical({ url: "http://ex/Bad", reason: "cross-version type" })] }
+                    : {},
+            });
+
+        const init = async (exclude: boolean) => {
+            const manager = mkManager(exclude);
+            await manager.addLocalPackage({ name: "test.package", version: "1.0.0", path: pkgPath });
+            await manager.init();
+            return manager;
+        };
+
+        // Patched first, then unpatched: the second must still see the canonical.
+        const patched = await init(true);
+        expect(await patched.searchEntries({ url: "http://ex/Bad" })).toHaveLength(0);
+
+        const unpatched = await init(false);
+        expect(await unpatched.searchEntries({ url: "http://ex/Bad" })).toHaveLength(1);
+        expect((await unpatched.resolve("http://ex/Bad")).url).toBe("http://ex/Bad");
+
+        // And the other direction, now that the record is warm: a fresh patched manager must
+        // still apply its exclusion rather than trust the index it loads.
+        const patchedAgain = await init(true);
+        expect(await patchedAgain.searchEntries({ url: "http://ex/Bad" })).toHaveLength(0);
+        expect(patchedAgain.report().some((e) => e.kind === "exclusion" && e.url === "http://ex/Bad")).toBe(true);
+    });
+
+    test("the persisted index keeps a canonical that a manager excludes", async () => {
+        const pkgPath = await writeTestPackage();
+        const workingDir = path.join(root, "wd");
+
+        const manager = CanonicalManager({
+            packages: [],
+            workingDir,
+            patches: { indexEntry: [excludeCanonical({ url: "http://ex/Bad", reason: "cross-version type" })] },
+        });
+        await manager.addLocalPackage({ name: "test.package", version: "1.0.0", path: pkgPath });
+        await manager.init();
+
+        const records = await fs.readdir(workingDir);
+        const cacheKey = records.find((name) => /^[a-f0-9]{64}$/i.test(name));
+        expect(cacheKey).toBeDefined();
+        const onDisk = JSON.parse(
+            await fs.readFile(path.join(workingDir, cacheKey as string, "index.v2.json"), "utf-8"),
+        );
+
+        // What the package ships, not what this manager resolves.
+        expect(onDisk.entries["http://ex/Bad"]).toHaveLength(1);
+        expect(onDisk.entries["http://ex/Good"]).toHaveLength(1);
     });
 });

@@ -40,6 +40,7 @@ import type {
     SourceContext,
     TgzPackageConfig,
 } from "../types/index.js";
+import { applyIndexEntryPatches } from "./index-patch.js";
 import { isPathSpec, normalizePackageSpec, parsePackageRef } from "./package-spec.js";
 
 /**
@@ -360,6 +361,10 @@ export const createCanonicalManager = (config: Config): CanonicalManager => {
             });
             await saveCacheRecordToDisk(cache, workingDir, packageManager, getCacheKeyPackages());
         }
+
+        // After the save, and on both branches: the record on disk stays the raw index of
+        // what the packages ship, while this manager resolves against its own patched view.
+        applyIndexEntryPatches(cache, effectivePatches.indexEntry, reportSink);
 
         initialized = true;
         return packageRefToPackageMeta();
