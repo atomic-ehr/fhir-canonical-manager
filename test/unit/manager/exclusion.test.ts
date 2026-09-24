@@ -107,6 +107,45 @@ describe("CM-level exclusion", () => {
         expect(patchedAgain.report().some((e) => e.kind === "exclusion" && e.url === "http://ex/Bad")).toBe(true);
     });
 
+    /**
+     * Adding a package rebuilds the manager (destroy + init) and the entry phase runs on every
+     * init, so the report has to be tied to the index it describes rather than accumulating.
+     */
+    test("rebuilding does not accumulate duplicate report entries", async () => {
+        const pkgPath = await writeTestPackage();
+        const otherPath = path.join(root, "other");
+        await fs.mkdir(otherPath, { recursive: true });
+        await fs.writeFile(
+            path.join(otherPath, "package.json"),
+            JSON.stringify({ name: "other.package", version: "1.0.0" }),
+        );
+        await fs.writeFile(
+            path.join(otherPath, ".index.json"),
+            JSON.stringify({
+                "index-version": 1,
+                files: [{ filename: "O.json", resourceType: "StructureDefinition", id: "o", url: "http://ex/Other" }],
+            }),
+        );
+        await fs.writeFile(
+            path.join(otherPath, "O.json"),
+            JSON.stringify({ resourceType: "StructureDefinition", id: "o", url: "http://ex/Other" }),
+        );
+
+        const manager = CanonicalManager({
+            packages: [],
+            workingDir: path.join(root, "wd"),
+            patches: { indexEntry: [excludeCanonical({ url: "http://ex/Bad", reason: "cross-version type" })] },
+        });
+        await manager.addLocalPackage({ name: "test.package", version: "1.0.0", path: pkgPath });
+        await manager.addLocalPackage({ name: "other.package", version: "1.0.0", path: otherPath });
+        await manager.init();
+
+        const exclusions = manager.report().filter((e) => e.kind === "exclusion" && e.url === "http://ex/Bad");
+        expect(exclusions).toHaveLength(1);
+        // Still excluded after the rebuilds, not merely reported once.
+        expect(await manager.searchEntries({ url: "http://ex/Bad" })).toHaveLength(0);
+    });
+
     test("the persisted index keeps a canonical that a manager excludes", async () => {
         const pkgPath = await writeTestPackage();
         const workingDir = path.join(root, "wd");

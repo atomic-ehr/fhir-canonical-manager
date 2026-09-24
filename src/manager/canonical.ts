@@ -375,6 +375,10 @@ export const createCanonicalManager = (config: Config): CanonicalManager => {
         cache.packages = {};
         cache.referenceManager.clear();
         searchParamsCache.clear();
+        // The report explains the index the manager is holding, so it goes with it. Adding a
+        // package rebuilds via destroy + init, and the entry phase re-runs on every init —
+        // without this each rebuild would append another copy of the same exclusions.
+        reportEntries.length = 0;
         initialized = false;
     };
 
