@@ -6,8 +6,7 @@ import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import type { ExtendedCache } from "../cache.js";
 import { fileExists } from "../fs/index.js";
-import { applyPatches } from "../patches.js";
-import type { IndexEntry, PackageJson, Patches, PatchReportSink } from "../types/index.js";
+import type { IndexEntry, PackageJson } from "../types/index.js";
 import { parseIndex } from "./parser.js";
 
 /** A resource discovered from an index or directory scan, not yet committed to the cache. */
@@ -110,17 +109,10 @@ export const collectFromDirectory = async (dirPath: string): Promise<CollectedEn
 
 /**
  * Commit collected entries into the cache (reference manager + entry index). Returns the
- * committed count. When `patches` is provided, it runs at the entry phase per candidate:
- * a `null` return excludes the canonical (never registered or indexed), and a returned
- * `entry` context replaces the index metadata that gets committed.
+ * committed count — what was indexed, not what a manager resolves: the index is raw, and
+ * `indexEntry` patches run per manager in `applyIndexEntryPatches`.
  */
-export const commitEntries = (
-    cache: ExtendedCache,
-    packageJson: PackageJson,
-    entries: CollectedEntry[],
-    patches?: Patches,
-    report?: PatchReportSink,
-): number => {
+export const commitEntries = (cache: ExtendedCache, packageJson: PackageJson, entries: CollectedEntry[]): number => {
     const pkg = { name: packageJson.name, version: packageJson.version };
     let committed = 0;
     for (const entry of entries) {
@@ -130,7 +122,7 @@ export const commitEntries = (
             filePath: entry.filePath,
         });
 
-        let indexEntry: IndexEntry = {
+        const indexEntry: IndexEntry = {
             id,
             resourceType: entry.resourceType,
             indexVersion: entry.indexVersion,
@@ -141,14 +133,8 @@ export const commitEntries = (
             package: pkg,
         };
 
-        if (patches?.indexEntry.length && report) {
-            const result = applyPatches(patches.indexEntry, pkg, indexEntry, report);
-            if (result === null) continue; // excluded — never registered or indexed
-            indexEntry = result;
-        }
-
-        // A url-less entry can't be resolved by canonical URL; if a transform cleared `url`,
-        // skip the whole commit so we never register/count an entry absent from the url index.
+        // A url-less entry can't be resolved by canonical URL, so skip the whole commit
+        // rather than register/count an entry absent from the url index.
         const url = indexEntry.url;
         if (!url) continue;
 

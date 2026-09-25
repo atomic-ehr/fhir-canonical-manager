@@ -389,9 +389,12 @@ const manager = CanonicalManager({
 });
 ```
 
-> **Caching note:** exclusions and package-level transforms are baked into the on-disk
-> cache when the index is built. If you change `patches` between runs, set
-> `dropCache: true` (or clear the working dir) so the change takes effect.
+> **Caching note:** the on-disk index records what the packages ship, so managers with
+> different `patches` can share a working directory.
+>
+> - `indexEntry` and `fhirResource` run per load and per read — change them freely.
+> - `packageJson` also runs at install and scan time and is part of the cached package
+>   metadata, so changing it still needs `dropCache: true` (or a cleared working dir).
 
 #### `report()` — why you see what you see
 
@@ -405,10 +408,10 @@ const report = manager.report(); // ReportEntry[]
 Returns a record of every defect-handling action taken (index recoveries, exclusions,
 deprecation notices), so downstream tools can explain why a canonical is missing or changed.
 
-> **Cached-run caveat:** these actions are recorded only while **building** the index. On a
-> cached run the outcomes are already baked into the cache, so `report()` returns nothing for
-> them — exactly when you might ask "why is X missing." Use `dropCache: true` to rebuild and
-> repopulate the report.
+> **Cached-run caveat:** `exclusion` entries are recorded on every run, cached or not, because
+> the `indexEntry` phase runs on every load. `index-recovery` entries are only produced while
+> **building** the index, so a cached run reports nothing for them — use `dropCache: true` to
+> rebuild if you need to see why a package's index was repaired.
 
 ### `init(): Promise<void>`
 

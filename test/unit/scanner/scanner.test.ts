@@ -3,7 +3,6 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import { createCacheRecord } from "../../../src/cache";
-import { excludeCanonical } from "../../../src/patches";
 import {
     isValidFileEntry,
     isValidIndexFile,
@@ -13,7 +12,7 @@ import {
     processIndex,
     type ScanOptions,
 } from "../../../src/scanner";
-import type { PackageIndexMode, PackageJson, Patches, PatchReportSink, ReportEntry } from "../../../src/types";
+import type { PackageIndexMode, PackageJson, Patches, PatchReportSink } from "../../../src/types";
 
 /** Write an empty stub file so processIndex's fileExists check passes. */
 const touchFile = (filePath: string) => fs.writeFile(filePath, "{}");
@@ -537,142 +536,6 @@ describe("Scanner Module", () => {
 
             // Empty-but-valid index → ok/count:0 → no recover, so the on-disk file is NOT scanned in.
             expect(cache.entries["http://ex/Real"]).toBeUndefined();
-        });
-    });
-
-    describe("loadPackage entry-phase patches", () => {
-        const writePackageJson = (packagePath: string) =>
-            fs.writeFile(
-                path.join(packagePath, "package.json"),
-                JSON.stringify({ name: "test.package", version: "1.0.0" }),
-            );
-        const writeResource = (filePath: string, url: string) =>
-            fs.writeFile(filePath, JSON.stringify({ resourceType: "StructureDefinition", url }));
-
-        test("excludes a canonical via the index path", async () => {
-            const cache = createCacheRecord();
-            const packagePath = path.join(tempDir, "pkg");
-            await fs.mkdir(packagePath, { recursive: true });
-            await writePackageJson(packagePath);
-            await fs.writeFile(
-                path.join(packagePath, ".index.json"),
-                JSON.stringify({
-                    "index-version": 1,
-                    files: [
-                        { filename: "Good.json", resourceType: "StructureDefinition", id: "g", url: "http://ex/Good" },
-                        { filename: "Bad.json", resourceType: "StructureDefinition", id: "b", url: "http://ex/Bad" },
-                    ],
-                }),
-            );
-            await touchFile(path.join(packagePath, "Good.json"));
-            await touchFile(path.join(packagePath, "Bad.json"));
-
-            const entries: ReportEntry[] = [];
-            await loadPackage(
-                packagePath,
-                cache,
-                mkScanOptions({
-                    patches: { indexEntry: [excludeCanonical({ url: "http://ex/Bad", reason: "cross-version" })] },
-                    report: (e) => entries.push(e),
-                }),
-            );
-
-            expect(cache.entries["http://ex/Good"]).toHaveLength(1);
-            expect(cache.entries["http://ex/Bad"]).toBeUndefined();
-            expect(entries.some((e) => e.kind === "exclusion" && e.url === "http://ex/Bad")).toBe(true);
-        });
-
-        test("excludes a canonical via the scan path (regenerate)", async () => {
-            const cache = createCacheRecord();
-            const packagePath = path.join(tempDir, "pkg");
-            await fs.mkdir(packagePath, { recursive: true });
-            await writePackageJson(packagePath);
-            await writeResource(path.join(packagePath, "Good.json"), "http://ex/Good");
-            await writeResource(path.join(packagePath, "Bad.json"), "http://ex/Bad");
-
-            await loadPackage(
-                packagePath,
-                cache,
-                mkScanOptions({
-                    patches: { indexEntry: [excludeCanonical({ url: "http://ex/Bad", reason: "x" })] },
-                    packageIndexMode: "regenerate",
-                }),
-            );
-
-            expect(cache.entries["http://ex/Good"]).toHaveLength(1);
-            expect(cache.entries["http://ex/Bad"]).toBeUndefined();
-        });
-
-        test("commits the transformed entry when a patch returns a new entry context", async () => {
-            const cache = createCacheRecord();
-            const packagePath = path.join(tempDir, "pkg");
-            await fs.mkdir(packagePath, { recursive: true });
-            await writePackageJson(packagePath);
-            await fs.writeFile(
-                path.join(packagePath, ".index.json"),
-                JSON.stringify({
-                    "index-version": 1,
-                    files: [
-                        { filename: "Typo.json", resourceType: "StructureDefinition", id: "t", url: "http://ex/Typo" },
-                    ],
-                }),
-            );
-            await touchFile(path.join(packagePath, "Typo.json"));
-
-            await loadPackage(
-                packagePath,
-                cache,
-                mkScanOptions({
-                    patches: {
-                        indexEntry: [
-                            (_pkg, entry) =>
-                                entry.url === "http://ex/Typo" ? { ...entry, url: "http://ex/Fixed" } : undefined,
-                        ],
-                    },
-                }),
-            );
-
-            // The transformed url is indexed; the original is not.
-            expect(cache.entries["http://ex/Fixed"]).toHaveLength(1);
-            expect(cache.entries["http://ex/Fixed"]?.[0]?.url).toBe("http://ex/Fixed");
-            expect(cache.entries["http://ex/Typo"]).toBeUndefined();
-        });
-
-        test("skips an entry whose url a patch cleared (not registered or indexed)", async () => {
-            const cache = createCacheRecord();
-            const packagePath = path.join(tempDir, "pkg");
-            await fs.mkdir(packagePath, { recursive: true });
-            await writePackageJson(packagePath);
-            await fs.writeFile(
-                path.join(packagePath, ".index.json"),
-                JSON.stringify({
-                    "index-version": 1,
-                    files: [
-                        { filename: "Good.json", resourceType: "StructureDefinition", id: "g", url: "http://ex/Good" },
-                        { filename: "Cl.json", resourceType: "StructureDefinition", id: "c", url: "http://ex/Cleared" },
-                    ],
-                }),
-            );
-            await touchFile(path.join(packagePath, "Good.json"));
-            await touchFile(path.join(packagePath, "Cl.json"));
-
-            await loadPackage(
-                packagePath,
-                cache,
-                mkScanOptions({
-                    patches: {
-                        indexEntry: [
-                            (_pkg, entry) =>
-                                entry.url === "http://ex/Cleared" ? { ...entry, url: undefined } : undefined,
-                        ],
-                    },
-                }),
-            );
-
-            // The url-less entry is neither indexed nor registered; the other is committed.
-            expect(cache.entries["http://ex/Good"]).toHaveLength(1);
-            expect(cache.entries["http://ex/Cleared"]).toBeUndefined();
-            expect(cache.referenceManager.size()).toBe(1);
         });
     });
 

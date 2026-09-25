@@ -40,6 +40,7 @@ import type {
     SourceContext,
     TgzPackageConfig,
 } from "../types/index.js";
+import { applyIndexEntryPatches } from "./index-patch.js";
 import { isPathSpec, normalizePackageSpec, parsePackageRef } from "./package-spec.js";
 
 /**
@@ -361,6 +362,8 @@ export const createCanonicalManager = (config: Config): CanonicalManager => {
             await saveCacheRecordToDisk(cache, workingDir, packageManager, getCacheKeyPackages());
         }
 
+        applyIndexEntryPatches(cache, effectivePatches.indexEntry, reportSink);
+
         initialized = true;
         return packageRefToPackageMeta();
     };
@@ -370,6 +373,8 @@ export const createCanonicalManager = (config: Config): CanonicalManager => {
         cache.packages = {};
         cache.referenceManager.clear();
         searchParamsCache.clear();
+        // The report explains the index being torn down.
+        reportEntries.length = 0;
         initialized = false;
     };
 

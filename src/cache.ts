@@ -14,11 +14,15 @@ export const computeCacheKey = (packageManager: PackageManager, packages: string
     return hash as CacheKey;
 };
 
+/** Records written before `indexEntry` patches became per-run have them baked in and would
+ *  read as raw. Versioning the name retires those; the installed closure beside them is reused. */
+const CACHE_INDEX_FILE = "index.v2.json";
+
 const cacheRecordPathsFromKey = (pwd: string, cacheKey: CacheKey) => {
     const cacheRecordPath = Path.join(pwd, cacheKey);
     const npmPackagePath = Path.join(process.cwd(), cacheRecordPath, "node");
     const npmRootPackageJsonFile = Path.join(npmPackagePath, "package.json");
-    const cacheIndexFile = Path.join(cacheRecordPath, "index.json");
+    const cacheIndexFile = Path.join(cacheRecordPath, CACHE_INDEX_FILE);
     return { cacheKey, cacheRecordPath, cacheIndexFile, npmPackagePath, npmRootPackageJsonFile };
 };
 
