@@ -109,11 +109,8 @@ export const collectFromDirectory = async (dirPath: string): Promise<CollectedEn
 
 /**
  * Commit collected entries into the cache (reference manager + entry index). Returns the
- * committed count.
- *
- * The result is the raw index of what the packages ship — `indexEntry` patches run later,
- * per manager, so that the persisted record stays shareable. The count is therefore what
- * was indexed, not what a given manager will end up resolving.
+ * committed count — what was indexed, not what a manager resolves: the index is raw, and
+ * `indexEntry` patches run per manager in `applyIndexEntryPatches`.
  */
 export const commitEntries = (cache: ExtendedCache, packageJson: PackageJson, entries: CollectedEntry[]): number => {
     const pkg = { name: packageJson.name, version: packageJson.version };
@@ -135,10 +132,6 @@ export const commitEntries = (cache: ExtendedCache, packageJson: PackageJson, en
             type: entry.type,
             package: pkg,
         };
-
-        // `indexEntry` patches are deliberately not applied here: the committed index is
-        // persisted and shared by every manager over the same package set, so it stays raw.
-        // The phase runs per-manager in `applyIndexEntryPatches` once the cache is populated.
 
         // A url-less entry can't be resolved by canonical URL, so skip the whole commit
         // rather than register/count an entry absent from the url index.

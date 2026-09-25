@@ -67,11 +67,7 @@ describe("CM-level exclusion", () => {
         expect(report.some((e) => e.kind === "exclusion" && e.url === "http://ex/Bad")).toBe(true);
     });
 
-    /**
-     * The cache record is keyed by the package set alone, so managers with different patches
-     * share one. Patches used to be applied while scanning and were therefore baked into that
-     * shared record: whichever manager scanned first decided what every later one could see.
-     */
+    /** Managers with different patches share one cache record, keyed by the package set. */
     test("managers over the same packages do not inherit each other's exclusions", async () => {
         const pkgPath = await writeTestPackage();
         const workingDir = path.join(root, "wd");
@@ -100,17 +96,13 @@ describe("CM-level exclusion", () => {
         expect(await unpatched.searchEntries({ url: "http://ex/Bad" })).toHaveLength(1);
         expect((await unpatched.resolve("http://ex/Bad")).url).toBe("http://ex/Bad");
 
-        // And the other direction, now that the record is warm: a fresh patched manager must
-        // still apply its exclusion rather than trust the index it loads.
+        // The other direction: a patched manager on a warm record must still apply its exclusion.
         const patchedAgain = await init(true);
         expect(await patchedAgain.searchEntries({ url: "http://ex/Bad" })).toHaveLength(0);
         expect(patchedAgain.report().some((e) => e.kind === "exclusion" && e.url === "http://ex/Bad")).toBe(true);
     });
 
-    /**
-     * Adding a package rebuilds the manager (destroy + init) and the entry phase runs on every
-     * init, so the report has to be tied to the index it describes rather than accumulating.
-     */
+    /** Adding a package rebuilds (destroy + init), and the entry phase runs on every init. */
     test("rebuilding does not accumulate duplicate report entries", async () => {
         const pkgPath = await writeTestPackage();
         const otherPath = path.join(root, "other");

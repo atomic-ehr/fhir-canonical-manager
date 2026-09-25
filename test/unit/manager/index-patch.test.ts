@@ -68,8 +68,7 @@ describe("applyIndexEntryPatches", () => {
         expect(cache.entries["http://ex/Fixed"]?.[0]?.url).toBe("http://ex/Fixed");
         expect(cache.entries["http://ex/Typo"]).toBeUndefined();
 
-        // The url index must follow the rewrite — an id left in the old bucket would make
-        // `getIdsByUrl` hand back a reference whose metadata points somewhere else.
+        // An id left in the old bucket would resolve to metadata pointing elsewhere.
         expect(cache.referenceManager.getIdsByUrl("http://ex/Fixed")).toEqual([originalId]);
         expect(cache.referenceManager.getIdsByUrl("http://ex/Typo")).toEqual([]);
         expect(cache.referenceManager.get(originalId)?.url).toBe("http://ex/Fixed");
@@ -114,8 +113,7 @@ describe("applyIndexEntryPatches", () => {
             filePath: "/pkg/A2.json",
             resourceType: "StructureDefinition",
             url: "http://ex/A",
-            // Kept in step with the entry: the fold re-derives this from the patched entry, so a
-            // fixture that disagrees would be asserting drift rather than preservation.
+            // The fold re-derives this from the entry, so the fixture must agree.
             version: first.version,
         });
         const before = structuredClone(cache.entries);
@@ -131,8 +129,7 @@ describe("applyIndexEntryPatches", () => {
     test("scopes handlers by the stored reference identity, not the patchable entry.package", () => {
         const cache = cacheWith("http://ex/Good");
         const id = cache.referenceManager.getIdsByUrl("http://ex/Good")[0] as string;
-        // A prior handler could have rewritten `entry.package`; the reference metadata is what
-        // `read()` scopes `fhirResource` patches by, so the fold must agree with it.
+        // `entry.package` is patchable; the metadata is what `read()` scopes by.
         const entry = (cache.entries["http://ex/Good"] as IndexEntry[])[0] as IndexEntry;
         entry.package = { name: "other.package", version: "9.9.9" };
 

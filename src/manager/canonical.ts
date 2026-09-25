@@ -362,8 +362,6 @@ export const createCanonicalManager = (config: Config): CanonicalManager => {
             await saveCacheRecordToDisk(cache, workingDir, packageManager, getCacheKeyPackages());
         }
 
-        // After the save, and on both branches: the record on disk stays the raw index of
-        // what the packages ship, while this manager resolves against its own patched view.
         applyIndexEntryPatches(cache, effectivePatches.indexEntry, reportSink);
 
         initialized = true;
@@ -375,9 +373,7 @@ export const createCanonicalManager = (config: Config): CanonicalManager => {
         cache.packages = {};
         cache.referenceManager.clear();
         searchParamsCache.clear();
-        // The report explains the index the manager is holding, so it goes with it. Adding a
-        // package rebuilds via destroy + init, and the entry phase re-runs on every init —
-        // without this each rebuild would append another copy of the same exclusions.
+        // The report explains the index being torn down.
         reportEntries.length = 0;
         initialized = false;
     };

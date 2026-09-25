@@ -32,9 +32,6 @@ export type ScanOptions = {
  * Load a package's resources into the cache: use the shipped index, scan the directory,
  * or recover (scan when the index is corrupt). Returns the committed count and whether
  * the shipped index was used (drives the "no .index.json" diagnostic).
- *
- * The committed index is raw — `indexEntry` patches are applied per manager once the cache
- * is populated, so that the persisted record stays shareable.
  */
 const loadResources = async (
     packagePath: string,

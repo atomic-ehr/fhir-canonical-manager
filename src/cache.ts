@@ -14,14 +14,8 @@ export const computeCacheKey = (packageManager: PackageManager, packages: string
     return hash as CacheKey;
 };
 
-/**
- * Index records written before `indexEntry` patches became per-run had those patches
- * baked in, so they are indistinguishable from an index whose canonicals genuinely do
- * not exist. Reading one as if it were raw would silently carry another process's
- * exclusions forward, which is the defect that change fixes. Naming the file by format
- * retires those records without touching the cache key: the installed `node/` closure —
- * gigabytes, and the expensive part — is reused, and only the index is rebuilt.
- */
+/** Records written before `indexEntry` patches became per-run have them baked in and would
+ *  read as raw. Versioning the name retires those; the installed closure beside them is reused. */
 const CACHE_INDEX_FILE = "index.v2.json";
 
 const cacheRecordPathsFromKey = (pwd: string, cacheKey: CacheKey) => {

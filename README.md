@@ -389,15 +389,12 @@ const manager = CanonicalManager({
 });
 ```
 
-> **Caching note:** the on-disk index is keyed by the package set alone and records what those
-> packages ship, so managers with different `patches` can share one working directory. Each
-> phase reaches it differently:
+> **Caching note:** the on-disk index records what the packages ship, so managers with
+> different `patches` can share a working directory.
 >
-> - `indexEntry` runs on every load, against the index in memory. Change it and the next run
->   picks it up — no `dropCache` needed.
-> - `fhirResource` runs when a resource is read, so it is never cached either.
-> - `packageJson` runs while installing *and* scanning, and its result is part of the cached
->   package metadata. Change it and you still need `dropCache: true` (or a cleared working dir).
+> - `indexEntry` and `fhirResource` run per load and per read — change them freely.
+> - `packageJson` also runs at install and scan time and is part of the cached package
+>   metadata, so changing it still needs `dropCache: true` (or a cleared working dir).
 
 #### `report()` — why you see what you see
 
