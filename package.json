@@ -22,31 +22,56 @@
       "types": "./dist/patches.d.ts",
       "import": "./dist/patches.js",
       "default": "./dist/patches.js"
+    },
+    "./browser": {
+      "types": "./dist/browser/index.d.ts",
+      "import": "./dist/browser/index.js",
+      "default": "./dist/browser/index.js"
     }
   },
   "files": [
     "dist"
   ],
   "scripts": {
-    "build": "bun run build:clean && bun run build:types",
-    "build:clean": "rm -rf dist",
-    "build:types": "bunx tsc -p tsconfig.build.json",
-    "typecheck": "bunx tsc --noEmit",
+    "build": "bunx --bun tsdown",
+    "typecheck": "bunx tsc --noEmit && bunx tsc -p tsconfig.worker.json",
     "typecheck:watch": "bunx tsc --noEmit --watch",
     "prepublishOnly": "bun run build",
     "format": "biome format --write",
     "lint": "biome check --write",
     "lint:unsafe": "biome check --write --unsafe",
     "lint:ci": "biome ci",
-    "test": "bun test",
-    "fix": "bun run typecheck && bun run lint:unsafe && bun run format && bun test",
-    "release": "bash scripts/release.sh"
+    "test": "bun run build && bun test",
+    "fix": "bun run build && bun run typecheck && bun run lint:unsafe && bun run format && bun test",
+    "release": "bash scripts/release.sh",
+    "test:browser": "bun run build && bun build test/browser/client.ts --target=browser --outfile=tmp/browser-client.js && playwright test",
+    "test:browser:install": "playwright install chromium"
   },
   "devDependencies": {
     "@atomic-ehr/hl7.fhir.r4.core": "^0.0.1",
     "@biomejs/biome": "^2.3.4",
+    "@npmcli/arborist": "10.0.3",
+    "@playwright/test": "^1.63.0",
     "@types/bun": "latest",
-    "typescript": "^5"
+    "@types/semver": "^7.8.0",
+    "assert": "2.1.0",
+    "browserify-zlib": "0.2.0",
+    "buffer": "6.0.3",
+    "constants-browserify": "1.0.0",
+    "crypto-browserify": "3.12.0",
+    "events": "3.3.0",
+    "fake-indexeddb": "^6.2.5",
+    "memfs": "4.5.0",
+    "path-browserify": "1.0.1",
+    "process": "0.11.10",
+    "querystring-es3": "0.2.1",
+    "setimmediate": "1.0.5",
+    "stream-browserify": "3.0.0",
+    "string_decoder": "1.3.0",
+    "tsdown": "0.23.0",
+    "typescript": "^5",
+    "url": "0.11.4",
+    "util": "0.12.5"
   },
   "peerDependencies": {
     "typescript": "^5"
@@ -58,5 +83,10 @@
       "pat"
     ],
     "registry": "https://fs.get-ig.org/pkgs/"
+  },
+  "dependencies": {
+    "idb": "^8.0.3",
+    "modern-tar": "^0.8.5",
+    "semver": "^7.8.5"
   }
 }

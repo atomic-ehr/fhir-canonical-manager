@@ -23,8 +23,11 @@ jobs:
       - name: Run Biome (lint + format check)
         run: bun run lint:ci
 
+      - name: Build package
+        run: bun run build
+
       - name: Run tests
-        run: bun test
+        run: bun run test
 
       - name: Run typecheck
         run: bun run typecheck

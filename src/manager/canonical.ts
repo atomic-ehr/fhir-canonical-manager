@@ -14,13 +14,13 @@ import {
     saveCacheRecordToDisk,
 } from "../cache.js";
 import { DEFAULT_REGISTRY } from "../constants.js";
+import { createCanonicalQuery, filterEntryCandidates } from "../core/query.js";
 import { ensureDir, fileExists } from "../fs/index.js";
 import { installLocalFolder, installTgzPackage } from "../local.js";
 import { detectPackageManager, installPackages } from "../package.js";
 import { applyPatches } from "../patches.js";
 import { resolveWithContext } from "../resolver.js";
 import { loadPackagesIntoCache } from "../scanner/index.js";
-import { filterBySmartSearch } from "../search/index.js";
 import type {
     CanonicalManager,
     Config,
@@ -197,7 +197,6 @@ export const createCanonicalManager = (config: Config): CanonicalManager => {
 
     const cache = createCacheRecord();
     let initialized = false;
-    const searchParamsCache = new Map<string, SearchParameter[]>();
 
     // Composed patch + de-duped diagnostics sink, built once and used at all three phases.
     const { sink: reportSink, entries: reportEntries } = createReportSink();
@@ -372,7 +371,7 @@ export const createCanonicalManager = (config: Config): CanonicalManager => {
         cache.entries = {};
         cache.packages = {};
         cache.referenceManager.clear();
-        searchParamsCache.clear();
+        query.clearSearchParameterCache();
         // The report explains the index being torn down.
         reportEntries.length = 0;
         initialized = false;
@@ -413,39 +412,7 @@ export const createCanonicalManager = (config: Config): CanonicalManager => {
         },
     ): Promise<IndexEntry> => {
         ensureInitialized();
-
-        if (options?.sourceContext) {
-            const contextResolved = await resolveWithContext(canonicalUrl, options.sourceContext, cache, resolveEntry);
-            if (contextResolved) {
-                return contextResolved;
-            }
-        }
-
-        const entries = cache.entries[canonicalUrl] || [];
-
-        if (entries.length === 0) {
-            throw new Error(`Cannot resolve canonical URL: ${canonicalUrl}`);
-        }
-
-        let filtered = [...entries];
-
-        if (options?.package) {
-            filtered = filtered.filter((e) => e.package?.name === options.package);
-        }
-
-        if (options?.version) {
-            filtered = filtered.filter((e) => e.version === options.version);
-        }
-
-        if (filtered.length === 0) {
-            throw new Error(`No matching resource found for ${canonicalUrl} with given options`);
-        }
-
-        const result = filtered[0];
-        if (!result) {
-            throw new Error(`No matching resource found for ${canonicalUrl}`);
-        }
-        return result;
+        return query.resolveEntry(canonicalUrl, options);
     };
 
     const resolve = async (
@@ -456,8 +423,8 @@ export const createCanonicalManager = (config: Config): CanonicalManager => {
             sourceContext?: SourceContext;
         },
     ): Promise<Resource> => {
-        const entry = await resolveEntry(canonicalUrl, options);
-        return read(entry);
+        ensureInitialized();
+        return query.resolve(canonicalUrl, options);
     };
 
     const read = async (reference: Reference): Promise<Resource> => {
@@ -492,6 +459,18 @@ export const createCanonicalManager = (config: Config): CanonicalManager => {
         }
     };
 
+    const query = createCanonicalQuery({
+        async findEntriesByUrl(url) {
+            return cache.entries[url] || [];
+        },
+        async findEntries(params) {
+            const entries = params.url ? cache.entries[params.url] || [] : Object.values(cache.entries).flat();
+            return filterEntryCandidates(entries, params);
+        },
+        read,
+        resolveWithContext: (url, context, resolveEntry) => resolveWithContext(url, context, cache, resolveEntry),
+    });
+
     const searchEntries = async (params: {
         kind?: string;
         url?: string;
@@ -500,35 +479,7 @@ export const createCanonicalManager = (config: Config): CanonicalManager => {
         package?: PackageId;
     }): Promise<IndexEntry[]> => {
         ensureInitialized();
-
-        let results: IndexEntry[] = [];
-
-        if (params.url) {
-            results = cache.entries[params.url] || [];
-        } else {
-            for (const entries of Object.values(cache.entries)) {
-                results.push(...entries);
-            }
-        }
-
-        if (params.kind !== undefined) {
-            results = results.filter((e) => e.kind === params.kind);
-        }
-
-        if (params.type !== undefined) {
-            results = results.filter((e) => e.type === params.type);
-        }
-
-        if (params.version !== undefined) {
-            results = results.filter((e) => e.version === params.version);
-        }
-
-        if (params.package) {
-            const pkg = params.package;
-            results = results.filter((e) => e.package?.name === pkg.name && e.package?.version === pkg.version);
-        }
-
-        return results;
+        return query.searchEntries(params);
     };
 
     const search = async (params: {
@@ -538,9 +489,8 @@ export const createCanonicalManager = (config: Config): CanonicalManager => {
         version?: string;
         package?: PackageId;
     }): Promise<Resource[]> => {
-        const entries = await searchEntries(params);
-        const resources = await Promise.all(entries.map((entry) => read(entry)));
-        return resources;
+        ensureInitialized();
+        return query.search(params);
     };
 
     const smartSearch = async (
@@ -553,69 +503,12 @@ export const createCanonicalManager = (config: Config): CanonicalManager => {
         },
     ): Promise<IndexEntry[]> => {
         ensureInitialized();
-
-        // Start with base search using filters
-        let results = await searchEntries({
-            kind: filters?.kind,
-            package: filters?.package,
-        });
-
-        // Apply resourceType filter
-        if (filters?.resourceType) {
-            results = results.filter((entry) => entry.resourceType === filters.resourceType);
-        }
-
-        // Apply type filter
-        if (filters?.type) {
-            results = results.filter((entry) => entry.type === filters.type);
-        }
-
-        // Apply smart search filtering
-        return filterBySmartSearch(results, searchTerms);
+        return query.smartSearch(searchTerms, filters);
     };
 
     const getSearchParametersForResource = async (resourceType: string): Promise<SearchParameter[]> => {
         ensureInitialized();
-
-        // Check cache first
-        if (searchParamsCache.has(resourceType)) {
-            const cached = searchParamsCache.get(resourceType);
-            if (cached) {
-                return cached;
-            }
-        }
-
-        // Query all SearchParameter resources
-        // Note: We search by resourceType, not type, because for SearchParameter resources,
-        // 'type' refers to the search parameter type (token, string, etc.)
-        const allEntries = await searchEntries({});
-        const searchParamEntries = allEntries.filter((entry) => entry.resourceType === "SearchParameter");
-
-        const results: SearchParameter[] = [];
-
-        for (const entry of searchParamEntries) {
-            const resource = await read(entry);
-
-            // Check if this parameter applies to the requested resource
-            const bases = resource.base || [];
-            if (Array.isArray(bases) && bases.includes(resourceType)) {
-                // Return the full original resource - it already contains all fields
-                // Cast through unknown to satisfy TypeScript
-                results.push(resource as unknown as SearchParameter);
-            }
-        }
-
-        // Sort by code for consistent output
-        results.sort((a, b) => {
-            const codeA = a.code || "";
-            const codeB = b.code || "";
-            return codeA.localeCompare(codeB);
-        });
-
-        // Cache the results
-        searchParamsCache.set(resourceType, results);
-
-        return results;
+        return query.getSearchParametersForResource(resourceType);
     };
 
     const packageJson = async (packageName: PackageName): Promise<PackageJson> => {

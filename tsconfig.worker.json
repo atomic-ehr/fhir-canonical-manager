@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "lib": ["ESNext", "WebWorker", "WebWorker.Iterable", "WebWorker.AsyncIterable"],
+    "types": ["node"],
+    "noEmit": true
+  },
+  "include": ["src/browser/worker/**/*.ts"],
+  "exclude": ["node_modules", "dist", "tmp"]
+}

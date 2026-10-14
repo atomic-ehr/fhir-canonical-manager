@@ -1,0 +1,23 @@
+export default {
+    builtinModules: [
+        "fs",
+        "path",
+        "os",
+        "crypto",
+        "http",
+        "https",
+        "stream",
+        "util",
+        "events",
+        "buffer",
+        "url",
+        "assert",
+        "module",
+        "process",
+        "net",
+        "tls",
+        "dns",
+        "v8",
+        "child_process",
+    ],
+};

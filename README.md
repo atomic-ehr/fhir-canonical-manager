@@ -45,6 +45,62 @@ const resource = await manager.resolve('http://hl7.org/fhir/StructureDefinition/
 console.log(resource.url); // http://hl7.org/fhir/StructureDefinition/Patient
 ```
 
+## Browser usage
+
+Import the browser entry and bundle it with your application. Package preparation and resource parsing run in a Worker; custom `fetch` and patch callbacks run in the caller.
+
+```typescript
+import { createCanonicalManager } from '@atomic-ehr/fhir-canonical-manager/browser';
+
+const manager = createCanonicalManager({
+    packages: ['hl7.fhir.r4.core@4.0.1'],
+    onProgress(event) { // optional, browser only
+        if (event.phase === 'download') {
+            console.log(event.package.name, event.receivedBytes, event.totalBytes ?? 'unknown total');
+        } else if (event.phase === 'ready') {
+            console.log(`Ready: ${event.packages} packages, ${event.resources} resources`);
+        } else {
+            console.log(event.phase, event.done ? 'complete' : 'working');
+        }
+    },
+});
+await manager.init();
+const patient = await manager.resolve('http://hl7.org/fhir/StructureDefinition/Patient');
+const humanName = await manager.resolve('http://hl7.org/fhir/StructureDefinition/HumanName', {
+    sourceContext: { id: patient.id },
+});
+await manager.destroy();
+```
+
+Use `sourceContext: { id: resource.id }` to resolve within that resource's package and dependency closure. `resolve(..., { version })` selects a FHIR resource version; `sourceContext.package.version` selects a package version.
+
+The default registry is `https://packages.simplifier.net/`. A custom `registry` must serve npm-compatible package metadata with `dist.tarball` and `dist.integrity` or `dist.shasum`. Tarballs must share the registry's origin, and all requests must allow browser CORS.
+
+`onProgress` observes initialization/additions through `resolve`, `download`, `verify`, `extract`, `index`, `cache` and `ready` phases. Resolution can overlap package phases. Active/completed phases carry `done`; downloads include `package`, `receivedBytes` and optional `totalBytes`, extraction counts tar `entries`, and indexing counts `resources`. `cache` distinguishes `clear`/`commit`; `ready` reports unique packages and final indexed entries after committed state is published. Await `init()` for success; no global percentage is guessed.
+
+Worker updates are coalesced about every 100 ms, preserving phase boundaries. Cached archives skip download but are verified/extracted again. Download bytes count the Fetch body before tar/gzip extraction, not HTTP-encoded wire bytes; totals are omitted when lengths/encoding are unreliable or hidden by CORS. Download EOF is not verification. Cancellation stops new notifications. Observers run in the caller, are never awaited, and their throws/rejections do not interrupt preparation.
+
+Caching defaults to memory. For persistence and offline reloads, supply IndexedDB:
+
+```typescript
+import { createCanonicalManager, createIndexedDbCache } from '@atomic-ehr/fhir-canonical-manager/browser';
+
+const cache = await createIndexedDbCache('my-fhir-packages');
+const manager = createCanonicalManager({ packages: ['hl7.fhir.r4.core@4.0.1'], cache });
+await manager.init();
+// Resolve and read resources here.
+await manager.destroy();
+cache.close();
+```
+
+Cached metadata is reused until `flushCache()` or `dropCache: true`; call `init()` after flushing. Patches are applied separately for each manager. Built-in caches commit atomically; custom caches need `putMany(entries, signal)` for atomic commits. Failed or cancelled initialization preserves the previously committed manager state. Call `destroy()` when finished; close an IndexedDB cache connection when your application no longer uses it.
+
+Browser requirements and limits:
+
+- A modern secure browser context with Web Streams, gzip `DecompressionStream` and Web Crypto. CSP must allow `worker-src blob:` and `connect-src` for the registry.
+- Dependencies may use semver ranges, exact versions or tags. Executable/bundled packages, git/file/URL/npm-alias dependencies and filesystem imports (`addLocalPackage` / `addTgzPackage`) are unsupported.
+- `signal` accepts an `AbortSignal`. `requestTimeoutMs` defaults to 60,000 and `graphTimeoutMs` to 180,000. `archiveLimits` defaults to 200 MiB decompressed bytes and 25,000 entries per archive. Large IGs may need higher limits or timeouts.
+
 ## CLI Usage
 
 The package includes a powerful command-line interface (`fcm`) for managing FHIR packages and searching resources without writing code.
@@ -907,8 +963,19 @@ bun install
 To run tests:
 
 ```bash
-bun test
+bun run test
 ```
+
+This builds the package before running tests. After `bun run build`, targeted tests can use `bun test` directly.
+
+For browser tests, install Chromium once and run:
+
+```bash
+bun run test:browser:install
+bun run test:browser
+```
+
+Set `FCM_BROWSER_EXECUTABLE` to use an existing Chrome executable, or `FCM_BROWSER_LIVE=1` to include live US Core loading.
 
 To run the example:
 

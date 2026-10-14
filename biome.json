@@ -7,7 +7,16 @@
   },
   "files": {
     "ignoreUnknown": false,
-    "includes": ["src/**/*.ts", "test/**/*.ts", "package.json", "biome.json"]
+    "includes": [
+      "src/**/*.ts",
+      "test/**/*.ts",
+      "scripts/**/*.ts",
+      "package.json",
+      "biome.json",
+      "tsconfig*.json",
+      "playwright.config.ts",
+      "tsdown.config.ts"
+    ]
   },
   "formatter": {
     "enabled": true,

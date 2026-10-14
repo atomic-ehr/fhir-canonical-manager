@@ -1,111 +1,32 @@
-/**
- * Index processing functionality
- */
-
-import * as fs from "node:fs/promises";
+/** Node directory adapter for shared resource collection and index commitment. */
 import * as path from "node:path";
 import type { ExtendedCache } from "../cache.js";
-import { fileExists } from "../fs/index.js";
+import {
+    type CollectedResource,
+    collectFromSource,
+    collectFromIndex as collectSourceIndex,
+    type IndexLoadResult,
+} from "../core/resource-index.js";
 import type { IndexEntry, PackageJson } from "../types/index.js";
-import { parseIndex } from "./parser.js";
+import { createDirectoryResourceSource } from "./source.js";
 
-/** A resource discovered from an index or directory scan, not yet committed to the cache. */
-export type CollectedEntry = {
-    filePath: string;
-    resourceType: string;
-    url: string;
-    version?: string;
-    kind?: string;
-    type?: string;
-    indexVersion: number;
-};
+export type CollectedEntry = Omit<CollectedResource, "filename"> & { filePath: string };
+export type { IndexLoadResult } from "../core/resource-index.js";
 
-/** Outcome of reading a `.index.json`. `count` may be 0 for a legitimately resource-free index. */
-export type IndexLoadResult = { ok: true; count: number } | { ok: false; reason: "unparseable" | "missing-files" };
+function locateEntries(basePath: string, entries: CollectedResource[]): CollectedEntry[] {
+    return entries.map(({ filename, ...entry }) => ({ filePath: path.join(basePath, filename), ...entry }));
+}
 
-/**
- * Read and validate a package `.index.json`, collecting entries **without** mutating the
- * cache. On `"missing-files"` the partial (resolvable) set is still returned, so callers
- * can choose to commit it (`"use"`) or discard it and fall back to a scan (`"recover"`).
- */
-export const collectFromIndex = async (
+export async function collectFromIndex(
     basePath: string,
-): Promise<{ result: IndexLoadResult; entries: CollectedEntry[] }> => {
-    const indexPath = path.join(basePath, ".index.json");
+): Promise<{ result: IndexLoadResult; entries: CollectedEntry[] }> {
+    const { result, entries } = await collectSourceIndex(createDirectoryResourceSource(basePath));
+    return { result, entries: locateEntries(basePath, entries) };
+}
 
-    let indexContent: string;
-    try {
-        indexContent = await fs.readFile(indexPath, "utf-8");
-    } catch {
-        return { result: { ok: false, reason: "unparseable" }, entries: [] };
-    }
-
-    const index = parseIndex(indexContent, indexPath);
-    if (!index) return { result: { ok: false, reason: "unparseable" }, entries: [] };
-
-    const entries: CollectedEntry[] = [];
-    let missingCount = 0;
-    for (const file of index.files) {
-        if (!file.url) continue;
-
-        const filePath = path.join(basePath, file.filename);
-        if (!(await fileExists(filePath))) {
-            missingCount++;
-            continue;
-        }
-
-        entries.push({
-            filePath,
-            resourceType: file.resourceType,
-            url: file.url,
-            version: file.version,
-            kind: file.kind,
-            type: file.type,
-            indexVersion: index["index-version"],
-        });
-    }
-
-    if (missingCount > 0) return { result: { ok: false, reason: "missing-files" }, entries };
-    return { result: { ok: true, count: entries.length }, entries };
-};
-
-/**
- * Read FHIR resources directly from a directory (no `.index.json`), collecting entries
- * **without** mutating the cache. Files without `resourceType`/`url` or that fail to
- * parse are skipped.
- */
-export const collectFromDirectory = async (dirPath: string): Promise<CollectedEntry[]> => {
-    const entries: CollectedEntry[] = [];
-
-    try {
-        const dirents = await fs.readdir(dirPath, { withFileTypes: true });
-        for (const dirent of dirents) {
-            if (!dirent.isFile() || !dirent.name.endsWith(".json")) continue;
-            if (dirent.name === "package.json" || dirent.name === ".index.json") continue;
-
-            const filePath = path.join(dirPath, dirent.name);
-            try {
-                const resource = JSON.parse(await fs.readFile(filePath, "utf-8"));
-                if (!resource.resourceType || !resource.url) continue;
-                entries.push({
-                    filePath,
-                    resourceType: resource.resourceType,
-                    url: resource.url,
-                    version: resource.version,
-                    kind: resource.kind,
-                    type: resource.type,
-                    indexVersion: 0,
-                });
-            } catch {
-                // Skip files that can't be parsed
-            }
-        }
-    } catch {
-        // Silently ignore directory scan errors
-    }
-
-    return entries;
-};
+export async function collectFromDirectory(dirPath: string): Promise<CollectedEntry[]> {
+    return locateEntries(dirPath, await collectFromSource(createDirectoryResourceSource(dirPath)));
+}
 
 /**
  * Commit collected entries into the cache (reference manager + entry index). Returns the
