@@ -365,7 +365,7 @@ The bundled patch helpers are exported from the `@atomic-ehr/fhir-canonical-mana
 
 - **Scoping combinators** — `inPackage(match, [handlers])` applies handlers only to matching packages (name, `{name, version}`, or predicate) and nests; `inResource(url, [handlers])` scopes resource handlers to one canonical.
 - **Manifest fixes** (`packageJson` phase) — `ensureDependency(deps)` makes a package declare each dependency at the given version (adds missing ones, adjusts mismatched ones, never adds a package to itself); `renamePackage(from, to)` fixes a typo'd manifest name.
-- **Resource fixes** (`fhirResource` phase) — `replaceText(from, to)` substitutes a string throughout the serialized body (typo'd canonicals, wrong reference targets, unavailable ValueSet bindings — scope it!); `ensureCodes(url, codes)` appends missing codes to a CodeSystem without touching existing concepts.
+- **Resource fixes** (`fhirResource` phase) — `replaceText(from, to)` substitutes a string throughout the serialized body (typo'd canonicals, wrong reference targets, unavailable ValueSet bindings — scope it!); `ensureCodes(url, codes)` appends missing codes to a CodeSystem without touching existing concepts; `patchElement(url, elementId, (element) => element)` rewrites one StructureDefinition element (snapshot and differential) — e.g. widen or narrow its reference targets.
 - **Index fixes** (`indexEntry` phase) — `excludeCanonical({package?, url, reason})` drops a canonical from the index (output *and* resolution), recording the reason in `report()`.
 - **Plumbing** — `applyPatches`, `matchPackage`.
 
