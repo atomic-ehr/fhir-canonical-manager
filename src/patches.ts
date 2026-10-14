@@ -125,6 +125,45 @@ export const ensureCodes =
         return { ...resource, concept: [...concept, ...missing.map((code) => ({ code }))] };
     };
 
+/** An ElementDefinition as `patchElement` hands it over — `id`, `path` and `type`, everything else as-is. */
+export type ElementDefinition = {
+    id?: string;
+    path: string;
+    type?: { code: string; targetProfile?: string[]; [key: string]: any }[];
+    [key: string]: any;
+};
+
+/**
+ * Rewrite one element of a StructureDefinition: `patch` gets each snapshot and differential
+ * element whose `id` is `elementId` (e.g. `RelatedPerson.patient`, or
+ * `Observation.component:systolic` for one slice) and returns its replacement, or `undefined`
+ * to leave it as it is. Scope it to one StructureDefinition with `inResource`. No-op if the
+ * resource isn't a StructureDefinition or `patch` changed nothing.
+ */
+export const patchElement =
+    (elementId: string, patch: (element: ElementDefinition) => ElementDefinition | undefined): ResourcePatch =>
+    (_pkg, resource) => {
+        if (resource.resourceType !== "StructureDefinition") return undefined;
+        let changed = false;
+        const patched = { ...resource };
+        for (const view of ["snapshot", "differential"] as const) {
+            const elements: ElementDefinition[] | undefined = resource[view]?.element;
+            if (!elements) continue;
+            patched[view] = {
+                ...resource[view],
+                element: elements.map((element) => {
+                    if (element.id !== elementId) return element;
+                    const result = patch(element);
+                    if (result === undefined) return element;
+                    changed = true;
+                    return result;
+                }),
+            };
+        }
+        if (!changed) return undefined;
+        return patched;
+    };
+
 /**
  * Ensure the manifest declares each dependency at the given version — adds missing entries and
  * adjusts mismatched versions (unlike `injectDependency`, which never touches declared deps).

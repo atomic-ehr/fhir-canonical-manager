@@ -7,6 +7,7 @@ import {
     inPackage,
     inResource,
     matchPackage,
+    patchElement,
     renamePackage,
     replaceText,
 } from "../../../src/patches";
@@ -143,6 +144,43 @@ describe("helper factories", () => {
         expect(
             patch(pkg, { resourceType: "ValueSet", url: "http://cs", concept: [] } as never, noReport),
         ).toBeUndefined();
+    });
+
+    test("patchElement rewrites the element with the given id in snapshot and differential", () => {
+        const patch = patchElement("RelatedPerson.patient", (element) => ({ ...element, min: 0 }));
+        const patient = { id: "RelatedPerson.patient", path: "RelatedPerson.patient", min: 1 };
+        const name = { id: "RelatedPerson.name", path: "RelatedPerson.name", min: 0 };
+        const sd = {
+            resourceType: "StructureDefinition",
+            url: "http://sd",
+            snapshot: { element: [name, patient] },
+            differential: { element: [patient] },
+        };
+
+        expect(patch(pkg, sd as never, noReport) as unknown).toEqual({
+            resourceType: "StructureDefinition",
+            url: "http://sd",
+            snapshot: { element: [name, { ...patient, min: 0 }] },
+            differential: { element: [{ ...patient, min: 0 }] },
+        });
+
+        expect(patchElement("RelatedPerson.patient", () => undefined)(pkg, sd as never, noReport)).toBeUndefined();
+        expect(patchElement("RelatedPerson.gender", () => name)(pkg, sd as never, noReport)).toBeUndefined();
+        expect(patch(pkg, { ...sd, resourceType: "Questionnaire" } as never, noReport)).toBeUndefined();
+    });
+
+    test("patchElement nests in inResource to patch one StructureDefinition", () => {
+        const patch = inResource("http://sd", [
+            patchElement("RelatedPerson.patient", (element) => ({ ...element, min: 0 })),
+        ]);
+        const sd = {
+            resourceType: "StructureDefinition",
+            url: "http://sd",
+            differential: { element: [{ id: "RelatedPerson.patient", path: "RelatedPerson.patient", min: 1 }] },
+        };
+
+        expect((patch(pkg, sd as never, noReport) as unknown as typeof sd).differential.element[0]?.min).toBe(0);
+        expect(patch(pkg, { ...sd, url: "http://other" } as never, noReport)).toBeUndefined();
     });
 
     test("inPackage scopes handlers and nests with inResource", () => {
