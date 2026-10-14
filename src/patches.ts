@@ -125,8 +125,13 @@ export const ensureCodes =
         return { ...resource, concept: [...concept, ...missing.map((code) => ({ code }))] };
     };
 
-/** An ElementDefinition as `patchElement` hands it over — `id` and `path`, everything else as-is. */
-export type ElementDefinition = { id?: string; path: string; [key: string]: any };
+/** An ElementDefinition as `patchElement` hands it over — `id`, `path` and `type`, everything else as-is. */
+export type ElementDefinition = {
+    id?: string;
+    path: string;
+    type?: { code: string; targetProfile?: string[]; [key: string]: any }[];
+    [key: string]: any;
+};
 
 /**
  * Rewrite one element of a StructureDefinition: `patch` gets each snapshot and differential
